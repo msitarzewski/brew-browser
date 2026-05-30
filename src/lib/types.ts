@@ -107,6 +107,7 @@ export interface PackageDetail {
   installedPaths: string[];
   analytics30dInstalls: number | null;
   rawJson: unknown;
+  existsInApplications: boolean;
 }
 
 // =========================================================

@@ -80,6 +80,7 @@
   let depsOpen = $state(false);
   let dependentsOpen = $state(false);
   let confirmUninstall = $state(false);
+  let confirmExternalInstall = $state(false);
 
   // Focus management for the slide-over (A11Y-2 / WCAG 2.4.3).
   // When the panel opens (null → truthy), capture the previously-focused element
@@ -134,14 +135,14 @@
     void trendingHistory.ensureSeriesLoaded(name, kind);
   }
 
-  async function doInstall() {
+  async function doInstall(force = false) {
     if (!ui.selectedPackage) return;
     const { name, kind } = ui.selectedPackage;
     const tmpId = crypto.randomUUID();
-    activity.startJob(`Installing ${name}`, tmpId, `brew install ${name}`);
+    activity.startJob(`Installing ${name}`, tmpId, `brew install ${name}${force ? " --force" : ""}`);
     ui.openDrawer();
     try {
-      const result = await brewInstall(name, kind, (evt) => {
+      const result = await brewInstall(name, kind, force, (evt) => {
         // first event will carry the real jobId; rewrite if needed
         if (evt.kind === "started" && evt.jobId !== tmpId) {
           const j = activity.jobs.find((j) => j.jobId === tmpId);
@@ -170,6 +171,14 @@
       }
     } catch (e) {
       reportableToastError("Install failed", e);
+    }
+  }
+
+  function handleInstallClick() {
+    if (pkg && pkg.kind === "cask" && !pkg.installedVersion && detail?.existsInApplications) {
+      confirmExternalInstall = true;
+    } else {
+      doInstall(false);
     }
   }
 
@@ -892,7 +901,15 @@
           {/if}
           <div>
             <dt>Installed</dt>
-            <dd>{pkg.installedVersion ?? "Not installed"}</dd>
+            <dd>
+              {#if pkg.installedVersion}
+                {pkg.installedVersion}
+              {:else if detail.existsInApplications}
+                Installed by User
+              {:else}
+                Not installed
+              {/if}
+            </dd>
           </div>
           <div>
             <dt>Latest</dt>
@@ -1435,7 +1452,7 @@
           Uninstall
         </Button>
       {:else if isInstalled}
-        <Button variant="secondary" onclick={doInstall}>
+        <Button variant="secondary" onclick={() => doInstall(false)}>
           {#snippet icon()}<RefreshCcw size={16} />{/snippet}
           Reinstall
         </Button>
@@ -1444,7 +1461,7 @@
           Uninstall
         </Button>
       {:else if pkg}
-        <Button variant="primary" onclick={doInstall}>
+        <Button variant="primary" onclick={handleInstallClick}>
           {#snippet icon()}<Download size={16} />{/snippet}
           Install
         </Button>
@@ -1460,6 +1477,20 @@
     onConfirm={doUninstall}
   >
     <p>This will remove <strong>{ui.selectedPackage.name}</strong> from your system.</p>
+  </DestructiveConfirm>
+
+  <DestructiveConfirm
+    open={confirmExternalInstall}
+    title="Overwrite manual installation?"
+    confirmLabel="Install & Override"
+    confirmVariant="danger"
+    onCancel={() => (confirmExternalInstall = false)}
+    onConfirm={() => {
+      confirmExternalInstall = false;
+      doInstall(true);
+    }}
+  >
+    <p>An existing version of <strong>{ui.selectedPackage?.name}</strong> was found in your Applications folder. If you proceed, Homebrew will force-install and overwrite the existing bundle.</p>
   </DestructiveConfirm>
 
   <IssueModal
