@@ -128,11 +128,13 @@ function makeChannel(onEvent: (evt: BrewStreamEvent) => void): Channel<BrewStrea
 export function brewInstall(
   name: string,
   kind: PackageKind,
+  force = false,
   onEvent: (evt: BrewStreamEvent) => void,
 ): Promise<JobResult> {
   return invoke<JobResult>("brew_install", {
     name,
     kind,
+    force,
     onEvent: makeChannel(onEvent),
   });
 }

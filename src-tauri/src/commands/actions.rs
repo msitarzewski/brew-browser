@@ -20,6 +20,7 @@ use crate::types::{BrewStreamEvent, JobResult, PackageKind};
 pub async fn brew_install(
     name: String,
     kind: PackageKind,
+    force: bool,
     on_event: Channel<BrewStreamEvent>,
     state: State<'_, AppState>,
 ) -> Result<JobResult, BrewError> {
@@ -30,16 +31,86 @@ pub async fn brew_install(
         PackageKind::Formula => "--formula",
         PackageKind::Cask => "--cask",
     };
-    let args = vec![
+    let mut args = vec![
         "install".to_string(),
         kind_flag.to_string(),
         name.clone(),
     ];
-    let display = format!("brew install {} {}", kind_flag, name);
+    if force {
+        args.push("--force".to_string());
+    }
+    let display = format!(
+        "brew install {} {}{}",
+        kind_flag,
+        name,
+        if force { " --force" } else { "" }
+    );
     let jobs = state.jobs.clone();
     let lock = state.brew_write_lock.clone();
 
     let _guard = lock.lock_owned().await;
+
+    if force && matches!(kind, PackageKind::Cask) {
+        println!("[actions] forced install selected for cask {}", name);
+        match crate::commands::info::brew_info(name.clone(), kind, state.clone()).await {
+            Ok(detail) => {
+                println!("[actions] fetched cask detail successfully");
+                let prefix = path.parent()
+                    .and_then(|p| p.parent())
+                    .map(|p| p.to_path_buf())
+                    .unwrap_or_else(|| std::path::PathBuf::from("/opt/homebrew"));
+
+                let artifacts = detail.raw_json.get("casks")
+                .and_then(|c| c.as_array())
+                .and_then(|arr| arr.first())
+                .and_then(|cask| cask.get("artifacts"))
+                .and_then(|a| a.as_array());
+
+            if let Some(artifacts) = artifacts {
+                    for art in artifacts {
+                        if let Some(obj) = art.as_object() {
+                            if let Some(binaries) = obj.get("binary") {
+                                if let Some(arr) = binaries.as_array() {
+                                    for b in arr {
+                                        let mut targets = Vec::new();
+                                        if let Some(t) = obj.get("target").and_then(|v| v.as_str()) {
+                                            targets.push(t.to_string());
+                                        }
+                                        if let Some(s) = b.as_str() {
+                                            targets.push(s.to_string());
+                                        } else if let Some(o) = b.as_object() {
+                                            if let Some(t) = o.get("target").and_then(|v| v.as_str()) {
+                                                targets.push(t.to_string());
+                                            }
+                                        }
+
+                                        for t in targets {
+                                            let bin_path = if t.starts_with('/') {
+                                                std::path::PathBuf::from(&t)
+                                            } else {
+                                                prefix.join("bin").join(&t)
+                                            };
+                                            println!("[actions] checking colliding binary at {:?}", bin_path);
+                                            if bin_path.exists() || bin_path.is_symlink() {
+                                                match std::fs::remove_file(&bin_path) {
+                                                    Ok(_) => println!("[actions] successfully removed colliding binary {:?}", bin_path),
+                                                    Err(e) => println!("[actions] failed to remove colliding binary {:?}: {}", bin_path, e),
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                println!("[actions] failed to fetch cask detail for forced install cleanup: {:?}", e);
+            }
+        }
+    }
+
     let result = run_brew_streaming(&path, args, display, on_event, jobs).await;
 
     if result.is_ok() {

@@ -156,6 +156,7 @@ pub struct PackageDetail {
     pub installed_paths: Vec<String>,
     pub analytics30d_installs: Option<u64>,
     pub raw_json: serde_json::Value,
+    pub exists_in_applications: bool,
 }
 
 // ---------- Outdated ----------
