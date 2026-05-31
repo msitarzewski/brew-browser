@@ -26,6 +26,7 @@ Per-task records for May 2026 work on brew-browser. **Retroactively reconstructe
 | 18 | [v0.3.1 release — magic search + curated upgrade + identity cleanup + lists overhaul](./18-v0.3.1-release.md) | 2026-05-25 | `6b97e65` (prep) + `v0.3.1` tag | v0.3.1 |
 | 19 | [v0.4.0 ship — velocity scoring + opt-in history endpoint (backend + frontend + collector + docs)](./19-v0.4.0-backend.md) | 2026-05-26 | branch `feat/v0.4.0-velocity-and-history` | target v0.4.0 |
 | 20 | [v0.5.0 ship — opt-in vulnerability scanning via brew vulns + optional GHSA enrichment](./20-v0.5.0-vulnerability-scanning.md) | 2026-05-27 | branch `feat/v0.5.0-vulnerability-scanning` | target v0.5.0 |
+| 21 | [override manual install — detect manual app installs, prompt and force install safely](./21-override-manual-install.md) | 2026-05-31 | commit `8bcb493` | target v0.5.1 / PR feedback |
 | 99 | [Deferred / dropped tasks](./99-deferred-and-dropped.md) | (ongoing) | — | — |
 
 ## Reconstruction notes

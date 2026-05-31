@@ -1481,16 +1481,27 @@
 
   <DestructiveConfirm
     open={confirmExternalInstall}
-    title="Overwrite manual installation?"
-    confirmLabel="Install & Override"
+    title={detail?.isMas ? "App Store Version Detected" : "Overwrite manual installation?"}
+    confirmLabel={detail?.isMas ? "Installation Blocked" : "Install & Override"}
     confirmVariant="danger"
+    confirmDisabled={detail?.isMas}
     onCancel={() => (confirmExternalInstall = false)}
     onConfirm={() => {
       confirmExternalInstall = false;
       doInstall(true);
     }}
   >
-    <p>An existing version of <strong>{ui.selectedPackage?.name}</strong> was found in your Applications folder. If you proceed, Homebrew will force-install and overwrite the existing bundle.</p>
+    {#if detail?.isMas}
+      <div class="mas-warning-box">
+        <p>An existing version of <strong>{ui.selectedPackage?.name}</strong> was found in your Applications folder, but it was installed via the <strong>Mac App Store</strong>.</p>
+        <p>App Store bundles are system-protected, owned by different system permissions, and locked by macOS security policies. Overwriting them directly via Homebrew (which runs as a standard user) will always fail with permission errors.</p>
+        <div class="mas-instruction">
+          <strong>Resolution:</strong> Please drag <strong>{ui.selectedPackage?.name}.app</strong> from your <code>/Applications</code> folder to the Trash (macOS will prompt for your administrator password). Once the App Store version is deleted, return here to install it cleanly via Homebrew!
+        </div>
+      </div>
+    {:else}
+      <p>An existing version of <strong>{ui.selectedPackage?.name}</strong> was found in your Applications folder. If you proceed, Homebrew will force-install and overwrite the existing bundle.</p>
+    {/if}
   </DestructiveConfirm>
 
   <IssueModal
@@ -2184,5 +2195,43 @@
   }
   @media (prefers-reduced-motion: reduce) {
     :global(.spin-slow) { animation: none; }
+  }
+
+  .mas-warning-box {
+    background: var(--color-warning-subtle);
+    border-left: 3px solid var(--color-warning);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-4);
+    text-align: left;
+    font-size: var(--text-body);
+    line-height: var(--lh-body);
+  }
+  .mas-warning-box p {
+    margin: 0 0 var(--space-2) 0;
+  }
+  .mas-warning-box p:last-child {
+    margin: 0;
+  }
+  .mas-warning-box strong {
+    color: var(--color-warning-strong);
+    font-weight: var(--fw-semibold);
+  }
+  .mas-instruction {
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    margin-top: var(--space-3);
+    color: var(--color-text-primary);
+    font-size: var(--text-body-sm);
+  }
+  .mas-instruction code {
+    font-family: var(--font-mono);
+    font-size: var(--text-mono);
+    background: var(--color-surface);
+    padding: 1px 4px;
+    border-radius: var(--radius-sm);
   }
 </style>

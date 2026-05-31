@@ -108,6 +108,7 @@ export interface PackageDetail {
   analytics30dInstalls: number | null;
   rawJson: unknown;
   existsInApplications: boolean;
+  isMas: boolean;
 }
 
 // =========================================================

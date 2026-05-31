@@ -10,6 +10,7 @@
     cancelLabel?: string;
     /** "danger" for true destructive ops, "primary" for additive ones like Restore */
     confirmVariant?: "danger" | "primary";
+    confirmDisabled?: boolean;
     onConfirm: () => void;
     onCancel: () => void;
     children?: Snippet;
@@ -21,6 +22,7 @@
     confirmLabel = "Confirm",
     cancelLabel = "Cancel",
     confirmVariant = "danger",
+    confirmDisabled = false,
     onConfirm,
     onCancel,
     children,
@@ -33,6 +35,6 @@
   {/if}
   {#snippet actions()}
     <Button variant="secondary" modalAction="cancel" onclick={onCancel}>{cancelLabel}</Button>
-    <Button variant={confirmVariant} modalAction="confirm" onclick={onConfirm}>{confirmLabel}</Button>
+    <Button variant={confirmVariant} modalAction="confirm" disabled={confirmDisabled} onclick={onConfirm}>{confirmLabel}</Button>
   {/snippet}
 </Modal>

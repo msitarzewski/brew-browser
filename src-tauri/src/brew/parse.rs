@@ -273,6 +273,7 @@ impl RawFormula {
             analytics30d_installs,
             raw_json,
             exists_in_applications: false,
+            is_mas: false,
         }
     }
 }
@@ -369,7 +370,7 @@ impl RawCask {
             _ => Vec::new(),
         };
 
-        let exists_in_applications = if cfg!(target_os = "macos") {
+        let (exists_in_applications, is_mas) = if cfg!(target_os = "macos") {
             let mut candidates = cask_app_filenames(&self.artifacts);
             let token = self.token.trim();
             if !token.is_empty() {
@@ -386,11 +387,19 @@ impl RawCask {
                     candidates.push(format!("{}.app", n_trimmed));
                 }
             }
-            candidates
-                .iter()
-                .any(|name| check_app_exists_macos(name))
+            let mut found = false;
+            let mut mas = false;
+            for name in &candidates {
+                if check_app_exists_macos(name) {
+                    found = true;
+                    if check_app_is_mas_macos(name) {
+                        mas = true;
+                    }
+                }
+            }
+            (found, mas)
         } else {
-            false
+            (false, false)
         };
 
         PackageDetail {
@@ -406,6 +415,7 @@ impl RawCask {
             analytics30d_installs: None,
             raw_json,
             exists_in_applications,
+            is_mas,
         }
     }
 }
@@ -498,6 +508,20 @@ fn check_app_exists_macos(filename: &str) -> bool {
         candidates.push(home.join("Applications").join(filename));
     }
     candidates.into_iter().any(|p| p.is_dir())
+}
+
+fn check_app_is_mas_macos(filename: &str) -> bool {
+    if !filename.ends_with(".app") || filename.contains('/') || filename.contains("..") {
+        return false;
+    }
+    let mut candidates = Vec::with_capacity(2);
+    candidates.push(std::path::PathBuf::from("/Applications").join(filename));
+    if let Some(home) = dirs::home_dir() {
+        candidates.push(home.join("Applications").join(filename));
+    }
+    candidates.into_iter().any(|p| {
+        p.is_dir() && p.join("Contents").join("_MASReceipt").join("receipt").exists()
+    })
 }
 
 // ---------- brew search plain stdout ----------
@@ -1021,5 +1045,6 @@ mod tests {
         };
         let detail = raw.to_detail(serde_json::Value::Null);
         let _ = detail.exists_in_applications;
+        let _ = detail.is_mas;
     }
 }
