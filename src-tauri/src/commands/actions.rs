@@ -49,57 +49,6 @@ pub async fn brew_install(
     let lock = state.brew_write_lock.clone();
 
     let _guard = lock.lock_owned().await;
-
-    if force && matches!(kind, PackageKind::Cask) {
-        if let Ok(detail) = crate::commands::info::brew_info(name.clone(), kind, state.clone()).await {
-            let prefix = path.parent()
-                .and_then(|p| p.parent())
-                .map(|p| p.to_path_buf())
-                .unwrap_or_else(|| std::path::PathBuf::from("/opt/homebrew"));
-
-            let artifacts = detail.raw_json.get("casks")
-                .and_then(|c| c.as_array())
-                .and_then(|arr| arr.first())
-                .and_then(|cask| cask.get("artifacts"))
-                .and_then(|a| a.as_array());
-
-            if let Some(artifacts) = artifacts {
-                for art in artifacts {
-                    if let Some(obj) = art.as_object() {
-                        if let Some(binaries) = obj.get("binary") {
-                            if let Some(arr) = binaries.as_array() {
-                                for b in arr {
-                                    let mut targets = Vec::new();
-                                    if let Some(t) = obj.get("target").and_then(|v| v.as_str()) {
-                                        targets.push(t.to_string());
-                                    }
-                                    if let Some(s) = b.as_str() {
-                                        targets.push(s.to_string());
-                                    } else if let Some(o) = b.as_object() {
-                                        if let Some(t) = o.get("target").and_then(|v| v.as_str()) {
-                                            targets.push(t.to_string());
-                                        }
-                                    }
-
-                                    for t in targets {
-                                        let bin_path = if t.starts_with('/') {
-                                            std::path::PathBuf::from(&t)
-                                        } else {
-                                            prefix.join("bin").join(&t)
-                                        };
-                                        if bin_path.exists() || bin_path.is_symlink() {
-                                            let _ = std::fs::remove_file(&bin_path);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     let result = run_brew_streaming(&path, args, display, on_event, jobs).await;
 
     if result.is_ok() {
