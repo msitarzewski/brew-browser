@@ -5,6 +5,13 @@
 
 import { discover } from "./discover.svelte";
 import type { SettingsSection, SidebarSection, ThemePreference } from "$lib/types";
+import {
+  DEFAULT_LOCALE_PREFERENCE,
+  isLocalePreference,
+  resolveLocalePreference,
+  type Locale,
+  type LocalePreference,
+} from "$lib/i18n/messages";
 
 /** Default width of the package detail pane in pixels — the original fixed width. */
 export const DETAIL_PANE_DEFAULT_WIDTH = 420;
@@ -21,6 +28,7 @@ const GREEDY_UPGRADE_KEY = "brew-browser:greedy-upgrade";
 const ACTIVITY_MAX_JOBS_KEY = "brew-browser:activity:max-jobs";
 const ACTIVITY_MAX_LINES_KEY = "brew-browser:activity:max-lines";
 const SIDEBAR_COLLAPSED_KEY = "brew-browser:sidebar-collapsed";
+const LOCALE_PREFERENCE_KEY = "brew-browser:locale-preference";
 
 /** Defaults for the Activity-retention settings (Phase 12b). */
 export const ACTIVITY_MAX_JOBS_DEFAULT = 50;
@@ -96,6 +104,10 @@ class UiStore {
   /** About modal — native menu "About brew-browser" + sidebar footer link. */
   aboutOpen: boolean = $state(false);
   theme: ThemePreference = $state("system");
+  /** UI language preference. `system` keeps English for non-Russian systems
+      and enables Russian for `ru-*` system locales. */
+  localePreference: LocalePreference = $state(DEFAULT_LOCALE_PREFERENCE);
+  locale: Locale = $derived(resolveLocalePreference(this.localePreference));
   /** the package currently shown in the detail panel; null = panel closed */
   selectedPackage: { name: string; kind: "formula" | "cask" } | null = $state(null);
   /** width of the package detail pane in px; persisted to localStorage */
@@ -305,6 +317,18 @@ class UiStore {
     try {
       const v = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
       if (v !== null) this.sidebarCollapsed = v === "1";
+    } catch { /* ignore */ }
+  }
+
+  setLocalePreference(preference: LocalePreference) {
+    this.localePreference = preference;
+    try { localStorage.setItem(LOCALE_PREFERENCE_KEY, preference); } catch { /* ignore */ }
+  }
+
+  loadLocalePreferenceFromStorage() {
+    try {
+      const value = localStorage.getItem(LOCALE_PREFERENCE_KEY);
+      if (isLocalePreference(value)) this.localePreference = value;
     } catch { /* ignore */ }
   }
 

@@ -13,6 +13,7 @@
 
   import { ui, VIBRANCY_MATERIALS, type VibrancyMaterial } from "$lib/stores/ui.svelte";
   import { settings } from "$lib/stores/settings.svelte";
+  import type { LocalePreference } from "$lib/i18n/messages";
   import type { SidebarSection, ThemePreference } from "$lib/types";
 
   /** Sections the user can pick as their default landing page. Mirrors the
@@ -27,6 +28,12 @@
     { value: "activity", label: "Activity" },
   ];
 
+  const LANGUAGES: { value: LocalePreference; label: string }[] = [
+    { value: "system", label: "System language" },
+    { value: "en", label: "English" },
+    { value: "ru", label: "Russian" },
+  ];
+
   function onSectionChange(e: Event) {
     const value = (e.currentTarget as HTMLSelectElement).value as SidebarSection;
     ui.setDefaultSection(value);
@@ -34,6 +41,11 @@
   function onVibrancyChange(e: Event) {
     const value = (e.currentTarget as HTMLSelectElement).value as VibrancyMaterial;
     ui.setVibrancyMaterial(value);
+  }
+  function onLanguageChange(e: Event) {
+    const value = (e.currentTarget as HTMLSelectElement).value as LocalePreference;
+    ui.setLocalePreference(value);
+    window.location.reload();
   }
   function pickTheme(t: ThemePreference) { ui.setTheme(t); }
 
@@ -84,6 +96,21 @@
       </button>
     </div>
     <p class="hint">Follows the macOS theme when set to System.</p>
+  </div>
+
+  <div class="field">
+    <label for="language">Language</label>
+    <select
+      id="language"
+      class="select"
+      value={ui.localePreference}
+      onchange={onLanguageChange}
+    >
+      {#each LANGUAGES as opt (opt.value)}
+        <option value={opt.value}>{opt.label}</option>
+      {/each}
+    </select>
+    <p class="hint">Changing the language reloads brew-browser.</p>
   </div>
 
   <div class="field">
