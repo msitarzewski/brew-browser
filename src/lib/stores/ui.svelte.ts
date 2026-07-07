@@ -9,8 +9,10 @@ import {
   DEFAULT_LOCALE_PREFERENCE,
   isLocalePreference,
   resolveLocalePreference,
+  t,
   type Locale,
   type LocalePreference,
+  type MessageKey,
 } from "$lib/i18n/messages";
 
 /** Default width of the package detail pane in pixels — the original fixed width. */
@@ -75,24 +77,29 @@ export function clampDetailPaneWidth(w: number, windowWidth?: number): number {
 /** Human-readable titles shown in the window title bar for each section.
     Kept here (not in Sidebar) so the title bar can read them without
     importing the navigation array. */
-const SECTION_TITLES: Record<SidebarSection, string> = {
-  dashboard: "Dashboard",
-  library:   "Library",
-  discover:  "Discover",
-  trending:  "Trending",
-  snapshots: "Snapshots",
-  services:  "Services",
-  activity:  "Activity",
+const SECTION_TITLES: Record<SidebarSection, MessageKey> = {
+  dashboard: "nav.dashboard",
+  library:   "nav.library",
+  discover:  "nav.discover",
+  trending:  "nav.trending",
+  snapshots: "nav.snapshots",
+  services:  "nav.services",
+  activity:  "nav.activity",
 };
 
 class UiStore {
   /** First-launch landing. Dashboard is the home screen; clicking the sidebar
       brand returns here. Other sections live below it in the nav. */
   section: SidebarSection = $state("dashboard");
+  theme: ThemePreference = $state("system");
+  /** UI language preference. `system` keeps English for non-Russian systems
+      and enables Russian for `ru-*` system locales. */
+  localePreference: LocalePreference = $state(DEFAULT_LOCALE_PREFERENCE);
+  locale: Locale = $derived(resolveLocalePreference(this.localePreference));
 
   /** The active section's display name — shown in the window title bar
       (the panel-head `<h1>` was removed in favour of the title bar). */
-  pageTitle = $derived(SECTION_TITLES[this.section]);
+  pageTitle = $derived(t(SECTION_TITLES[this.section], this.locale));
   drawerOpen: boolean = $state(false);
   drawerMinimized: boolean = $state(false);
   paletteOpen: boolean = $state(false);
@@ -103,11 +110,6 @@ class UiStore {
   settingsInitialSection: SettingsSection | null = $state(null);
   /** About modal — native menu "About brew-browser" + sidebar footer link. */
   aboutOpen: boolean = $state(false);
-  theme: ThemePreference = $state("system");
-  /** UI language preference. `system` keeps English for non-Russian systems
-      and enables Russian for `ru-*` system locales. */
-  localePreference: LocalePreference = $state(DEFAULT_LOCALE_PREFERENCE);
-  locale: Locale = $derived(resolveLocalePreference(this.localePreference));
   /** the package currently shown in the detail panel; null = panel closed */
   selectedPackage: { name: string; kind: "formula" | "cask" } | null = $state(null);
   /** width of the package detail pane in px; persisted to localStorage */

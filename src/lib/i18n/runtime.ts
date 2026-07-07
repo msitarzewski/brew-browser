@@ -1,17 +1,9 @@
-import { DEFAULT_LOCALE, messages, type Locale } from "./messages";
+import { DEFAULT_LOCALE, messages, ruPlural, type Locale } from "./messages";
 
 type Replacement = (match: RegExpMatchArray) => string;
 
 const ATTRIBUTES = ["aria-label", "title", "placeholder", "alt"] as const;
 const SKIP_TAGS = new Set(["CODE", "KBD", "PRE", "SAMP", "SCRIPT", "STYLE", "TEXTAREA"]);
-
-function ruPlural(n: number, one: string, few: string, many: string): string {
-  const mod10 = Math.abs(n) % 10;
-  const mod100 = Math.abs(n) % 100;
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
-  return many;
-}
 
 const patterns: Array<[RegExp, Replacement]> = [
   [/^Theme: (Light|Dark|System)$/u, (m) => `Тема: ${translateText(m[1])}`],
@@ -137,7 +129,7 @@ export function translateText(source: string, locale: Locale = DEFAULT_LOCALE): 
   if (locale !== "ru") return source;
   const compact = source.replace(/\s+/gu, " ").trim();
   if (!compact) return source;
-  const exact = messages[locale][compact];
+  const exact = (messages[locale] as Record<string, string>)[compact];
   if (exact) return preserveOuterWhitespace(source, exact);
   for (const [pattern, replace] of patterns) {
     const match = compact.match(pattern);

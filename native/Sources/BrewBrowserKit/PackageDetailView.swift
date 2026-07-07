@@ -797,7 +797,7 @@ struct SeverityPill: View {
         }
     }
     var body: some View {
-        Text(severity.rawValue.capitalized)
+        Text(L10n.severityTitle(severity))
             .font(.caption2.weight(.medium))
             .padding(.horizontal, 7).padding(.vertical, 2)
             .background(color.opacity(0.2), in: .capsule)
@@ -826,7 +826,7 @@ struct SeverityDot: View {
         Circle()
             .fill(color)
             .frame(width: 8, height: 8)
-            .help("\(count) known vulnerabilit\(count == 1 ? "y" : "ies") (highest: \(severity.rawValue)). Click row to see details.")
+            .help(L10n.vulnerabilityDotHelp(count: count, severity: severity))
     }
 }
 

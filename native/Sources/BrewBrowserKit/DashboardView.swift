@@ -266,7 +266,7 @@ struct UpdatesCard: View {
 
                 if model.outdatedCount > model.outdatedPreview.count {
                     HStack {
-                        Button("+ \(model.outdatedCount - model.outdatedPreview.count) more in Library") {
+                        Button(L10n.moreInLibrary(model.outdatedCount - model.outdatedPreview.count)) {
                             model.openOutdatedInLibrary()
                         }
                         .buttonStyle(.link)
@@ -724,11 +724,11 @@ struct ExposureCard: View {
                     // medium warning (amber/orange), low info (blue), unknown
                     // neutral (gray).
                     HStack(spacing: 16) {
-                        sevCount(exposure.critical, "critical", .red)
-                        sevCount(exposure.high, "high", .red)
-                        sevCount(exposure.medium, "medium", .orange)
-                        sevCount(exposure.low, "low", .blue)
-                        if exposure.unknown > 0 { sevCount(exposure.unknown, "unknown", .gray) }
+                        sevCount(exposure.critical, L10n.severity(.critical), .red)
+                        sevCount(exposure.high, L10n.severity(.high), .red)
+                        sevCount(exposure.medium, L10n.severity(.medium), .orange)
+                        sevCount(exposure.low, L10n.severity(.low), .blue)
+                        if exposure.unknown > 0 { sevCount(exposure.unknown, L10n.severity(.unknown), .gray) }
                         Spacer()
                     }
                     // Summary line — identical to the Tauri Exposure card
@@ -737,9 +737,14 @@ struct ExposureCard: View {
                     // advisories (findings), so the line spells out the findings
                     // total separately from the package count; the source label
                     // makes a stale (cache) scan visibly distinct from a fresh one.
-                    Text("**\(exposure.total)** finding\(exposure.total == 1 ? "" : "s") across **\(exposure.vulnerablePackages)** of **\(model.totalPackages)** installed packages\(model.vulnSource.map { " · source: \($0.rawValue)" } ?? "")")
+                    Text(L10n.exposureSummary(
+                        findings: exposure.total,
+                        vulnerablePackages: exposure.vulnerablePackages,
+                        totalPackages: model.totalPackages,
+                        source: model.vulnSource?.rawValue
+                    ))
                         .font(.callout).foregroundStyle(.secondary)
-                    Button("View vulnerable packages →") {
+                    Button(L10n.string("security.viewVulnerablePackages")) {
                         model.openVulnerableInLibrary()
                     }
                     .buttonStyle(.link)
@@ -782,22 +787,20 @@ struct GitHubCard: View {
                 .padding(.bottom, 10)
 
                 if model.githubStatsLoaded && model.githubHomepageTotal == 0 {
-                    Text("None of your installed packages have a GitHub homepage.")
+                    Text(L10n.string("github.noInstalledHomepages"))
                         .font(.callout).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else if !model.githubStatsLoaded {
                     HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
-                        Text(model.githubHomepageTotal > 0
-                            ? "Checking which of your \(model.githubHomepageTotal) packages you've starred…"
-                            : "Checking your starred packages…")
+                        Text(L10n.githubCheckingStarred(total: model.githubHomepageTotal))
                             .font(.callout).foregroundStyle(.secondary)
                         Spacer()
                     }
                 } else {
                     HStack(spacing: 8) {
                         Image(systemName: "star.fill").foregroundStyle(.yellow)
-                        Text("You've starred **\(model.githubStarredCount)** of **\(model.githubHomepageTotal)** installed packages with GitHub homepages.")
+                        Text(L10n.githubStarredSummary(starred: model.githubStarredCount, total: model.githubHomepageTotal))
                             .font(.callout)
                         Spacer()
                     }

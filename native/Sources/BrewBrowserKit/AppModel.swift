@@ -14,6 +14,18 @@ enum Section: String, CaseIterable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
+    var localizedTitle: String {
+        switch self {
+        case .dashboard: return L10n.string("nav.dashboard")
+        case .library:   return L10n.string("nav.library")
+        case .discover:  return L10n.string("nav.discover")
+        case .trending:  return L10n.string("nav.trending")
+        case .snapshots: return L10n.string("nav.snapshots")
+        case .services:  return L10n.string("nav.services")
+        case .activity:  return L10n.string("nav.activity")
+        }
+    }
+
     /// SF Symbol for the sidebar row — all system symbols, no custom assets.
     var symbol: String {
         switch self {
@@ -43,6 +55,18 @@ enum LibraryFilter: String, CaseIterable, Identifiable, Hashable {
     case vulnerable = "Vulnerable"
 
     var id: String { rawValue }
+
+    var localizedTitle: String {
+        switch self {
+        case .all:        return L10n.string("filter.all")
+        case .formulae:   return L10n.string("package.kind.formulae")
+        case .casks:      return L10n.string("package.kind.casks")
+        case .outdated:   return L10n.string("filter.outdated")
+        case .manual:     return L10n.string("filter.manual")
+        case .dependency: return L10n.string("filter.dependency")
+        case .vulnerable: return L10n.string("filter.vulnerable")
+        }
+    }
 }
 
 /// A flattened Library table row. Built in `AppModel.libraryRows` so the
@@ -318,9 +342,7 @@ public final class AppModel {
     /// flash empty.
     var catalogDaysOldLabel: String {
         guard let s = catalogSummary else { return "—" }
-        if s.daysOld <= 0 { return "today" }
-        if s.daysOld == 1 { return "1 day old" }
-        return "\(s.daysOld) days old"
+        return L10n.catalogAge(days: s.daysOld)
     }
 
     /// Discover rows: catalog filtered by category + the shared search field,

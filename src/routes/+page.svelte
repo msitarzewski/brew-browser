@@ -32,12 +32,13 @@
   import { services } from "$lib/stores/services.svelte";
   import { search } from "$lib/stores/search.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t, type MessageKey } from "$lib/i18n/messages";
   import type { SidebarSection, ThemePreference } from "$lib/types";
 
-  const themeLabel: Record<ThemePreference, string> = {
-    light: "Light",
-    dark: "Dark",
-    system: "System",
+  const themeLabel: Record<ThemePreference, MessageKey> = {
+    light: "theme.light",
+    dark: "theme.dark",
+    system: "theme.system",
   };
 
   function isTextInput(el: EventTarget | null): boolean {
@@ -68,7 +69,7 @@
       const order = ["light", "dark", "system"] as const;
       const next = order[(order.indexOf(ui.theme) + 1) % order.length];
       ui.setTheme(next);
-      toast.info(`Theme: ${themeLabel[next]}`);
+      toast.info(t("theme.title", ui.locale, { theme: t(themeLabel[next], ui.locale) }));
       return;
     }
 
@@ -170,8 +171,8 @@
       type="button"
       class="titlebar-btn"
       data-tauri-drag-region="false"
-      title={ui.sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-      aria-label={ui.sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+      title={ui.sidebarCollapsed ? t("nav.showSidebar", ui.locale) : t("nav.hideSidebar", ui.locale)}
+      aria-label={ui.sidebarCollapsed ? t("nav.showSidebar", ui.locale) : t("nav.hideSidebar", ui.locale)}
       aria-pressed={ui.sidebarCollapsed}
       onclick={() => ui.toggleSidebarCollapsed()}
     >
@@ -224,7 +225,7 @@
           max={detailPaneMax}
           defaultWidth={DETAIL_PANE_DEFAULT_WIDTH}
           direction="left"
-          label="Resize package detail panel"
+          label={t("Resize package detail panel", ui.locale)}
           onChange={(w) => (ui.detailPaneWidth = w)}
           onCommit={(w) => ui.setDetailPaneWidth(w)}
         />

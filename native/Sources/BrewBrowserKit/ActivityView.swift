@@ -20,15 +20,7 @@ struct ActivityDrawer: View {
     /// form ("Installing X"); on completion show the terminal form so a green ✓
     /// doesn't sit next to "Installing".
     static func displayLabel(_ job: ActivityJob) -> String {
-        switch job.status {
-        case .running:   return job.label
-        case .succeeded: return job.label
-                .replacingOccurrences(of: "Installing ", with: "Installed ")
-                .replacingOccurrences(of: "Upgrading ", with: "Upgraded ")
-                .replacingOccurrences(of: "Uninstalling ", with: "Uninstalled ")
-        case .failed:    return "Failed: \(job.label)"
-        case .canceled:  return "Canceled: \(job.label)"
-        }
+        L10n.activityDisplayLabel(job)
     }
 
     var body: some View {
@@ -75,21 +67,21 @@ struct ActivityDrawer: View {
             if job.status == .running {
                 Button {
                     model.cancelJob(job.id)
-                } label: { Label("Cancel", systemImage: "stop.circle") }
+                } label: { Label(L10n.string("action.cancel"), systemImage: "stop.circle") }
                 .buttonStyle(.borderless)
             }
             Button {
                 copyLog(job)
             } label: { Image(systemName: "doc.on.doc") }
             .buttonStyle(.borderless)
-            .help("Copy output")
+            .help(L10n.string("activity.copyOutput"))
             Button {
                 model.drawerOpen.toggle()
             } label: {
                 Image(systemName: model.drawerOpen ? "chevron.down" : "chevron.up")
             }
             .buttonStyle(.borderless)
-            .help(model.drawerOpen ? "Collapse" : "Expand")
+            .help(model.drawerOpen ? L10n.string("activity.collapse") : L10n.string("activity.expand"))
             // Close — dismiss the drawer for this job (stays in Activity history).
             // Cancels first if it's still running. Mirrors the Tauri drawer's X.
             Button {
@@ -99,7 +91,7 @@ struct ActivityDrawer: View {
                 Image(systemName: "xmark")
             }
             .buttonStyle(.borderless)
-            .help("Close")
+            .help(L10n.string("action.close"))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

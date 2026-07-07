@@ -43,6 +43,7 @@
   import { updater } from "$lib/stores/updater.svelte";
   import { settings } from "$lib/stores/settings.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { t } from "$lib/i18n/messages";
 
   /** Local snapshot to keep handlers tidy. Reactive — re-evaluates when
       the store's `available` changes. */
@@ -82,15 +83,15 @@
     tabindex="0"
     onclick={onPillClick}
     onkeydown={onPillKeydown}
-    aria-label={`Update available: brew-browser ${info.version}. Click to open Settings.`}
-    title={`brew-browser ${info.version} is available`}
+    aria-label={t("updates.availableLabel", ui.locale, { version: info.version })}
+    title={t("updates.versionAvailable", ui.locale, { version: info.version })}
   >
     <span class="text" aria-hidden="true">
       <ArrowUp size={12} />
-      <span>Update available</span>
+      <span>{t("updates.available", ui.locale)}</span>
     </span>
     {#if updater.installing}
-      <span class="spinner" aria-label="Installing update" title="Installing…">
+      <span class="spinner" aria-label={t("updates.installing", ui.locale)} title={t("Installing…", ui.locale)}>
         <Loader size={12} />
       </span>
     {:else}
@@ -98,8 +99,8 @@
         type="button"
         class="dismiss"
         onclick={onSkipClick}
-        aria-label={`Dismiss update notification for v${info.version}`}
-        title="Skip this version"
+        aria-label={t("updates.dismissVersion", ui.locale, { version: info.version })}
+        title={t("updates.skipVersion", ui.locale)}
       >
         <X size={12} />
       </button>

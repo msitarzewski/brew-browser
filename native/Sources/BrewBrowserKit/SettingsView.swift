@@ -36,23 +36,23 @@ public struct SettingsView: View {
     public var body: some View {
         TabView(selection: $selected) {
             AppearanceSettings()
-                .tabItem { Label("Appearance", systemImage: "paintbrush") }.tag(SettingsTab.appearance.rawValue)
+                .tabItem { Label(L10n.string("settings.section.appearance"), systemImage: "paintbrush") }.tag(SettingsTab.appearance.rawValue)
             NetworkSettings()
-                .tabItem { Label("Network", systemImage: "globe") }.tag(SettingsTab.network.rawValue)
+                .tabItem { Label(L10n.string("settings.section.network"), systemImage: "globe") }.tag(SettingsTab.network.rawValue)
             GitHubSettings()
                 .tabItem { Label("GitHub", systemImage: "chevron.left.forwardslash.chevron.right") }.tag(SettingsTab.github.rawValue)
             BrewSettings(model: model)
                 .tabItem { Label("Brew", systemImage: "mug") }.tag(SettingsTab.brew.rawValue)
             UpdatesSettings(updater: updater)
-                .tabItem { Label("Updates", systemImage: "arrow.down.circle") }.tag(SettingsTab.updates.rawValue)
+                .tabItem { Label(L10n.string("settings.section.updates"), systemImage: "arrow.down.circle") }.tag(SettingsTab.updates.rawValue)
             VulnerabilitySettings()
-                .tabItem { Label("Security", systemImage: "shield") }.tag(SettingsTab.security.rawValue)
+                .tabItem { Label(L10n.string("settings.section.security"), systemImage: "shield") }.tag(SettingsTab.security.rawValue)
             TrendingSettings()
-                .tabItem { Label("Trending", systemImage: "chart.line.uptrend.xyaxis") }.tag(SettingsTab.trending.rawValue)
+                .tabItem { Label(L10n.string("nav.trending"), systemImage: "chart.line.uptrend.xyaxis") }.tag(SettingsTab.trending.rawValue)
             ActivitySettings()
-                .tabItem { Label("Activity", systemImage: "list.bullet.rectangle") }.tag(SettingsTab.activity.rawValue)
+                .tabItem { Label(L10n.string("nav.activity"), systemImage: "list.bullet.rectangle") }.tag(SettingsTab.activity.rawValue)
             AboutSettings()
-                .tabItem { Label("About", systemImage: "info.circle") }.tag(SettingsTab.about.rawValue)
+                .tabItem { Label(L10n.string("settings.section.about"), systemImage: "info.circle") }.tag(SettingsTab.about.rawValue)
         }
         .frame(width: 560, height: 480)
     }
@@ -66,22 +66,22 @@ private struct AppearanceSettings: View {
 
     var body: some View {
         Form {
-            Picker("Theme", selection: $prefs.theme) {
+            Picker(L10n.string("theme.label"), selection: $prefs.theme) {
                 ForEach(AppTheme.allCases, id: \.self) { Text($0.label).tag($0) }
             }
             .pickerStyle(.segmented)
             .onChange(of: prefs.theme) { _, _ in prefs.applyTheme() }
 
-            Picker("Default landing", selection: $prefs.defaultSection) {
+            Picker(L10n.string("settings.appearance.defaultLanding"), selection: $prefs.defaultSection) {
                 ForEach(LandingSection.allCases, id: \.self) { Text($0.label).tag($0) }
             }
 
             SwiftUI.Section {
-                Toggle("AI features", isOn: Binding(
+                Toggle(L10n.string("settings.appearance.aiFeatures"), isOn: Binding(
                     get: { settings.aiFeaturesEnabled },
                     set: { settings.aiFeaturesEnabled = $0; try? settings.save() }
                 ))
-                Text("Shows extra metadata generated at build time: friendly names, descriptions, use-cases, similar packages, and category tags. Zero LLM calls are made from your machine — all enrichment is baked into the app. When off, only Homebrew's native metadata appears (categories are hidden).")
+                Text(L10n.string("settings.appearance.aiFeatures.help"))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -98,27 +98,27 @@ private struct NetworkSettings: View {
     var body: some View {
         Form {
             SwiftUI.Section {
-                Toggle("Offline Mode", isOn: Binding(
+                Toggle(L10n.string("settings.network.offlineMode"), isOn: Binding(
                     get: { settings.paranoidMode },
                     set: { settings.paranoidMode = $0; try? settings.save() }
                 ))
-                Text("Blocks every outbound network call: catalog refresh, Trending, GitHub stats + sign-in, cask icon probes, update checks. brew itself still runs normally. UI that needs the network shows a 'disabled by Offline Mode' notice.")
+                Text(L10n.string("settings.network.offlineMode.help"))
                     .font(.caption).foregroundStyle(.secondary)
                 if settings.paranoidMode {
-                    Label("Offline Mode is on — Trending, Catalog refresh, and Cask icon probes are blocked.",
+                    Label(L10n.string("settings.network.offlineMode.on"),
                           systemImage: "exclamationmark.triangle.fill")
                         .font(.caption).foregroundStyle(.orange)
                 }
             }
 
             SwiftUI.Section {
-                Picker("Catalog auto-refresh", selection: Binding(
+                Picker(L10n.string("settings.network.catalogAutoRefresh"), selection: Binding(
                     get: { settings.catalogAutoRefresh },
                     set: { settings.catalogAutoRefresh = $0; try? settings.save() }
                 )) {
-                    Text("Off").tag(CatalogAutoRefresh.off)
-                    Text("Weekly").tag(CatalogAutoRefresh.weekly)
-                    Text("Daily").tag(CatalogAutoRefresh.daily)
+                    Text(L10n.string("settings.option.off")).tag(CatalogAutoRefresh.off)
+                    Text(L10n.string("settings.option.weekly")).tag(CatalogAutoRefresh.weekly)
+                    Text(L10n.string("settings.option.daily")).tag(CatalogAutoRefresh.daily)
                 }
                 .pickerStyle(.segmented)
                 .disabled(settings.isCorrupt)
@@ -127,16 +127,16 @@ private struct NetworkSettings: View {
                     get: { Int(settings.catalogStaleBannerDays) },
                     set: { settings.catalogStaleBannerDays = UInt32($0); try? settings.save() }
                 ), in: 1...365) {
-                    Text("Catalog stale-banner threshold: \(settings.catalogStaleBannerDays) days")
+                    Text(String(format: L10n.string("settings.network.catalogStaleThreshold.format"), Int(settings.catalogStaleBannerDays)))
                 }
 
-                Picker("Cask icon fetching", selection: Binding(
+                Picker(L10n.string("settings.network.caskIconFetching"), selection: Binding(
                     get: { settings.caskIconMode },
                     set: { settings.caskIconMode = $0; try? settings.save() }
                 )) {
-                    Text("Off").tag(CaskIconMode.off)
-                    Text("Installed only").tag(CaskIconMode.installedOnly)
-                    Text("All").tag(CaskIconMode.all)
+                    Text(L10n.string("settings.option.off")).tag(CaskIconMode.off)
+                    Text(L10n.string("settings.option.installedOnly")).tag(CaskIconMode.installedOnly)
+                    Text(L10n.string("filter.all")).tag(CaskIconMode.all)
                 }
                 .pickerStyle(.segmented)
 
@@ -144,15 +144,15 @@ private struct NetworkSettings: View {
                     get: { Int(settings.trendingTtlMinutes) },
                     set: { settings.trendingTtlMinutes = UInt32($0); try? settings.save() }
                 ), in: 5...1440, step: 5) {
-                    Text("Trending cache TTL: \(settings.trendingTtlMinutes) min")
+                    Text(String(format: L10n.string("settings.network.trendingTtl.format"), Int(settings.trendingTtlMinutes)))
                 }
             }
 
             if settings.isCorrupt {
                 SwiftUI.Section {
-                    Label("Settings file is unreadable.", systemImage: "exclamationmark.octagon.fill")
+                    Label(L10n.string("settings.fileUnreadable"), systemImage: "exclamationmark.octagon.fill")
                         .foregroundStyle(.red)
-                    Button("Reset to defaults") { settings.reset() }
+                    Button(L10n.string("settings.resetToDefaults")) { settings.reset() }
                 }
             }
         }
@@ -174,41 +174,41 @@ private struct GitHubSettings: View {
     var body: some View {
         Form {
             SwiftUI.Section {
-                Toggle("Show GitHub stats on package pages", isOn: Binding(
+                Toggle(L10n.string("settings.github.showStats"), isOn: Binding(
                     get: { settings.githubEnabled },
                     set: { settings.githubEnabled = $0; try? settings.save() }
                 ))
-                Text("Show repo stars, forks, and last release for any package whose homepage is a GitHub URL. Fetches public metadata from api.github.com.")
+                Text(L10n.string("settings.github.showStats.help"))
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            SwiftUI.Section("Sign in") {
+            SwiftUI.Section(L10n.string("github.signIn")) {
                 if let status, status.signedIn {
-                    LabeledContent("Signed in as", value: "@\(status.username ?? "?")")
+                    LabeledContent(L10n.string("github.signedInAs"), value: "@\(status.username ?? "?")")
                     if !status.scopes.isEmpty {
                         LabeledContent("Scopes", value: status.scopes.joined(separator: ", "))
                             .font(.caption)
                     }
-                    Button("Sign out") {
+                    Button(L10n.string("github.signOut")) {
                         Task {
                             github.signOut()
                             self.status = github.status()
                         }
                     }
                 } else if let flow {
-                    LabeledContent("Your code", value: flow.userCode)
+                    LabeledContent(L10n.string("github.yourCode"), value: flow.userCode)
                         .font(.body.monospaced())
-                    Text("Enter this code at \(flow.verificationUri) (opened in your browser). Waiting for authorization…")
+                    Text(String(format: L10n.string("github.deviceFlowInstructions.format"), flow.verificationUri))
                         .font(.caption).foregroundStyle(.secondary)
                     ProgressView().controlSize(.small)
                 } else {
                     Button {
                         Task { await startSignIn() }
                     } label: {
-                        Label("Sign in with GitHub", systemImage: "person.crop.circle.badge.plus")
+                        Label(L10n.string("github.signInWithGitHub"), systemImage: "person.crop.circle.badge.plus")
                     }
                     .disabled(signingIn)
-                    Text("Opens GitHub's standard authorize flow in your browser. No password is entered into brew-browser. Required to Star, Watch, and file issues.")
+                    Text(L10n.string("github.signIn.help"))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 if let error {
@@ -217,7 +217,7 @@ private struct GitHubSettings: View {
             }
 
             SwiftUI.Section {
-                Text("Your token is stored in the macOS Keychain — never sent over IPC, written to disk, or logged. Sign-in is optional; minimum scopes are read:user, public_repo, and notifications.")
+                Text(L10n.string("github.keychain.help"))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -259,8 +259,8 @@ private struct BrewSettings: View {
 
     var body: some View {
         Form {
-            SwiftUI.Section("Analytics") {
-                Toggle("Send Homebrew install analytics", isOn: Binding(
+            SwiftUI.Section(L10n.string("settings.brew.analytics")) {
+                Toggle(L10n.string("settings.brew.sendAnalytics"), isOn: Binding(
                     get: { analytics ?? false },
                     set: { newValue in
                         Task {
@@ -272,37 +272,37 @@ private struct BrewSettings: View {
                     }
                 ))
                 .disabled(analytics == nil || analyticsBusy)
-                Text("Homebrew sends anonymous install analytics to formulae.brew.sh by default. This flips Homebrew's own setting (same as `brew analytics on`/`off`).")
+                Text(L10n.string("settings.brew.analytics.help"))
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            SwiftUI.Section("Confirmations") {
-                Toggle("Confirm before uninstall / zap", isOn: $prefs.confirmDestructive)
-                Text("Destructive actions (Uninstall, Zap, Delete Brewfile) ask before proceeding.")
+            SwiftUI.Section(L10n.string("settings.brew.confirmations")) {
+                Toggle(L10n.string("settings.brew.confirmDestructive"), isOn: $prefs.confirmDestructive)
+                Text(L10n.string("settings.brew.confirmDestructive.help"))
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            SwiftUI.Section("Advanced") {
-                Toggle("Greedy upgrades (include self-updating casks)", isOn: $prefs.greedyUpgrade)
-                Text("Adds `--greedy` to `brew upgrade` so casks that update themselves (like Chrome) are upgraded too. Off by default — greedy can churn apps that manage their own updates.")
+            SwiftUI.Section(L10n.string("settings.brew.advanced")) {
+                Toggle(L10n.string("settings.brew.greedyUpgrades"), isOn: $prefs.greedyUpgrade)
+                Text(L10n.string("settings.brew.greedyUpgrades.help"))
                     .font(.caption).foregroundStyle(.secondary)
 
-                Button("Autoremove unused dependencies") {
+                Button(L10n.string("settings.brew.autoremoveUnused")) {
                     if prefs.confirmDestructive { confirmAutoremove = true }
                     else { Task { await model.autoremove() } }
                 }
-                Text("Runs `brew autoremove` to uninstall formulae that were installed only as dependencies and are no longer needed by anything.")
+                Text(L10n.string("settings.brew.autoremove.help"))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
         .padding(20)
         .task { analytics = await brew.getAnalytics() }
-        .confirmationDialog("Remove unused dependencies?", isPresented: $confirmAutoremove, titleVisibility: .visible) {
-            Button("Autoremove", role: .destructive) { Task { await model.autoremove() } }
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog(L10n.string("settings.brew.autoremove.confirmTitle"), isPresented: $confirmAutoremove, titleVisibility: .visible) {
+            Button(L10n.string("settings.brew.autoremove"), role: .destructive) { Task { await model.autoremove() } }
+            Button(L10n.string("action.cancel"), role: .cancel) {}
         } message: {
-            Text("This runs `brew autoremove`, which uninstalls formulae that were installed only as dependencies and are no longer required by anything else.")
+            Text(L10n.string("settings.brew.autoremove.confirmMessage"))
         }
     }
 }
@@ -330,19 +330,19 @@ private struct UpdatesSettings: View {
                     Button {
                         updater.checkForUpdates()
                     } label: {
-                        Label("Check now", systemImage: "arrow.clockwise")
+                        Label(L10n.string("updates.checkNow"), systemImage: "arrow.clockwise")
                     }
                     .disabled(offline || !updater.canCheckForUpdates)
                     Spacer()
-                    Text("Last checked: \(lastCheckedLabel)")
+                    Text(String(format: L10n.string("updates.lastChecked.format"), lastCheckedLabel))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 if offline {
-                    Label("Offline Mode is on — manual update checks are blocked. Turn it off in Network to check the feed.",
+                    Label(L10n.string("updates.offlineBlocked"),
                           systemImage: "exclamationmark.triangle.fill")
                         .font(.caption).foregroundStyle(.orange)
                 } else {
-                    Text("Fetches brew-browser.zerologic.com/appcast.xml and compares the published version to the one you're running. No version number is sent.")
+                    Text(L10n.string("updates.check.help"))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -352,14 +352,14 @@ private struct UpdatesSettings: View {
             // Mode so the preference is set for the next time it's off, matching
             // the Tauri auto-check toggle and every other network toggle.
             SwiftUI.Section {
-                Toggle("Automatically check for updates", isOn: $updater.automaticallyChecksForUpdates)
-                Text("When on, brew-browser checks for a newer version once a day and shows a notice in the title bar if one is available. Suspended while Offline Mode is on.")
+                Toggle(L10n.string("updates.autoCheck"), isOn: $updater.automaticallyChecksForUpdates)
+                Text(L10n.string("updates.autoCheck.help"))
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            SwiftUI.Section("Update channel") {
-                LabeledContent("Channel", value: "Stable")
-                Text("No beta channel in this release.")
+            SwiftUI.Section(L10n.string("updates.channel")) {
+                LabeledContent(L10n.string("updates.channel.label"), value: L10n.string("updates.channel.stable"))
+                Text(L10n.string("updates.noBeta"))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -370,7 +370,7 @@ private struct UpdatesSettings: View {
     /// Last-checked relative date ("2 hours ago"), or "Never" before the first
     /// check. Mirrors the Tauri `lastCheckedLabel`.
     private var lastCheckedLabel: String {
-        guard let date = updater.lastUpdateCheckDate else { return "Never" }
+        guard let date = updater.lastUpdateCheckDate else { return L10n.string("updates.never") }
         return date.formatted(.relative(presentation: .named))
     }
 }
@@ -388,15 +388,15 @@ private struct VulnerabilitySettings: View {
     var body: some View {
         Form {
             SwiftUI.Section {
-                Toggle("Scan installed packages for known vulnerabilities", isOn: Binding(
+                Toggle(L10n.string("security.scanInstalled"), isOn: Binding(
                     get: { settings.vulnerabilityScanningEnabled },
                     set: { settings.vulnerabilityScanningEnabled = $0; try? settings.save() }
                 ))
                 .disabled(offline || settings.isCorrupt)
-                Text("Opt-in, off by default. Shells out to the official `brew vulns` subcommand, which queries OSV.dev for known vulnerabilities in your installed formulae. If signed in to GitHub, GHSA IDs are enriched from api.github.com. No package list leaves your machine except the queries brew vulns makes.")
+                Text(L10n.string("security.scanInstalled.help"))
                     .font(.caption).foregroundStyle(.secondary)
                 if offline {
-                    Label("Offline Mode is on — scanning is suppressed even if this is on.",
+                    Label(L10n.string("security.offlineSuppressed"),
                           systemImage: "exclamationmark.triangle.fill")
                         .font(.caption).foregroundStyle(.orange)
                 }
@@ -405,7 +405,7 @@ private struct VulnerabilitySettings: View {
             if settings.vulnerabilityScanningEnabled && !offline {
                 SwiftUI.Section {
                     if helperInstalled == false {
-                        Text("The brew-vulns subcommand isn't installed. Install it now? This runs `brew install homebrew/brew-vulns/brew-vulns`.")
+                        Text(L10n.string("security.brewVulnsMissing.help"))
                             .font(.caption).foregroundStyle(.secondary)
                         Button {
                             Task {
@@ -416,14 +416,14 @@ private struct VulnerabilitySettings: View {
                             }
                         } label: {
                             if installing {
-                                HStack { ProgressView().controlSize(.small); Text("Installing…") }
+                                HStack { ProgressView().controlSize(.small); Text(L10n.string("action.installing")) }
                             } else {
-                                Label("Install brew-vulns", systemImage: "arrow.down.circle")
+                                Label(L10n.string("security.installBrewVulns"), systemImage: "arrow.down.circle")
                             }
                         }
                         .disabled(installing)
                     } else if helperInstalled == true {
-                        Label("brew vulns is installed.", systemImage: "checkmark.seal.fill")
+                        Label(L10n.string("security.brewVulnsInstalled"), systemImage: "checkmark.seal.fill")
                             .foregroundStyle(.green)
                     } else {
                         ProgressView().controlSize(.small)
@@ -446,30 +446,30 @@ private struct TrendingSettings: View {
     var body: some View {
         Form {
             SwiftUI.Section {
-                Toggle("Fetch trending history", isOn: Binding(
+                Toggle(L10n.string("trending.fetchHistory"), isOn: Binding(
                     get: { settings.enhancedTrendingEnabled },
                     set: { settings.enhancedTrendingEnabled = $0; try? settings.save() }
                 ))
                 .disabled(offline || settings.isCorrupt)
-                Text("When on, brew-browser fetches per-package historical install trends from brew-browser.zerologic.com/trending-history/* to power sparklines on Trending and each package's detail panel. Only the package name you're viewing is sent. Operated by the brew-browser project — a distinct trust boundary from the Homebrew analytics paths.")
+                Text(L10n.string("trending.fetchHistory.help"))
                     .font(.caption).foregroundStyle(.secondary)
                 if offline {
-                    Label("Offline Mode is on — this toggle is locked off.",
+                    Label(L10n.string("settings.offlineToggleLocked"),
                           systemImage: "exclamationmark.triangle.fill")
                         .font(.caption).foregroundStyle(.orange)
                 }
             }
 
             SwiftUI.Section {
-                Toggle("Fetch latest categories & descriptions", isOn: Binding(
+                Toggle(L10n.string("enrichment.fetchLatest"), isOn: Binding(
                     get: { settings.liveEnrichmentEnabled },
                     set: { settings.liveEnrichmentEnabled = $0; try? settings.save() }
                 ))
                 .disabled(offline || settings.isCorrupt)
-                Text("brew-browser ships with built-in AI categories and descriptions. When on, it refreshes them from brew-browser.zerologic.com/enrichment/* — a version check on refresh, the full category list when newer, and a per-package description when you open its detail. Only the package name you're viewing is sent. Same first-party host as Enhanced Trending, a distinct /enrichment/* path. Requires AI features on.")
+                Text(L10n.string("enrichment.fetchLatest.help"))
                     .font(.caption).foregroundStyle(.secondary)
                 if offline {
-                    Label("Offline Mode is on — this toggle is locked off.",
+                    Label(L10n.string("settings.offlineToggleLocked"),
                           systemImage: "exclamationmark.triangle.fill")
                         .font(.caption).foregroundStyle(.orange)
                 }
@@ -489,24 +489,24 @@ private struct ActivitySettings: View {
         Form {
             SwiftUI.Section {
                 Stepper(value: $prefs.activityMaxJobs, in: 1...1000) {
-                    Text("Keep last \(prefs.activityMaxJobs) completed jobs")
+                    Text(String(format: L10n.string("activity.keepJobs.format"), prefs.activityMaxJobs))
                 }
                 Stepper(value: $prefs.activityMaxLines, in: 100...10000, step: 50) {
-                    Text("Lines per job: \(prefs.activityMaxLines)")
+                    Text(String(format: L10n.string("activity.linesPerJob.format"), prefs.activityMaxLines))
                 }
-                Text("These limits apply to future job persistence. Existing retained data is not trimmed retroactively.")
+                Text(L10n.string("activity.limits.help"))
                     .font(.caption).foregroundStyle(.secondary)
             }
 
             SwiftUI.Section {
-                Toggle("Notify when brew tasks finish", isOn: Binding(
+                Toggle(L10n.string("activity.notifyOnCompletion"), isOn: Binding(
                     get: { prefs.notifyOnTaskCompletion },
                     set: { on in
                         prefs.notifyOnTaskCompletion = on
                         if on { NotificationService.requestAuthorization() }
                     }
                 ))
-                Text("Posts a macOS notification when an install, upgrade, or other brew task finishes while brew-browser isn't the front app. When it's in front, the Activity drawer shows progress instead. Turning this on asks macOS for notification permission.")
+                Text(L10n.string("activity.notifyOnCompletion.help"))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

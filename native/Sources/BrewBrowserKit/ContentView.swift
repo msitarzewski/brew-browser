@@ -50,7 +50,7 @@ public struct ContentView: View {
       VStack(spacing: 0) {
         NavigationSplitView {
             List(Section.allCases, selection: $model.selection) { section in
-                Label(section.rawValue, systemImage: section.symbol)
+                Label(section.localizedTitle, systemImage: section.symbol)
                     .badge(model.badge(for: section) ?? 0)  // stock count badge; 0 hides it
                     .tag(section)
             }
@@ -90,7 +90,7 @@ public struct ContentView: View {
                 // the window then grabs as a resize, hiding the inspector).
                 // Pairs with .windowResizability(.contentMinSize) on the scene.
                 .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
-                .navigationTitle(model.selection.rawValue)
+                .navigationTitle(model.selection.localizedTitle)
                 .toolbar {
                     ToolbarItemGroup(placement: .primaryAction) {
                         // "Update available" pill (Bundle C) — mirrors the Tauri
@@ -102,10 +102,10 @@ public struct ContentView: View {
                             Button {
                                 updater.checkForUpdates()
                             } label: {
-                                Label("Update available", systemImage: "arrow.up.circle.fill")
+                                Label(L10n.string("updates.available"), systemImage: "arrow.up.circle.fill")
                                     .foregroundStyle(.orange)
                             }
-                            .help("A newer version of brew-browser is available — click to update")
+                            .help(L10n.string("updates.available.help"))
                         }
 
                         Button {
@@ -115,7 +115,7 @@ public struct ContentView: View {
                             // toolbar button shows active feedback, not just a
                             // disabled grey-out.
                             Label {
-                                Text("Refresh")
+                                Text(L10n.string("action.refresh"))
                             } icon: {
                                 if model.isLoading {
                                     ProgressView().controlSize(.small)
@@ -135,7 +135,7 @@ public struct ContentView: View {
                             Image(systemName: "heart.fill")
                                 .foregroundStyle(.pink)
                         }
-                        .help("Support brew-browser via GitHub Sponsors")
+                        .help(L10n.string("chrome.donate.help"))
 
                         // GitHub connection chip — only when signed in. Green when
                         // the public_repo scope is present (star/watch/issue work),
@@ -150,13 +150,13 @@ public struct ContentView: View {
                                     .foregroundStyle(model.githubScopeComplete ? Color.green : Color.orange)
                             }
                             .help(model.githubScopeComplete
-                                ? "GitHub: connected as @\(model.githubStatus?.username ?? "user")"
-                                : "GitHub: signed in — scope incomplete; open Settings to fix")
+                                ? String(format: L10n.string("github.connectedAs.format"), model.githubStatus?.username ?? "user")
+                                : L10n.string("github.scopeIncomplete"))
                         }
 
                         // Stock SettingsLink opens the native Settings scene.
                         SettingsLink {
-                            Label("Settings", systemImage: "gearshape")
+                            Label(L10n.string("settings.title"), systemImage: "gearshape")
                         }
                     }
                 }
@@ -165,7 +165,7 @@ public struct ContentView: View {
                 // doesn't drift over the inspector (and the inspector's boundary
                 // divider falls cleanly at the panel edge, not through the
                 // toolbar between our icons and the field).
-                .searchable(text: $model.globalQuery, placement: .toolbar, prompt: "Search packages")
+                .searchable(text: $model.globalQuery, placement: .toolbar, prompt: Text(L10n.string("search.packages")))
                 .searchSuggestions {
                     ForEach(model.suggestions) { pkg in
                         HStack(spacing: 8) {
@@ -563,7 +563,7 @@ struct VulnFooterRow: View {
                     Image(systemName: "circle.fill")
                         .font(.system(size: 8))
                         .foregroundStyle(.red)
-                    Text("\(model.vulnerableCount) vulnerable package\(model.vulnerableCount == 1 ? "" : "s")")
+                    Text(L10n.vulnerablePackages(model.vulnerableCount))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -574,7 +574,7 @@ struct VulnFooterRow: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .help("\(model.vulnerableCount) installed package\(model.vulnerableCount == 1 ? " has" : "s have") known vulnerabilities. Click to view them in Library.")
+            .help(L10n.vulnerablePackagesHelp(model.vulnerableCount))
         }
     }
 }

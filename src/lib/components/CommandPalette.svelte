@@ -7,6 +7,7 @@
   import { search } from "$lib/stores/search.svelte";
   import { brewfiles } from "$lib/stores/brewfiles.svelte";
   import { trending } from "$lib/stores/trending.svelte";
+  import { t, type MessageKey } from "$lib/i18n/messages";
   import type { PaletteItem, PackageKind } from "$lib/types";
 
   let query = $state("");
@@ -49,22 +50,35 @@
     return all.filter((h) => !installedNames.has(h.name)).slice(0, 10);
   });
 
-  const commands: PaletteItem[] = [
-    { kind: "command", id: "library",   label: "Open Library",    shortcut: "⌘1", section: "Nav", run: () => ui.setSection("library") },
-    { kind: "command", id: "discover",  label: "Open Discover",   shortcut: "⌘2", section: "Nav", run: () => ui.setSection("discover") },
-    { kind: "command", id: "trending",  label: "Open Trending",   shortcut: "⌘3", section: "Nav", run: () => ui.setSection("trending") },
-    { kind: "command", id: "snapshots", label: "Open Snapshots",  shortcut: "⌘4", section: "Nav", run: () => ui.setSection("snapshots") },
-    { kind: "command", id: "activity",  label: "Open Activity",   shortcut: "⌘5", section: "Nav", run: () => ui.setSection("activity") },
-    { kind: "command", id: "drawer",    label: "Toggle Activity drawer", shortcut: "⌘L", section: "View", run: () => ui.toggleDrawer() },
-    { kind: "command", id: "refresh",   label: "Refresh Library", shortcut: "⌘R", section: "Action", run: () => packages.load(true) },
-    { kind: "command", id: "refresh-trending", label: "Refresh Trending", section: "Action", run: () => trending.load(true) },
-    { kind: "command", id: "refresh-snapshots", label: "Refresh Snapshots", section: "Action", run: () => brewfiles.load() },
+  type CommandItem = Extract<PaletteItem, { kind: "command" }> & {
+    labelKey: MessageKey;
+    sectionKey: MessageKey;
+  };
+
+  const commands: CommandItem[] = [
+    { kind: "command", id: "library", label: "Open Library", labelKey: "command.openLibrary", shortcut: "⌘1", section: "Nav", sectionKey: "nav.primary", run: () => ui.setSection("library") },
+    { kind: "command", id: "discover", label: "Open Discover", labelKey: "command.openDiscover", shortcut: "⌘2", section: "Nav", sectionKey: "nav.primary", run: () => ui.setSection("discover") },
+    { kind: "command", id: "trending", label: "Open Trending", labelKey: "command.openTrending", shortcut: "⌘3", section: "Nav", sectionKey: "nav.primary", run: () => ui.setSection("trending") },
+    { kind: "command", id: "snapshots", label: "Open Snapshots", labelKey: "command.openSnapshots", shortcut: "⌘4", section: "Nav", sectionKey: "nav.primary", run: () => ui.setSection("snapshots") },
+    { kind: "command", id: "activity", label: "Open Activity", labelKey: "command.openActivity", shortcut: "⌘5", section: "Nav", sectionKey: "nav.primary", run: () => ui.setSection("activity") },
+    { kind: "command", id: "drawer", label: "Toggle Activity drawer", labelKey: "command.toggleActivityDrawer", shortcut: "⌘L", section: "View", sectionKey: "palette.group.view", run: () => ui.toggleDrawer() },
+    { kind: "command", id: "refresh", label: "Refresh Library", labelKey: "command.refreshLibrary", shortcut: "⌘R", section: "Action", sectionKey: "palette.group.actions", run: () => packages.load(true) },
+    { kind: "command", id: "refresh-trending", label: "Refresh Trending", labelKey: "command.refreshTrending", section: "Action", sectionKey: "palette.group.actions", run: () => trending.load(true) },
+    { kind: "command", id: "refresh-snapshots", label: "Refresh Snapshots", labelKey: "command.refreshSnapshots", section: "Action", sectionKey: "palette.group.actions", run: () => brewfiles.load() },
   ];
+
+  let translatedCommands = $derived(
+    commands.map((command) => ({
+      ...command,
+      label: t(command.labelKey, ui.locale),
+      section: t(command.sectionKey, ui.locale),
+    })),
+  );
 
   let commandHits = $derived.by(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return commands;
-    return commands.filter((c) => c.kind === "command" && c.label.toLowerCase().includes(q));
+    if (!q) return translatedCommands;
+    return translatedCommands.filter((c) => c.label.toLowerCase().includes(q));
   });
 
   type Group = { label: string; items: Array<{ item: PaletteItem; idx: number }> };
@@ -73,7 +87,7 @@
     let idx = 0;
     if (installedHits.length > 0) {
       out.push({
-        label: "Installed",
+        label: t("palette.group.installed", ui.locale),
         items: installedHits.map((p) => ({
           item: { kind: "package", name: p.name, pkgKind: p.kind, installed: true, description: p.description } as PaletteItem,
           idx: idx++,
@@ -82,7 +96,7 @@
     }
     if (indexHits.length > 0) {
       out.push({
-        label: "Index",
+        label: t("palette.group.index", ui.locale),
         items: indexHits.map((h) => ({
           item: { kind: "package", name: h.name, pkgKind: h.kind as PackageKind, installed: h.installed, description: h.description } as PaletteItem,
           idx: idx++,
@@ -91,7 +105,7 @@
     }
     if (commandHits.length > 0) {
       out.push({
-        label: "Commands",
+        label: t("palette.group.commands", ui.locale),
         items: commandHits.map((c) => ({ item: c, idx: idx++ })),
       });
     }
@@ -133,16 +147,16 @@
 
 {#if ui.paletteOpen}
   <div class="scrim" role="presentation" onclick={() => ui.closePalette()}></div>
-  <div class="palette" role="dialog" aria-modal="true" aria-label="Command palette">
+  <div class="palette" role="dialog" aria-modal="true" aria-label={t("palette.title", ui.locale)}>
     <div class="search">
       <Search size={16} />
       <input
         bind:this={inputEl}
         type="text"
-        placeholder="Type a command, package, or section."
+        placeholder={t("palette.search.placeholder", ui.locale)}
         bind:value={query}
         onkeydown={onKey}
-        aria-label="Command palette search"
+        aria-label={t("palette.searchLabel", ui.locale)}
         role="combobox"
         aria-controls="palette-listbox"
         aria-expanded={totalItems > 0}
@@ -154,9 +168,9 @@
 
     <div class="results">
       {#if totalItems === 0}
-        <p class="empty">No results.</p>
+        <p class="empty">{t("palette.empty", ui.locale)}</p>
       {:else}
-        <div id="palette-listbox" role="listbox" aria-label="Command palette results">
+        <div id="palette-listbox" role="listbox" aria-label={t("palette.results", ui.locale)}>
           {#each groups as g (g.label)}
             <div class="group" role="group" aria-label={g.label}>
               <div class="group-label" aria-hidden="true">{g.label}</div>
@@ -174,7 +188,7 @@
                   {#if item.kind === "package"}
                     <span class="name">{item.name}</span>
                     <span class="meta">
-                      {item.pkgKind}{#if item.installed} · installed{/if}
+                      {item.pkgKind === "formula" ? t("package.kind.formula", ui.locale) : t("package.kind.cask", ui.locale)}{#if item.installed} · {t("package.installed", ui.locale)}{/if}
                     </span>
                   {:else}
                     <span class="name">{item.label}</span>
@@ -189,9 +203,9 @@
     </div>
 
     <footer class="foot">
-      <span class="kbd">↑↓</span> navigate
-      <span class="kbd">⏎</span> open
-      <span class="kbd">Esc</span> close
+      <span class="kbd">↑↓</span> {t("keyboard.navigate", ui.locale)}
+      <span class="kbd">⏎</span> {t("keyboard.open", ui.locale)}
+      <span class="kbd">Esc</span> {t("keyboard.close", ui.locale)}
     </footer>
   </div>
 {/if}

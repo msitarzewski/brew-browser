@@ -18,13 +18,20 @@
   import { search } from "$lib/stores/search.svelte";
   import { settings } from "$lib/stores/settings.svelte";
   import { vulnerabilities } from "$lib/stores/vulnerabilities.svelte";
+  import {
+    formatBrewOperationsRunning,
+    formatVulnerablePackageLabel,
+    formatVulnerablePackages,
+    t,
+    type MessageKey,
+  } from "$lib/i18n/messages";
   import { normalizeServiceStatus, type PackageKind, type SearchHit } from "$lib/types";
   import Pill from "./Pill.svelte";
   import type { SidebarSection } from "$lib/types";
 
   interface NavItem {
     id: SidebarSection;
-    label: string;
+    labelKey: MessageKey;
     shortcut: string;
     icon: typeof Boxes;
   }
@@ -33,13 +40,13 @@
       so ⌘0 maps to it and it gets the visual primacy without a dedicated
       brand row eating sidebar space. */
   const nav: NavItem[] = [
-    { id: "dashboard", label: "Dashboard", shortcut: "⌘0", icon: LayoutDashboard },
-    { id: "library",   label: "Library",   shortcut: "⌘1", icon: Boxes },
-    { id: "discover",  label: "Discover",  shortcut: "⌘2", icon: Compass },
-    { id: "trending",  label: "Trending",  shortcut: "⌘3", icon: TrendingUp },
-    { id: "snapshots", label: "Snapshots", shortcut: "⌘4", icon: Archive },
-    { id: "services",  label: "Services",  shortcut: "⌘5", icon: Server },
-    { id: "activity",  label: "Activity",  shortcut: "⌘6", icon: Activity },
+    { id: "dashboard", labelKey: "nav.dashboard", shortcut: "⌘0", icon: LayoutDashboard },
+    { id: "library",   labelKey: "nav.library",   shortcut: "⌘1", icon: Boxes },
+    { id: "discover",  labelKey: "nav.discover",  shortcut: "⌘2", icon: Compass },
+    { id: "trending",  labelKey: "nav.trending",  shortcut: "⌘3", icon: TrendingUp },
+    { id: "snapshots", labelKey: "nav.snapshots", shortcut: "⌘4", icon: Archive },
+    { id: "services",  labelKey: "nav.services",  shortcut: "⌘5", icon: Server },
+    { id: "activity",  labelKey: "nav.activity",  shortcut: "⌘6", icon: Activity },
   ];
 
   // ───────── Sidebar type-ahead search ─────────
@@ -153,7 +160,7 @@
     const base = env.summary;
     if (activity.runningCount > 0) {
       const n = activity.runningCount;
-      return `${base}\n${n} brew operation${n === 1 ? "" : "s"} running`;
+      return `${base}\n${formatBrewOperationsRunning(n, ui.locale)}`;
     }
     return base;
   });
@@ -183,8 +190,7 @@
     vulnerabilities.severityCounts.vulnerablePackages,
   );
   const vulnBadgeTooltip = $derived.by(() => {
-    const n = vulnBadgeCount;
-    return `${n} package${n === 1 ? "" : "s"} with known vulnerabilities`;
+    return formatVulnerablePackages(vulnBadgeCount, ui.locale);
   });
 
   function openVulnDashboard() {
@@ -194,7 +200,7 @@
   }
 </script>
 
-<aside class="sidebar" class:collapsed={ui.sidebarCollapsed} aria-label="Primary navigation">
+<aside class="sidebar" class:collapsed={ui.sidebarCollapsed} aria-label={t("nav.primary", ui.locale)}>
   <!--
     Persistent type-ahead search above the nav. NO divider below the
     search wrap — it visually flows straight into the nav list per
@@ -209,13 +215,13 @@
         type="search"
         role="combobox"
         class="search-input"
-        placeholder="Search packages…"
+        placeholder={t("search.packagesPlaceholder", ui.locale)}
         value={search.query}
         oninput={onSearchInput}
         onfocus={() => (searchFocused = true)}
         onblur={() => setTimeout(() => (searchFocused = false), 150)}
         onkeydown={onSearchKey}
-        aria-label="Search packages"
+        aria-label={t("search.packages", ui.locale)}
         aria-autocomplete="list"
         aria-expanded={dropdownOpen}
         aria-controls="sidebar-search-results"
@@ -227,8 +233,8 @@
           type="button"
           class="search-clear"
           onclick={clearSearch}
-          aria-label="Clear search"
-          title="Clear"
+          aria-label={t("search.clearSearch", ui.locale)}
+          title={t("search.clear", ui.locale)}
         >
           <XIcon size={12} />
         </button>
@@ -239,14 +245,14 @@
           id="sidebar-search-results"
           class="search-dropdown"
           role="listbox"
-          aria-label="Search results"
+          aria-label={t("search.results", ui.locale)}
         >
           {#if search.loading && topHits.length === 0}
-            <div class="search-empty">Searching…</div>
+            <div class="search-empty">{t("search.searching", ui.locale)}</div>
           {:else if search.error}
             <div class="search-empty search-error">{search.error}</div>
           {:else if topHits.length === 0}
-            <div class="search-empty">No matches for "{search.query}".</div>
+            <div class="search-empty">{t("search.noMatches", ui.locale, { query: search.query })}</div>
           {:else}
             {#each topHits as hit, i (hit.kind + hit.name)}
               <button
@@ -261,7 +267,7 @@
                 <span class="hit-name truncate">{hit.name}</span>
                 <Pill tone={hit.kind === "formula" ? "formula" : "cask"}>{hit.kind}</Pill>
                 {#if hit.installed}
-                  <Pill tone="success">installed</Pill>
+                  <Pill tone="success">{t("installed", ui.locale)}</Pill>
                 {/if}
               </button>
             {/each}
@@ -274,7 +280,7 @@
                 search.run(search.query);
               }}
             >
-              See all results in Discover →
+              {t("search.allResultsInDiscover", ui.locale)}
             </button>
           {/if}
         </div>
@@ -286,6 +292,7 @@
     <ul>
       {#each nav as item (item.id)}
         {@const isActive = ui.section === item.id}
+        {@const label = t(item.labelKey, ui.locale)}
         {@const b = badge(item.id)}
         <li>
           <button
@@ -293,10 +300,10 @@
             class:active={isActive}
             aria-current={isActive ? "page" : undefined}
             onclick={() => ui.setSection(item.id)}
-            title={`${item.label} (${item.shortcut})`}
+            title={`${label} (${item.shortcut})`}
           >
             <span class="ico" aria-hidden="true"><item.icon size={16} /></span>
-            <span class="label">{item.label}</span>
+            <span class="label">{label}</span>
             {#if b}<span class="badge">{b}</span>{/if}
           </button>
         </li>
@@ -315,7 +322,7 @@
       >
         <span class="vuln-dot" aria-hidden="true"></span>
         <span class="vuln-count">{vulnBadgeCount}</span>
-        <span class="vuln-label">vulnerable {vulnBadgeCount === 1 ? "package" : "packages"}</span>
+        <span class="vuln-label">{formatVulnerablePackageLabel(vulnBadgeCount, ui.locale)}</span>
       </button>
     {/if}
     <button

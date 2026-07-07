@@ -1,0 +1,864 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "about.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "About Brew Browser" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "О Brew Browser" } }
+      }
+    },
+    "action.cancel": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Cancel" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Отмена" } }
+      }
+    },
+    "action.close": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Close" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Закрыть" } }
+      }
+    },
+    "action.deselectAll": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Deselect all" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Снять выбор" } }
+      }
+    },
+    "action.installing": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Installing..." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Устанавливаем..." } }
+      }
+    },
+    "action.refresh": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Refresh" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Обновить" } }
+      }
+    },
+    "action.retry": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Retry" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Повторить" } }
+      }
+    },
+    "action.selectAll": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Select all" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Выбрать все" } }
+      }
+    },
+    "action.upgrade": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Upgrade" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Обновить" } }
+      }
+    },
+    "activity.drawer.hide": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Hide Activity Drawer" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Скрыть журнал активности" } }
+      }
+    },
+    "activity.drawer.show": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Show Activity Drawer" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Показать журнал активности" } }
+      }
+    },
+    "activity.collapse": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Collapse" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Свернуть" } }
+      }
+    },
+    "activity.copyOutput": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Copy output" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Скопировать вывод" } }
+      }
+    },
+    "activity.expand": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Expand" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Развернуть" } }
+      }
+    },
+    "activity.keepJobs.format": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Keep last %d completed jobs" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Хранить последние завершённые задачи: %d" } }
+      }
+    },
+    "activity.limits.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "These limits apply to future job persistence. Existing retained data is not trimmed retroactively." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Эти ограничения применяются к будущему сохранению задач. Уже сохранённые данные задним числом не обрезаются." } }
+      }
+    },
+    "activity.linesPerJob.format": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Lines per job: %d" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Строк на задачу: %d" } }
+      }
+    },
+    "activity.notifyOnCompletion": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Notify when brew tasks finish" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Уведомлять о завершении задач brew" } }
+      }
+    },
+    "activity.notifyOnCompletion.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Posts a macOS notification when an install, upgrade, or other brew task finishes while brew-browser is not the front app. When it is in front, the Activity drawer shows progress instead. Turning this on asks macOS for notification permission." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Показывает уведомление macOS, когда установка, обновление или другая задача brew завершается не в активном окне brew-browser. Если приложение на переднем плане, прогресс виден в журнале активности. При включении macOS запросит разрешение на уведомления." } }
+      }
+    },
+    "chrome.donate.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Support brew-browser via GitHub Sponsors" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Поддержать brew-browser через GitHub Sponsors" } }
+      }
+    },
+    "chrome.donate.menu": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Sponsor Brew Browser..." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Поддержать Brew Browser..." } }
+      }
+    },
+    "date.today": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "today" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "сегодня" } }
+      }
+    },
+    "enrichment.fetchLatest": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Fetch latest categories & descriptions" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Загружать свежие категории и описания" } }
+      }
+    },
+    "enrichment.fetchLatest.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "brew-browser ships with built-in AI categories and descriptions. When on, it refreshes them from brew-browser.zerologic.com/enrichment/*. Only the package name you are viewing is sent. Requires AI features on." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "brew-browser поставляется со встроенными AI-категориями и описаниями. Если включено, приложение обновляет их с brew-browser.zerologic.com/enrichment/*. Отправляется только имя открытого пакета. Требует включённых AI-функций." } }
+      }
+    },
+    "filter.all": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "All" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Все" } }
+      }
+    },
+    "filter.dependency": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Dependency" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Зависимость" } }
+      }
+    },
+    "filter.manual": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Manual" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Вручную" } }
+      }
+    },
+    "filter.outdated": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Outdated" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Устаревшие" } }
+      }
+    },
+    "filter.vulnerable": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Vulnerable" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Уязвимые" } }
+      }
+    },
+    "github.checkingStarred": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Checking your starred packages..." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Проверяем пакеты, отмеченные звёздочкой..." } }
+      }
+    },
+    "github.connectedAs.format": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "GitHub: connected as @%@" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "GitHub: подключено как @%@" } }
+      }
+    },
+    "github.deviceFlowInstructions.format": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Enter this code at %@ (opened in your browser). Waiting for authorization..." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Введите этот код на %@ (страница открыта в браузере). Ждём авторизацию..." } }
+      }
+    },
+    "github.keychain.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Your token is stored in the macOS Keychain — never sent over IPC, written to disk, or logged. Sign-in is optional; minimum scopes are read:user, public_repo, and notifications." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Токен хранится в macOS Keychain: он не передаётся по IPC, не записывается на диск и не попадает в логи. Вход необязателен; минимальные scope: read:user, public_repo и notifications." } }
+      }
+    },
+    "github.noInstalledHomepages": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "None of your installed packages have a GitHub homepage." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "У установленных пакетов нет GitHub homepage." } }
+      }
+    },
+    "github.scopeIncomplete": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "GitHub: signed in — scope incomplete; open Settings to fix" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "GitHub: вход выполнен, но scope неполный; откройте Настройки, чтобы исправить" } }
+      }
+    },
+    "github.signIn": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Sign in" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Вход" } }
+      }
+    },
+    "github.signIn.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Opens GitHub's standard authorize flow in your browser. No password is entered into brew-browser. Required to Star, Watch, and file issues." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Открывает стандартную авторизацию GitHub в браузере. Пароль не вводится в brew-browser. Нужно для Star, Watch и создания issue." } }
+      }
+    },
+    "github.signInWithGitHub": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Sign in with GitHub" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Войти через GitHub" } }
+      }
+    },
+    "github.signOut": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Sign out" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Выйти" } }
+      }
+    },
+    "github.signedInAs": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Signed in as" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Выполнен вход как" } }
+      }
+    },
+    "github.yourCode": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Your code" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Ваш код" } }
+      }
+    },
+    "menu.go": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Go" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Переход" } }
+      }
+    },
+    "nav.activity": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Activity" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Активность" } }
+      }
+    },
+    "nav.dashboard": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Dashboard" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Сводка" } }
+      }
+    },
+    "nav.discover": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Discover" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Каталог" } }
+      }
+    },
+    "nav.library": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Library" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Библиотека" } }
+      }
+    },
+    "nav.services": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Services" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Службы" } }
+      }
+    },
+    "nav.snapshots": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Snapshots" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Снимки" } }
+      }
+    },
+    "nav.trending": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Trending" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Тренды" } }
+      }
+    },
+    "package.kind.casks": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Casks" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Cask-пакеты" } }
+      }
+    },
+    "package.kind.formulae": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Formulae" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Формулы" } }
+      }
+    },
+    "package.pinned": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "pinned" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "закреплён" } }
+      }
+    },
+    "palette.title.menu": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Command Palette..." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Палитра команд..." } }
+      }
+    },
+    "search.packages": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Search packages" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Поиск пакетов" } }
+      }
+    },
+    "security.brewVulnsInstalled": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "brew vulns is installed." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "brew vulns установлен." } }
+      }
+    },
+    "security.brewVulnsMissing.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The brew-vulns subcommand is not installed. Install it now? This runs `brew install homebrew/brew-vulns/brew-vulns`." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Подкоманда brew-vulns не установлена. Установить сейчас? Будет выполнено `brew install homebrew/brew-vulns/brew-vulns`." } }
+      }
+    },
+    "security.installBrewVulns": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Install brew-vulns" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Установить brew-vulns" } }
+      }
+    },
+    "security.offlineSuppressed": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Offline Mode is on — scanning is suppressed even if this is on." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Офлайн-режим включён: сканирование подавлено, даже если этот переключатель включён." } }
+      }
+    },
+    "security.scanInstalled": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Scan installed packages for known vulnerabilities" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Проверять установленные пакеты на известные уязвимости" } }
+      }
+    },
+    "security.scanInstalled.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Opt-in, off by default. Shells out to the official `brew vulns` subcommand, which queries OSV.dev for known vulnerabilities in your installed formulae. If signed in to GitHub, GHSA IDs are enriched from api.github.com. No package list leaves your machine except the queries brew vulns makes." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Опционально и по умолчанию выключено. Запускает официальную подкоманду `brew vulns`, которая запрашивает OSV.dev по известным уязвимостям установленных формул. При входе в GitHub GHSA ID дополняются данными api.github.com. Список пакетов не покидает компьютер, кроме запросов, которые выполняет brew vulns." } }
+      }
+    },
+    "security.viewVulnerablePackages": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "View vulnerable packages ->" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Показать уязвимые пакеты ->" } }
+      }
+    },
+    "services.alreadyRunning": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Already running" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Уже запущена" } }
+      }
+    },
+    "services.empty.body": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Formulae like postgresql, redis, or nginx register background services you can start and stop here." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Формулы вроде postgresql, redis или nginx регистрируют фоновые службы, которые можно запускать и останавливать здесь." } }
+      }
+    },
+    "services.empty.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No background services" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Фоновых служб нет" } }
+      }
+    },
+    "services.loadFailed": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Couldn't load services" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Не удалось загрузить службы" } }
+      }
+    },
+    "services.loading": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Loading brew services..." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Загружаем службы brew..." } }
+      }
+    },
+    "services.notRunning": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Not running" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Не запущена" } }
+      }
+    },
+    "services.restart": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Restart service" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Перезапустить службу" } }
+      }
+    },
+    "services.start": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Start service" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Запустить службу" } }
+      }
+    },
+    "services.status.error": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "error" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "ошибка" } }
+      }
+    },
+    "services.status.notLoaded": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "not loaded" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "не загружена" } }
+      }
+    },
+    "services.status.running": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "running" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "запущена" } }
+      }
+    },
+    "services.status.scheduled": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "scheduled" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "запланирована" } }
+      }
+    },
+    "services.status.stopped": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "stopped" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "остановлена" } }
+      }
+    },
+    "services.status.unknown": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "unknown" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "неизвестно" } }
+      }
+    },
+    "services.stop": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Stop service" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Остановить службу" } }
+      }
+    },
+    "settings.appearance.aiFeatures": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "AI features" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "AI-функции" } }
+      }
+    },
+    "settings.appearance.aiFeatures.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Shows extra metadata generated at build time: friendly names, descriptions, use-cases, similar packages, and category tags. Zero LLM calls are made from your machine — all enrichment is baked into the app. When off, only Homebrew's native metadata appears (categories are hidden)." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Показывает дополнительные метаданные, созданные на этапе сборки: понятные названия, описания, сценарии использования, похожие пакеты и категории. С вашего компьютера не выполняется ни одного LLM-запроса: все данные уже встроены в приложение. Если выключено, показываются только штатные метаданные Homebrew, а категории скрываются." } }
+      }
+    },
+    "settings.appearance.defaultLanding": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Default landing" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Стартовый раздел" } }
+      }
+    },
+    "settings.brew.advanced": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Advanced" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Дополнительно" } }
+      }
+    },
+    "settings.brew.analytics": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Analytics" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Аналитика" } }
+      }
+    },
+    "settings.brew.analytics.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Homebrew sends anonymous install analytics to formulae.brew.sh by default. This flips Homebrew's own setting (same as `brew analytics on`/`off`)." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "По умолчанию Homebrew отправляет анонимную аналитику установок на formulae.brew.sh. Этот переключатель меняет собственную настройку Homebrew, как `brew analytics on`/`off`." } }
+      }
+    },
+    "settings.brew.autoremove": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Autoremove" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Удалить лишние зависимости" } }
+      }
+    },
+    "settings.brew.autoremove.confirmMessage": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This runs `brew autoremove`, which uninstalls formulae that were installed only as dependencies and are no longer required by anything else." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Будет выполнено `brew autoremove`: команда удаляет формулы, установленные только как зависимости и больше никому не нужные." } }
+      }
+    },
+    "settings.brew.autoremove.confirmTitle": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Remove unused dependencies?" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Удалить неиспользуемые зависимости?" } }
+      }
+    },
+    "settings.brew.autoremove.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Runs `brew autoremove` to uninstall formulae that were installed only as dependencies and are no longer needed by anything." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Запускает `brew autoremove`, чтобы удалить формулы, установленные только как зависимости и больше ничему не нужные." } }
+      }
+    },
+    "settings.brew.autoremoveUnused": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Autoremove unused dependencies" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Удалить неиспользуемые зависимости" } }
+      }
+    },
+    "settings.brew.confirmDestructive": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Confirm before uninstall / zap" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Подтверждать uninstall и zap" } }
+      }
+    },
+    "settings.brew.confirmDestructive.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Destructive actions (Uninstall, Zap, Delete Brewfile) ask before proceeding." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Разрушительные действия (Uninstall, Zap, удаление Brewfile) требуют подтверждения." } }
+      }
+    },
+    "settings.brew.confirmations": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Confirmations" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Подтверждения" } }
+      }
+    },
+    "settings.brew.greedyUpgrades": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Greedy upgrades (include self-updating casks)" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Greedy-обновления (включая самообновляемые cask-пакеты)" } }
+      }
+    },
+    "settings.brew.greedyUpgrades.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Adds `--greedy` to `brew upgrade` so casks that update themselves (like Chrome) are upgraded too. Off by default — greedy can churn apps that manage their own updates." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Добавляет `--greedy` к `brew upgrade`, чтобы обновлять и cask-пакеты, которые обычно обновляются сами (например, Chrome). По умолчанию выключено: greedy может лишний раз трогать приложения с собственным обновлением." } }
+      }
+    },
+    "settings.brew.sendAnalytics": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Send Homebrew install analytics" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Отправлять аналитику установок Homebrew" } }
+      }
+    },
+    "settings.fileUnreadable": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Settings file is unreadable." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Файл настроек не читается." } }
+      }
+    },
+    "settings.github.showStats": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Show GitHub stats on package pages" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Показывать статистику GitHub на страницах пакетов" } }
+      }
+    },
+    "settings.github.showStats.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Show repo stars, forks, and last release for any package whose homepage is a GitHub URL. Fetches public metadata from api.github.com." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Показывает звёзды, форки и последний релиз репозитория для пакетов, у которых homepage ведёт на GitHub. Загружает публичные метаданные с api.github.com." } }
+      }
+    },
+    "settings.network.caskIconFetching": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Cask icon fetching" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Загрузка иконок cask-пакетов" } }
+      }
+    },
+    "settings.network.catalogAutoRefresh": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Catalog auto-refresh" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Автообновление каталога" } }
+      }
+    },
+    "settings.network.catalogStaleThreshold.format": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Catalog stale-banner threshold: %d days" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Порог баннера устаревшего каталога: %d дн." } }
+      }
+    },
+    "settings.network.offlineMode": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Offline Mode" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Офлайн-режим" } }
+      }
+    },
+    "settings.network.offlineMode.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Blocks every outbound network call: catalog refresh, Trending, GitHub stats + sign-in, cask icon probes, update checks. brew itself still runs normally. UI that needs the network shows a disabled by Offline Mode notice." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Блокирует все исходящие сетевые вызовы: обновление каталога, Тренды, статистику и вход GitHub, запросы иконок cask-пакетов и проверки обновлений. Сам brew продолжает работать как обычно. Интерфейс, которому нужна сеть, показывает уведомление об отключении офлайн-режимом." } }
+      }
+    },
+    "settings.network.offlineMode.on": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Offline Mode is on — Trending, Catalog refresh, and Cask icon probes are blocked." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Офлайн-режим включён: Тренды, обновление каталога и запросы иконок cask-пакетов заблокированы." } }
+      }
+    },
+    "settings.network.trendingTtl.format": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Trending cache TTL: %d min" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "TTL кэша трендов: %d мин" } }
+      }
+    },
+    "settings.offlineToggleLocked": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Offline Mode is on — this toggle is locked off." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Офлайн-режим включён: этот переключатель заблокирован." } }
+      }
+    },
+    "settings.option.daily": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Daily" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Ежедневно" } }
+      }
+    },
+    "settings.option.installedOnly": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Installed only" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Только установленные" } }
+      }
+    },
+    "settings.option.off": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Off" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Выкл." } }
+      }
+    },
+    "settings.option.weekly": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Weekly" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Еженедельно" } }
+      }
+    },
+    "settings.resetToDefaults": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Reset to defaults" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Сбросить настройки" } }
+      }
+    },
+    "settings.section.about": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "About" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "О приложении" } }
+      }
+    },
+    "settings.section.appearance": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Appearance" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Оформление" } }
+      }
+    },
+    "settings.section.network": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Network" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Сеть" } }
+      }
+    },
+    "settings.section.security": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Security" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Безопасность" } }
+      }
+    },
+    "settings.section.updates": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Updates" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Обновления" } }
+      }
+    },
+    "settings.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Settings" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Настройки" } }
+      }
+    },
+    "table.actions": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Actions" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Действия" } }
+      }
+    },
+    "table.name": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Name" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Имя" } }
+      }
+    },
+    "table.status": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Status" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Статус" } }
+      }
+    },
+    "table.user": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "User" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Пользователь" } }
+      }
+    },
+    "theme.cycle": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Cycle Theme" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Сменить тему" } }
+      }
+    },
+    "theme.dark": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Dark" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Тёмная" } }
+      }
+    },
+    "theme.label": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Theme" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Тема" } }
+      }
+    },
+    "theme.light": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Light" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Светлая" } }
+      }
+    },
+    "theme.system": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "System" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Системная" } }
+      }
+    },
+    "trending.fetchHistory": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Fetch trending history" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Загружать историю трендов" } }
+      }
+    },
+    "trending.fetchHistory.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "When on, brew-browser fetches per-package historical install trends from brew-browser.zerologic.com/trending-history/* to power sparklines on Trending and each package's detail panel. Only the package name you are viewing is sent." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Если включено, brew-browser загружает историю установок по пакетам с brew-browser.zerologic.com/trending-history/* для спарклайнов в Трендах и карточке пакета. Отправляется только имя открытого пакета." } }
+      }
+    },
+    "updates.autoCheck": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Automatically check for updates" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Автоматически проверять обновления" } }
+      }
+    },
+    "updates.autoCheck.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "When on, brew-browser checks for a newer version once a day and shows a notice in the title bar if one is available. Suspended while Offline Mode is on." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Если включено, brew-browser раз в день проверяет новую версию и показывает уведомление в заголовке окна. В офлайн-режиме проверка приостанавливается." } }
+      }
+    },
+    "updates.available": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Update available" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Доступно обновление" } }
+      }
+    },
+    "updates.available.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "A newer version of brew-browser is available — click to update" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Доступна новая версия brew-browser — нажмите, чтобы обновить" } }
+      }
+    },
+    "updates.channel": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Update channel" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Канал обновлений" } }
+      }
+    },
+    "updates.channel.label": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Channel" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Канал" } }
+      }
+    },
+    "updates.channel.stable": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Stable" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Стабильный" } }
+      }
+    },
+    "updates.check.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Fetches brew-browser.zerologic.com/appcast.xml and compares the published version to the one you are running. No version number is sent." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Загружает brew-browser.zerologic.com/appcast.xml и сравнивает опубликованную версию с установленной. Номер вашей версии не отправляется." } }
+      }
+    },
+    "updates.checkForUpdates": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Check for Updates..." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Проверить обновления..." } }
+      }
+    },
+    "updates.checkNow": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Check now" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Проверить" } }
+      }
+    },
+    "updates.lastChecked.format": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Last checked: %@" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Последняя проверка: %@" } }
+      }
+    },
+    "updates.never": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Never" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Никогда" } }
+      }
+    },
+    "updates.noBeta": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No beta channel in this release." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "В этом релизе нет beta-канала." } }
+      }
+    },
+    "updates.offlineBlocked": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Offline Mode is on — manual update checks are blocked. Turn it off in Network to check the feed." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Офлайн-режим включён: ручная проверка обновлений заблокирована. Отключите его в Сети, чтобы проверить feed." } }
+      }
+    },
+    "upgrade.choosePackages": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Choose packages to upgrade" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Выберите пакеты для обновления" } }
+      }
+    },
+    "upgrade.noOutdated": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No outdated packages." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Устаревших пакетов нет." } }
+      }
+    },
+    "upgrade.pinned.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Pinned packages are not upgraded by brew. Unpin with `brew unpin <name>`." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Закреплённые пакеты не обновляются brew. Снимите закрепление командой `brew unpin <name>`." } }
+      }
+    }
+  },
+  "version": "1.0"
+}

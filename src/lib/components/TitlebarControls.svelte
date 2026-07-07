@@ -10,6 +10,7 @@
 
   import { ui } from "$lib/stores/ui.svelte";
   import { github } from "$lib/stores/github.svelte";
+  import { t } from "$lib/i18n/messages";
   import { safeOpenUrl } from "$lib/util/url";
   import { SPONSOR_URL } from "$lib/util/donate";
   import type { ThemePreference } from "$lib/types";
@@ -28,8 +29,12 @@
   function activeIcon(t: ThemePreference) {
     return t === "light" ? Sun : t === "dark" ? Moon : Monitor;
   }
-  function activeLabel(t: ThemePreference) {
-    return t === "light" ? "Light" : t === "dark" ? "Dark" : "System";
+  function activeLabel(theme: ThemePreference) {
+    return theme === "light"
+      ? t("theme.light", ui.locale)
+      : theme === "dark"
+        ? t("theme.dark", ui.locale)
+        : t("theme.system", ui.locale);
   }
 
   let ActiveIcon = $derived(activeIcon(ui.theme));
@@ -104,7 +109,7 @@
   });
 </script>
 
-<div class="cluster" data-tauri-drag-region="false" role="group" aria-label="App controls">
+<div class="cluster" data-tauri-drag-region="false" role="group" aria-label={t("app.controls", ui.locale)}>
   {#if githubChipState !== "hidden"}
     <button
       type="button"
@@ -113,9 +118,9 @@
       class:warn={githubChipState === "scope-incomplete"}
       onclick={openGithubSettings}
       title={githubChipState === "ok"
-        ? `GitHub: connected as @${github.status?.username ?? "user"}`
-        : "GitHub: signed in, but scope incomplete — click to fix"}
-      aria-label="GitHub connection status"
+        ? t("github.connectedAs", ui.locale, { username: github.status?.username ?? "user" })
+        : t("github.scopeIncomplete", ui.locale)}
+      aria-label={t("chrome.github.connectionStatus", ui.locale)}
     >
       <GithubMarkIcon size={14} />
     </button>
@@ -126,8 +131,8 @@
     class="ctrl"
     class:open={themeOpen}
     onclick={() => (themeOpen = !themeOpen)}
-    title={`Theme: ${activeLabel(ui.theme)}`}
-    aria-label="Change theme"
+    title={t("theme.title", ui.locale, { theme: activeLabel(ui.theme) })}
+    aria-label={t("theme.change", ui.locale)}
     aria-haspopup="menu"
     aria-expanded={themeOpen}
   >
@@ -137,8 +142,8 @@
     type="button"
     class="ctrl"
     onclick={() => ui.openSettings()}
-    title="Settings (⌘,)"
-    aria-label="Open Settings"
+    title={t("settings.shortcutTitle", ui.locale)}
+    aria-label={t("settings.open", ui.locale)}
   >
     <SettingsIcon size={14} />
   </button>
@@ -146,8 +151,8 @@
     type="button"
     class="ctrl donate"
     onclick={openSponsor}
-    title="Donate via GitHub Sponsors"
-    aria-label="Donate to brew-browser on GitHub Sponsors"
+    title={t("chrome.donate.title", ui.locale)}
+    aria-label={t("chrome.donate.aria", ui.locale)}
   >
     <Heart size={14} fill="currentColor" />
   </button>
@@ -157,7 +162,7 @@
       bind:this={themePopover}
       class="popover"
       role="menu"
-      aria-label="Theme"
+      aria-label={t("theme.change", ui.locale)}
     >
       <button
         type="button"
@@ -168,7 +173,7 @@
         onclick={() => pickTheme("light")}
       >
         <Sun size={14} />
-        <span>Light</span>
+        <span>{t("theme.light", ui.locale)}</span>
         {#if ui.theme === "light"}<Check size={12} class="check" />{/if}
       </button>
       <button
@@ -180,7 +185,7 @@
         onclick={() => pickTheme("dark")}
       >
         <Moon size={14} />
-        <span>Dark</span>
+        <span>{t("theme.dark", ui.locale)}</span>
         {#if ui.theme === "dark"}<Check size={12} class="check" />{/if}
       </button>
       <button
@@ -192,7 +197,7 @@
         onclick={() => pickTheme("system")}
       >
         <Monitor size={14} />
-        <span>System</span>
+        <span>{t("theme.system", ui.locale)}</span>
         {#if ui.theme === "system"}<Check size={12} class="check" />{/if}
       </button>
     </div>

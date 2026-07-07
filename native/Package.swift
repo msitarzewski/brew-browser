@@ -14,6 +14,7 @@ import PackageDescription
 // `BrewBrowser` executable is wrapped into a launchable .app by build-app.sh.
 let package = Package(
     name: "BrewBrowser",
+    defaultLocalization: "en",
     platforms: [.macOS(.v26)],
     products: [
         // Exposing the library as a product makes SwiftPM/Xcode generate a
@@ -34,7 +35,10 @@ let package = Package(
         .executableTarget(
             name: "BrewBrowser",
             dependencies: ["BrewBrowserKit"],
-            path: "Sources/BrewBrowser"
+            path: "Sources/BrewBrowser",
+            resources: [
+                .process("Resources/Localizable.xcstrings")
+            ]
         ),
         // Library: all views, AppModel, and the brew/vulns/github/trending/
         // enrichment services. Bundled JSON resources live here alongside the
@@ -48,6 +52,7 @@ let package = Package(
             ],
             path: "Sources/BrewBrowserKit",
             resources: [
+                .process("Resources/Localizable.xcstrings"),
                 .copy("Resources/categories.json"),
                 .copy("Resources/enrichment.json"),
                 // GitHub Octocat mark (vector PDF, Primer/Octicons MIT). Rendered
