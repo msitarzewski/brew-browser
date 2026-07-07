@@ -37,7 +37,9 @@ let package = Package(
             dependencies: ["BrewBrowserKit"],
             path: "Sources/BrewBrowser",
             resources: [
-                .process("Resources/Localizable.xcstrings")
+                .process("Resources/Localizable.xcstrings"),
+                .process("Resources/en.lproj"),
+                .process("Resources/ru.lproj")
             ]
         ),
         // Library: all views, AppModel, and the brew/vulns/github/trending/
@@ -53,6 +55,8 @@ let package = Package(
             path: "Sources/BrewBrowserKit",
             resources: [
                 .process("Resources/Localizable.xcstrings"),
+                .process("Resources/en.lproj"),
+                .process("Resources/ru.lproj"),
                 .copy("Resources/categories.json"),
                 .copy("Resources/enrichment.json"),
                 // GitHub Octocat mark (vector PDF, Primer/Octicons MIT). Rendered

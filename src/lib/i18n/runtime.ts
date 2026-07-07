@@ -7,6 +7,9 @@ const SKIP_TAGS = new Set(["CODE", "KBD", "PRE", "SAMP", "SCRIPT", "STYLE", "TEX
 
 const patterns: Array<[RegExp, Replacement]> = [
   [/^Theme: (Light|Dark|System)$/u, (m) => `Тема: ${translateText(m[1])}`],
+  [/^updates available$/u, () => "доступны обновления"],
+  [/^Catalog:$/u, () => "Каталог:"],
+  [/^\(bundled\)$/u, () => "(встроенный)"],
   [/^(\d+) days old$/u, (m) => {
     const n = Number(m[1]);
     return `${n} ${ruPlural(n, "день", "дня", "дней")}`;
@@ -37,7 +40,7 @@ const patterns: Array<[RegExp, Replacement]> = [
     const n = Number(m[1]);
     return `${n} ${ruPlural(n, "пакет", "пакета", "пакетов")}`;
   }],
-  [/^\+ (\d+) more in Library$/u, (m) => `Ещё ${m[1]} в Библиотеке`],
+  [/^\+ (\d+) more in Library(?: →)?$/u, (m) => `Ещё ${m[1]} в Библиотеке${m[0].endsWith("→") ? " →" : ""}`],
   [/^Upgrade all \((\d+)\)$/u, (m) => `Обновить всё (${m[1]})`],
   [/^Catalog: (.+)$/u, (m) => `Каталог: ${m[1]}`],
   [/^Catalog is (.+)\. Newer packages and deprecations may be missing\.$/u, (m) => (
@@ -56,7 +59,22 @@ const patterns: Array<[RegExp, Replacement]> = [
   [/^Last checked: (.+)$/u, (m) => `Последняя проверка: ${m[1]}`],
   [/^Last scan: (.+)$/u, (m) => `Последняя проверка: ${m[1]}`],
   [/^frees ~(.+)$/u, (m) => `освободит ~${m[1]}`],
-  [/^(\d+) total$/u, (m) => `всего ${m[1]}`],
+  [/^(.+) total$/u, (m) => `всего ${m[1]}`],
+  [/^(\d+) on request$/u, (m) => `${m[1]} вручную`],
+  [/^(\d+) as dependency$/u, (m) => `${m[1]} как зависимости`],
+  [/^(\d+) pinned$/u, (m) => `${m[1]} закреплено`],
+  [/^(\d+) formulae$/u, (m) => {
+    const n = Number(m[1]);
+    return `${n} ${ruPlural(n, "формула", "формулы", "формул")}`;
+  }],
+  [/^(\d+) casks$/u, (m) => {
+    const n = Number(m[1]);
+    return `${n} ${ruPlural(n, "cask-пакет", "cask-пакета", "cask-пакетов")}`;
+  }],
+  [/^Formulae \(Cellar\)$/u, () => "Формулы (Cellar)"],
+  [/^Casks \(Caskroom\)$/u, () => "Cask-пакеты (Caskroom)"],
+  [/^Logs \(var\/log\)$/u, () => "Логи (var/log)"],
+  [/^Download cache$/u, () => "Кэш загрузок"],
   [/^(\d+) finding(s)? across (\d+) of (\d+) installed packages(.*)$/u, (m) => {
     const findings = Number(m[1]);
     const packages = Number(m[3]);

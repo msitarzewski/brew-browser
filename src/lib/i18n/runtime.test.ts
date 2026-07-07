@@ -28,6 +28,17 @@ describe("Russian runtime localization", () => {
     expect(translateText("21 packages", "ru")).toBe("21 пакет");
   });
 
+  it("localizes dashboard runtime labels", () => {
+    expect(translateText("+ 42 more in Library →", "ru")).toBe("Ещё 42 в Библиотеке →");
+    expect(translateText("58 on request", "ru")).toBe("58 вручную");
+    expect(translateText("7 casks", "ru")).toBe("7 cask-пакетов");
+    expect(translateText("3.79 GB total", "ru")).toBe("всего 3.79 GB");
+    expect(translateText("Download cache", "ru")).toBe("Кэш загрузок");
+    expect(translateText("updates available", "ru")).toBe("доступны обновления");
+    expect(translateText("Catalog:", "ru")).toBe("Каталог:");
+    expect(translateText("(bundled)", "ru")).toBe("(встроенный)");
+  });
+
   it("localizes activity labels without changing package tokens", () => {
     expect(translateText("Installing ripgrep", "ru")).toBe("Устанавливаем ripgrep");
     expect(translateText("Upgrading 22 packages", "ru")).toBe("Обновляем 22 пакета");

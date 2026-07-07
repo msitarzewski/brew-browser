@@ -7,8 +7,113 @@ import Foundation
 /// values, package names, brew commands, and Recent Changes parsing remain
 /// stable across locales.
 public enum L10n {
-    public static func string(_ key: String.LocalizationValue) -> String {
-        String(localized: key, bundle: .module)
+    public static func string(_ key: String) -> String {
+        let language = isRussian ? "ru" : "en"
+        if let path = Bundle.module.path(forResource: language, ofType: "lproj"),
+           let bundle = Bundle(path: path) {
+            let value = bundle.localizedString(forKey: key, value: key, table: nil)
+            if value != key { return value }
+        }
+        return Bundle.module.localizedString(forKey: key, value: key, table: nil)
+    }
+
+    static func display(_ source: String) -> String {
+        if !isRussian { return source }
+        switch source {
+        case "AI & ML": return "AI и ML"
+        case "Data": return "Данные"
+        case "Developer Tools": return "Инструменты разработчика"
+        case "Graphics & Design": return "Графика и дизайн"
+        case "Security": return "Безопасность"
+        case "System Utilities": return "Системные утилиты"
+        case "Terminal": return "Терминал"
+        case "Video & Audio": return "Видео и аудио"
+        case "Other": return "Другое"
+        case "Formulae": return "Формулы"
+        case "Casks": return "Cask-пакеты"
+        case "formulae": return "формул"
+        case "casks": return "cask-пакетов"
+        case "Formulae (Cellar)": return "Формулы (Cellar)"
+        case "Casks (Caskroom)": return "Cask-пакеты (Caskroom)"
+        case "Logs (var/log)": return "Логи (var/log)"
+        case "Download cache": return "Кэш загрузок"
+        case "installed": return "установлено"
+        case "updates available": return "доступны обновления"
+        case "checking updates": return "проверяем обновления"
+        case "All current": return "Всё актуально"
+        case "Catalog": return "Каталог"
+        case "Composition": return "Состав"
+        case "Top categories in your library": return "Главные категории в библиотеке"
+        case "Storage": return "Хранилище"
+        case "Measuring disk usage…": return "Считаем место на диске…"
+        case "Refresh": return "Обновить"
+        case "Refreshing…": return "Обновляем…"
+        case "Refresh from brew.sh →": return "Обновить с brew.sh →"
+        case "Updates available": return "Доступны обновления"
+        case "Choose…": return "Выбрать…"
+        case "Running…": return "Выполняем…"
+        case "Run brew doctor": return "Запустить brew doctor"
+        case "Cleaning…": return "Очищаем…"
+        case "Clean up cache…": return "Очистить кэш…"
+        case "Scrub — also remove the latest versions' cached downloads (more aggressive)":
+            return "Scrub: также удалить кэш загрузок последних версий (агрессивнее)"
+        case "Verbose — list every file removed":
+            return "Verbose: перечислять каждый удалённый файл"
+        case "Cancel": return "Отмена"
+        case "Clean up": return "Очистить"
+        case "bundled": return "встроенный"
+        default:
+            break
+        }
+
+        if let n = Int(source.removingSuffix(" on request") ?? "") {
+            return "\(n) вручную"
+        }
+        if let n = Int(source.removingSuffix(" as dependency") ?? "") {
+            return "\(n) как зависимости"
+        }
+        if let n = Int(source.removingSuffix(" pinned") ?? "") {
+            return "\(n) закреплено"
+        }
+        if let n = Int(source.removingSuffix(" formulae") ?? "") {
+            return "\(n) \(ruPlural(n, one: "формула", few: "формулы", many: "формул"))"
+        }
+        if let n = Int(source.removingSuffix(" casks") ?? "") {
+            return "\(n) \(ruPlural(n, one: "cask-пакет", few: "cask-пакета", many: "cask-пакетов"))"
+        }
+        if let value = source.removingSuffix(" total") {
+            return "всего \(value)"
+        }
+        if let value = source.removingPrefix("frees ~") {
+            return "освободит ~\(value)"
+        }
+        if let value = source.removingPrefix("Catalog: ") {
+            return "Каталог: \(value)"
+        }
+        if let value = source.removingPrefix("General ") {
+            return "Общие: \(display(value))"
+        }
+        if source.contains(" + ") {
+            return source
+                .split(separator: "+", maxSplits: 1)
+                .map { display($0.trimmingCharacters(in: .whitespaces)) }
+                .joined(separator: " + ")
+        }
+        return source
+    }
+
+    static func formulaeCount(_ count: Int) -> String {
+        if isRussian {
+            return "\(count) \(ruPlural(count, one: "формула", few: "формулы", many: "формул"))"
+        }
+        return "\(count) formulae"
+    }
+
+    static func casksCount(_ count: Int) -> String {
+        if isRussian {
+            return "\(count) \(ruPlural(count, one: "cask-пакет", few: "cask-пакета", many: "cask-пакетов"))"
+        }
+        return "\(count) casks"
     }
 
     static var isRussian: Bool {
@@ -198,5 +303,9 @@ public enum L10n {
 private extension String {
     func removingPrefix(_ prefix: String) -> String? {
         hasPrefix(prefix) ? String(dropFirst(prefix.count)) : nil
+    }
+
+    func removingSuffix(_ suffix: String) -> String? {
+        hasSuffix(suffix) ? String(dropLast(suffix.count)) : nil
     }
 }

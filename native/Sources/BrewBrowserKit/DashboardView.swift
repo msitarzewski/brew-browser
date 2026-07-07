@@ -89,8 +89,8 @@ struct HeroStrip: View {
                 model.openLibrary()
             }
             StatTile(
-                value: model.outdatedLoading ? "…" : (model.outdatedCount == 0 ? "All current" : "\(model.outdatedCount)"),
-                label: model.outdatedLoading ? "checking updates" : (model.outdatedCount == 0 ? "" : "updates available"),
+                value: model.outdatedLoading ? "…" : (model.outdatedCount == 0 ? L10n.display("All current") : "\(model.outdatedCount)"),
+                label: model.outdatedLoading ? L10n.display("checking updates") : (model.outdatedCount == 0 ? "" : L10n.display("updates available")),
                 symbol: "arrow.up.circle"
             ) { if model.outdatedCount > 0 { model.openOutdatedInLibrary() } }
             .disabled(model.outdatedLoading || model.outdatedCount == 0)
@@ -116,7 +116,7 @@ struct StatTile: View {
                         .font(monospaceValue ? .title3.weight(.semibold).monospaced() : .title2.weight(.semibold))
                         .lineLimit(1).minimumScaleFactor(0.5)
                     if !label.isEmpty {
-                        Text(label).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                        Text(L10n.display(label)).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                     }
                 }
                 Spacer(minLength: 0)
@@ -140,10 +140,10 @@ struct CatalogFreshnessStrip: View {
     var body: some View {
         let stale = model.catalogIsStale
         HStack(spacing: 8) {
-            Text("Catalog: \(Text(model.catalogDaysOldLabel).fontWeight(.semibold))")
+            Text("\(L10n.display("Catalog")): \(Text(model.catalogDaysOldLabel).fontWeight(.semibold))")
                 .foregroundStyle(.secondary)
             if let src = model.catalogSummary?.source {
-                Text("(\(src.rawValue))")
+                Text("(\(L10n.display(src.rawValue)))")
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -160,12 +160,12 @@ struct CatalogFreshnessStrip: View {
                     // shows real motion while the sync runs.
                     HStack(spacing: 5) {
                         ProgressView().controlSize(.small)
-                        Text("Refreshing…")
+                        Text(L10n.display("Refreshing…"))
                     }
                 } else if stale {
-                    Label("Refresh from brew.sh →", systemImage: "arrow.clockwise")
+                    Label(L10n.display("Refresh from brew.sh →"), systemImage: "arrow.clockwise")
                 } else {
-                    Label("Refresh", systemImage: "arrow.clockwise")
+                    Label(L10n.display("Refresh"), systemImage: "arrow.clockwise")
                 }
             }
             .controlSize(.small)
@@ -197,7 +197,7 @@ struct UpdatesCard: View {
                         model.openOutdatedInLibrary()
                     } label: {
                         HStack(spacing: 4) {
-                            Text("Updates available").font(.headline)
+                            Text(L10n.display("Updates available")).font(.headline)
                             Image(systemName: "arrow.right").font(.caption)
                         }
                     }
@@ -207,12 +207,12 @@ struct UpdatesCard: View {
                     // `brew update` + re-pulls the catalog, so a separate Update
                     // was redundant (and Tauri's Updates card has only Choose… +
                     // Upgrade all).
-                    Button("Choose…") { showUpgradeSheet = true }
+                    Button(L10n.display("Choose…")) { showUpgradeSheet = true }
                         .controlSize(.small)
                     Button {
                         Task { await model.upgradeAll(greedy: LocalPrefs.shared.greedyUpgrade) }
                     } label: {
-                        Label("Upgrade all (\(model.outdatedCount))", systemImage: "arrow.up.circle")
+                        Label(L10n.isRussian ? "Обновить всё (\(model.outdatedCount))" : "Upgrade all (\(model.outdatedCount))", systemImage: "arrow.up.circle")
                     }
                     .controlSize(.small)
                     .buttonStyle(.borderedProminent)
@@ -308,7 +308,7 @@ struct CompositionCard: View {
     private var formulaFraction: CGFloat { CGFloat(model.formulaCount) / CGFloat(total) }
 
     private var pieData: [(label: String, count: Int)] {
-        [("Formulae", model.formulaCount), ("Casks", model.caskCount)]
+        [(L10n.display("Formulae"), model.formulaCount), (L10n.display("Casks"), model.caskCount)]
     }
 
     private var formulaPct: Double { Double(model.formulaCount) / Double(total) * 100 }
@@ -319,10 +319,10 @@ struct CompositionCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 // Title row — pills (on request / pinned) live here now.
                 HStack {
-                    Text("Composition").font(.headline)
+                    Text(L10n.display("Composition")).font(.headline)
                     Spacer()
-                    Chip(text: "\(model.onRequestCount) on request")
-                    Chip(text: "\(model.pinnedCount) pinned")
+                    Chip(text: L10n.display("\(model.onRequestCount) on request"))
+                    Chip(text: L10n.display("\(model.pinnedCount) pinned"))
                 }
 
                 if compact {
@@ -333,16 +333,16 @@ struct CompositionCard: View {
                                 .cornerRadius(4)
                                 .foregroundStyle(by: .value("Kind", item.label))
                         }
-                        .chartForegroundStyleScale(["Formulae": Color.blue, "Casks": Color.orange])
+                        .chartForegroundStyleScale([L10n.display("Formulae"): Color.blue, L10n.display("Casks"): Color.orange])
                         .chartLegend(.hidden)
                         .frame(width: 180, height: 180)
                         .padding(.vertical, 16)
                         .padding(.leading, 16)
 
                         VStack(spacing: 0) {
-                            compositionLegendRow(color: .blue, label: "Formulae",
+                            compositionLegendRow(color: .blue, label: L10n.display("Formulae"),
                                                  count: model.formulaCount, pct: formulaPct)
-                            compositionLegendRow(color: .orange, label: "Casks",
+                            compositionLegendRow(color: .orange, label: L10n.display("Casks"),
                                                  count: model.caskCount, pct: caskPct)
                         }
                         .frame(maxWidth: .infinity)
@@ -362,8 +362,8 @@ struct CompositionCard: View {
                     .frame(height: 14)
 
                     HStack(spacing: 16) {
-                        LegendDot(color: .blue, text: "\(model.formulaCount) formulae")
-                        LegendDot(color: .orange, text: "\(model.caskCount) casks")
+                        LegendDot(color: .blue, text: L10n.formulaeCount(model.formulaCount))
+                        LegendDot(color: .orange, text: L10n.casksCount(model.caskCount))
                         Spacer()
                     }
                 }
@@ -426,7 +426,7 @@ struct CategoriesCard: View {
     var body: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Top categories in your library").font(.headline)
+                Text(L10n.display("Top categories in your library")).font(.headline)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 HStack(alignment: .center, spacing: 20) {
@@ -469,7 +469,7 @@ struct CategoriesCard: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(width: 16)
-            Text(cat.label)
+            Text(L10n.display(cat.label))
                 .font(.callout)
                 .fontWeight(hovered == cat.slug ? .semibold : .regular)
             Spacer(minLength: 12)
@@ -493,7 +493,7 @@ struct CategoriesCard: View {
         // Click a category → show your INSTALLED packages in it (Library),
         // not the whole Discover catalog. See #58.
         .onTapGesture { model.jumpToLibraryCategory(cat.slug) }
-        .help("Show your installed \(cat.label) packages")
+        .help(L10n.isRussian ? "Показать установленные пакеты в категории \(L10n.display(cat.label))" : "Show your installed \(cat.label) packages")
     }
 }
 
@@ -518,9 +518,9 @@ struct StorageCard: View {
         GroupBox {
             VStack(spacing: 0) {
                 HStack {
-                    Text("Storage").font(.headline)
+                    Text(L10n.display("Storage")).font(.headline)
                     Spacer()
-                    Text("\(human(model.storageTotalBytes)) total")
+                    Text(L10n.display("\(human(model.storageTotalBytes)) total"))
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 .padding(.bottom, 8)
@@ -528,14 +528,14 @@ struct StorageCard: View {
                 if model.storage.isEmpty && model.storageLoading {
                     HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
-                        Text("Measuring disk usage…").font(.callout).foregroundStyle(.secondary)
+                        Text(L10n.display("Measuring disk usage…")).font(.callout).foregroundStyle(.secondary)
                         Spacer()
                     }
                     .padding(.vertical, 7)
                 }
                 ForEach(model.storage) { item in
                     HStack(spacing: 12) {
-                        Text(item.label).frame(width: 160, alignment: .leading)
+                        Text(L10n.display(item.label)).frame(width: 160, alignment: .leading)
                         Text(item.path)
                             .font(.callout.monospaced()).foregroundStyle(.secondary)
                             .lineLimit(1).truncationMode(.middle)
@@ -559,7 +559,7 @@ struct StorageCard: View {
                     Button {
                         Task { await model.runDoctor() }
                     } label: {
-                        Label(model.doctorRunning ? "Running…" : "Run brew doctor",
+                        Label(model.doctorRunning ? L10n.display("Running…") : L10n.display("Run brew doctor"),
                               systemImage: "stethoscope")
                     }
                     .disabled(model.maintenanceBusy)
@@ -567,13 +567,13 @@ struct StorageCard: View {
                     Button {
                         showCleanupConfirm.toggle()
                     } label: {
-                        Label(model.cleanupRunning ? "Cleaning…" : "Clean up cache…",
+                        Label(model.cleanupRunning ? L10n.display("Cleaning…") : L10n.display("Clean up cache…"),
                               systemImage: "trash")
                     }
                     .disabled(model.maintenanceBusy)
 
                     if let bytes = model.cleanupReclaimableBytes, bytes > 0 {
-                        Text("frees ~\(human(bytes))")
+                        Text(L10n.display("frees ~\(human(bytes))"))
                             .font(.callout).foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -585,14 +585,14 @@ struct StorageCard: View {
                         Text(cleanupConfirmText)
                             .font(.callout).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
-                        Toggle("Scrub — also remove the latest versions' cached downloads (more aggressive)", isOn: $cleanupScrub)
+                        Toggle(L10n.display("Scrub — also remove the latest versions' cached downloads (more aggressive)"), isOn: $cleanupScrub)
                             .font(.callout)
-                        Toggle("Verbose — list every file removed", isOn: $cleanupVerbose)
+                        Toggle(L10n.display("Verbose — list every file removed"), isOn: $cleanupVerbose)
                             .font(.callout)
                         HStack {
                             Spacer()
-                            Button("Cancel") { showCleanupConfirm = false }
-                            Button("Clean up", role: .destructive) {
+                            Button(L10n.display("Cancel")) { showCleanupConfirm = false }
+                            Button(L10n.display("Clean up"), role: .destructive) {
                                 showCleanupConfirm = false
                                 Task { await model.runCleanup(scrub: cleanupScrub, verbose: cleanupVerbose) }
                             }
@@ -612,13 +612,17 @@ struct StorageCard: View {
     private var cleanupConfirmText: String {
         let freeing: String
         if let bytes = model.cleanupReclaimableBytes, bytes > 0 {
-            freeing = ", freeing about \(human(bytes))"
+            freeing = L10n.isRussian ? ", освободится примерно \(human(bytes))" : ", freeing about \(human(bytes))"
         } else {
             freeing = ""
         }
         let scrubNote = cleanupScrub
-            ? " Also clears the current versions' downloads (--scrub)."
+            ? (L10n.isRussian ? " Также удалит загрузки текущих версий (--scrub)." : " Also clears the current versions' downloads (--scrub).")
             : ""
+        if L10n.isRussian {
+            return "Удаляет устаревшие кэшированные загрузки\(freeing).\(scrubNote) "
+                + "Установленные пакеты не затрагиваются."
+        }
         return "Removes outdated cached downloads\(freeing).\(scrubNote) "
             + "Your installed packages are not affected."
     }

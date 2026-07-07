@@ -326,7 +326,7 @@ struct LibraryView: View {
     private var filterBar: some View {
         Picker("Filter", selection: $model.libraryFilter) {
             ForEach(model.availableLibraryFilters) { f in
-                Text("\(f.rawValue) (\(model.libraryFilterCount(f)))").tag(f)
+                Text("\(f.localizedTitle) (\(model.libraryFilterCount(f)))").tag(f)
             }
         }
         .pickerStyle(.segmented)
@@ -346,7 +346,7 @@ struct LibraryView: View {
                 model.clearLibraryCategory()
             } label: {
                 HStack(spacing: 4) {
-                    Text(label)
+                    Text(L10n.display(label))
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
                 }
@@ -356,7 +356,7 @@ struct LibraryView: View {
                 .background(Color.secondary.opacity(0.12), in: .capsule)
             }
             .buttonStyle(.plain)
-            .help("Clear category filter")
+            .help(L10n.isRussian ? "Сбросить фильтр категорий" : "Clear category filter")
             Spacer()
         }
         .padding(.horizontal, 12)
