@@ -21,8 +21,10 @@
  */
 
 import { appVersion } from "$lib/api";
+import { t } from "$lib/i18n/messages";
 import { env } from "$lib/stores/env.svelte";
 import { toast } from "$lib/stores/toast.svelte";
+import { ui } from "$lib/stores/ui.svelte";
 import {
   brewErrorMessage,
   isBrewError,
@@ -179,14 +181,14 @@ export function reportableToastError(title: string, e: unknown): void {
     // error toast with NO report action.
     if (e.code === "brew_exit_non_zero") {
       if (e.friendlyMessage) return;
-      toast.error(title, brewErrorMessage(e));
+      toast.error(title, brewErrorMessage(e, ui.locale));
       return;
     }
     // Other BrewError codes (Io, Internal, parse failures, …) are app-side
     // problems worth reporting.
     const ctx = reportContextFromBrewError(e, title);
-    toast.error(title, brewErrorMessage(e), {
-      label: "Report to brew-browser",
+    toast.error(title, brewErrorMessage(e, ui.locale), {
+      label: t("Report to brew-browser", ui.locale),
       onClick: () => {
         void openReportIssue(ctx);
       },
@@ -195,7 +197,7 @@ export function reportableToastError(title: string, e: unknown): void {
   }
   const stringified = String(e);
   toast.error(title, stringified, {
-    label: "Report to brew-browser",
+    label: t("Report to brew-browser", ui.locale),
     onClick: () => {
       void openReportIssue({
         summary: title,

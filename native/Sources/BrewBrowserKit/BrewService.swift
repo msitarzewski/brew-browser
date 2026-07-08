@@ -93,8 +93,31 @@ enum BrewError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .brewNotFound:
+            if L10n.isRussian {
+                return "Не удалось найти исполняемый файл brew. Установлен ли Homebrew?"
+            }
             return "Couldn't find the brew executable. Is Homebrew installed?"
         case let .nonZeroExit(code, stderr):
+            if L10n.isRussian {
+                if stderr == "Unparseable brew info --installed JSON" {
+                    return "Не удалось разобрать ответ brew info --installed."
+                }
+                if stderr == "Unparseable brew services JSON" {
+                    return "Не удалось разобрать ответ brew services."
+                }
+                if stderr == "Unparseable brew info JSON" {
+                    return "Не удалось разобрать ответ brew info."
+                }
+                if stderr.hasPrefix("No formulae entry for ") {
+                    let name = String(stderr.dropFirst("No formulae entry for ".count))
+                    return "В ответе brew info нет записи для \(name)."
+                }
+                if stderr.hasPrefix("No casks entry for ") {
+                    let name = String(stderr.dropFirst("No casks entry for ".count))
+                    return "В ответе brew info нет записи для \(name)."
+                }
+                return "brew завершился с кодом \(code): \(stderr)"
+            }
             return "brew exited with code \(code): \(stderr)"
         }
     }

@@ -25,7 +25,7 @@ struct DiscoverView: View {
     var body: some View {
         Group {
             if model.catalogLoading && model.catalog.isEmpty {
-                ProgressView("Loading the Homebrew catalog…")
+                ProgressView(L10n.string("Loading the Homebrew catalog…"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VStack(spacing: 0) {
@@ -59,9 +59,7 @@ struct DiscoverView: View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
-            Text(L10n.isRussian
-                 ? "Каталог устарел: \(model.catalogDaysOldLabel). Новые пакеты и сведения об устаревании могут отсутствовать."
-                 : "Catalog is \(model.catalogDaysOldLabel). Newer packages and deprecations may be missing.")
+            Text(L10n.catalogStaleBanner(age: model.catalogDaysOldLabel))
                 .font(.callout)
             Spacer()
             Button {
@@ -84,7 +82,7 @@ struct DiscoverView: View {
                 Image(systemName: "xmark")
             }
             .buttonStyle(.borderless)
-            .help("Dismiss for this session")
+            .help(L10n.string("Dismiss for this session"))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -93,7 +91,7 @@ struct DiscoverView: View {
 
     // Category Picker, centered (matches Library's centered segmented filter).
     private var filterBar: some View {
-        Picker("Category", selection: $model.discoverCategory) {
+        Picker(L10n.isRussian ? "Категория" : "Category", selection: $model.discoverCategory) {
             Text(L10n.isRussian ? "Все категории" : "All Categories").tag(String?.none)
             ForEach(model.categoryList, id: \.slug) { cat in
                 Text(L10n.display(cat.label)).tag(String?.some(cat.slug))
@@ -176,8 +174,8 @@ struct DiscoverView: View {
         }
         .buttonStyle(.plain)
         .help(key == categorySubgroupGeneralKey
-              ? "Members of this category with no other category"
-              : "Members also categorized here")
+              ? L10n.string("Members of this category with no other category")
+              : L10n.string("Members also categorized here"))
     }
 
     // Recent-search chips — click to re-run. Persisted in LocalPrefs
@@ -185,11 +183,11 @@ struct DiscoverView: View {
     private var recentSearchesRow: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("RECENT")
+                Text(L10n.string("RECENT"))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button("Clear") { prefs.clearRecentSearches() }
+                Button(L10n.string("Clear")) { prefs.clearRecentSearches() }
                     .buttonStyle(.link)
                     .font(.caption)
             }
@@ -215,9 +213,7 @@ struct DiscoverView: View {
     private var categoryGrid: some View {
         let columns = [GridItem(.adaptive(minimum: 150, maximum: 240), spacing: 12)]
         return VStack(alignment: .leading, spacing: 8) {
-            Text(L10n.isRussian
-                 ? "Просматривайте \(model.catalog.count) пакетов по категориям или используйте поиск выше."
-                 : "Browse \(model.catalog.count) packages by category, or search above.")
+            Text(L10n.browsePackagesByCategory(model.catalog.count))
                 .font(.callout).foregroundStyle(.secondary)
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(model.categoryTiles) { tile in
@@ -251,15 +247,15 @@ struct DiscoverView: View {
         let rows = model.sortedDiscoverRows
         if rows.isEmpty {
             if model.catalog.isEmpty {
-                ContentUnavailableView("Catalog unavailable",
+                ContentUnavailableView(L10n.string("Catalog unavailable"),
                                        systemImage: "exclamationmark.triangle",
-                                       description: Text("The bundled package catalog couldn't be loaded."))
+                                       description: Text(L10n.string("The bundled package catalog couldn't be loaded.")))
             } else if !model.globalQuery.isEmpty {
                 ContentUnavailableView.search(text: model.globalQuery)
             } else {
-                ContentUnavailableView("No packages",
+                ContentUnavailableView(L10n.string("No packages"),
                                        systemImage: "sparkles.rectangle.stack",
-                                       description: Text("Nothing in this category."))
+                                       description: Text(L10n.isRussian ? "В этой категории ничего нет." : "Nothing in this category."))
             }
         } else {
             // AI-gated Description column → two static column sets (a conditional
@@ -277,25 +273,25 @@ struct DiscoverView: View {
     private func discoverTable(_ rows: [DiscoverRow], showDescription: Bool) -> some View {
         if showDescription {
             Table(rows, selection: $selectedID, sortOrder: $model.discoverSort) {
-                TableColumn("Name", value: \.name) { iconNameCell($0) }.width(min: 160, ideal: 220)
-                TableColumn("Description", value: \.summary) { r in
+                TableColumn(L10n.string("Name"), value: \.name) { iconNameCell($0) }.width(min: 160, ideal: 220)
+                TableColumn(L10n.string("Description"), value: \.summary) { r in
                     Text(r.summary).foregroundStyle(.secondary).lineLimit(1)
                 }.width(min: 160, ideal: 300)
-                TableColumn("Version", value: \.version) { r in
+                TableColumn(L10n.string("Version"), value: \.version) { r in
                     Text(r.version).foregroundStyle(.secondary).monospacedDigit()
                 }.width(min: 70, ideal: 100)
-                TableColumn("Type", value: \.kind.rawValue) { KindPill(kind: $0.kind) }.width(min: 64, ideal: 80)
-                TableColumn("Installed", value: \.installedRank) { installedCell($0) }.width(min: 64, ideal: 80)
+                TableColumn(L10n.string("Type"), value: \.kind.rawValue) { KindPill(kind: $0.kind) }.width(min: 64, ideal: 80)
+                TableColumn(L10n.string("Installed"), value: \.installedRank) { installedCell($0) }.width(min: 64, ideal: 80)
             }
             .onChange(of: selectedID, openSelected)
         } else {
             Table(rows, selection: $selectedID, sortOrder: $model.discoverSort) {
-                TableColumn("Name", value: \.name) { iconNameCell($0) }.width(min: 200, ideal: 280)
-                TableColumn("Version", value: \.version) { r in
+                TableColumn(L10n.string("Name"), value: \.name) { iconNameCell($0) }.width(min: 200, ideal: 280)
+                TableColumn(L10n.string("Version"), value: \.version) { r in
                     Text(r.version).foregroundStyle(.secondary).monospacedDigit()
                 }.width(min: 70, ideal: 100)
-                TableColumn("Type", value: \.kind.rawValue) { KindPill(kind: $0.kind) }.width(min: 64, ideal: 80)
-                TableColumn("Installed", value: \.installedRank) { installedCell($0) }.width(min: 64, ideal: 80)
+                TableColumn(L10n.string("Type"), value: \.kind.rawValue) { KindPill(kind: $0.kind) }.width(min: 64, ideal: 80)
+                TableColumn(L10n.string("Installed"), value: \.installedRank) { installedCell($0) }.width(min: 64, ideal: 80)
             }
             .onChange(of: selectedID, openSelected)
         }
@@ -329,7 +325,7 @@ struct DiscoverView: View {
         if row.isInstalled {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(.green)
-                .help("Installed")
+                .help(L10n.string("Installed"))
         }
     }
 

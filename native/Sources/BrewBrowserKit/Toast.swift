@@ -124,7 +124,7 @@ private struct ToastCard: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
-            .help("Dismiss")
+            .help(L10n.string("Dismiss"))
         }
         .padding(12)
         .frame(width: 320, alignment: .leading)

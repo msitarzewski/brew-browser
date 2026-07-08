@@ -17,6 +17,7 @@
   import { library, isManual, isDependencyOnly, type LibraryFilter } from "$lib/stores/library.svelte";
   import { enrichment } from "$lib/stores/enrichment.svelte";
   import { vulnerabilities } from "$lib/stores/vulnerabilities.svelte";
+  import { t, ruPlural } from "$lib/i18n/messages";
   import { resolveCategoryIcon } from "$lib/util/categoryIcon";
   import { isLinux } from "$lib/util/platform";
   import type { Package } from "$lib/types";
@@ -149,6 +150,17 @@
     await packages.load(true);
     vulnerabilities.scanIfNeeded().catch(() => {});
   }
+
+  function filterLabel(filter: LibraryFilter): string {
+    if (filter === "all") return t("All", ui.locale);
+    if (filter === "formulae") return t("Formulae", ui.locale);
+    if (filter === "casks") return t("Casks", ui.locale);
+    if (filter === "outdated") return t("Outdated", ui.locale);
+    if (filter === "manual") return t("Manual", ui.locale);
+    if (filter === "dependency") return t("Dependency", ui.locale);
+    if (filter === "vulnerable") return t("Vulnerable", ui.locale);
+    return filter;
+  }
 </script>
 
 <section class="library">
@@ -156,21 +168,21 @@
        keeps the install count + filter input + Refresh button. -->
   <header class="panel-head" data-tauri-drag-region>
     <div class="head-left">
-      <span class="count text-muted">{packages.all.length} installed</span>
+      <span class="count text-muted">{ui.locale === "ru" ? `${packages.all.length} ${ruPlural(packages.all.length, "установленный пакет", "установленных пакета", "установленных пакетов")}` : `${packages.all.length} installed`}</span>
     </div>
     <div class="head-right" data-tauri-drag-region="false">
-      <Input bind:value={query} placeholder="Filter…" variant="search" size="sm" ariaLabel="Filter installed packages" />
+      <Input bind:value={query} placeholder={ui.locale === "ru" ? "Фильтр…" : "Filter…"} variant="search" size="sm" ariaLabel={ui.locale === "ru" ? "Фильтр установленных пакетов" : "Filter installed packages"} />
       <span class="refresh-wrap">
-        <Button size="sm" variant="ghost" onclick={refreshLibrary} ariaLabel="Refresh" title="Refresh (⌘R)">
+        <Button size="sm" variant="ghost" onclick={refreshLibrary} ariaLabel={t("Refresh", ui.locale)} title={ui.locale === "ru" ? "Обновить (⌘R)" : "Refresh (⌘R)"}>
           {#snippet icon()}<RefreshCw size={14} />{/snippet}
-          Refresh
+          {t("Refresh", ui.locale)}
         </Button>
       </span>
     </div>
   </header>
 
   <div class="filter-bar">
-    <div class="pillgroup" role="tablist" aria-label="Type filter">
+    <div class="pillgroup" role="tablist" aria-label={ui.locale === "ru" ? "Фильтр по типу" : "Type filter"}>
       {#each libraryFilters as f (f)}
         {@const count = f === "outdated"
           ? packages.outdated.length
@@ -187,7 +199,7 @@
           class:on={library.filter === f}
           onclick={() => library.setFilter(f)}
         >
-          {f === "all" ? "All" : f[0].toUpperCase() + f.slice(1)}
+          {filterLabel(f)}
           {#if count !== null && count > 0}
             <span class="filter-count" class:filter-count-danger={f === "vulnerable"}>{count}</span>
           {/if}
@@ -198,7 +210,7 @@
     <!-- Phase 13: chip bar hidden when the AI Features toggle is off
          (categories are LLM-generated). -->
     {#if categories.visible && discover.hasFilter}
-      <div class="chip-bar" aria-label="Active category filters">
+      <div class="chip-bar" aria-label={ui.locale === "ru" ? "Активные фильтры категорий" : "Active category filters"}>
         {#each [...discover.selectedCategories] as slug (slug)}
           {@const Icon = resolveCategoryIcon(
             categories.data?.categories[slug]?.icon ?? "HelpCircle",
@@ -206,29 +218,29 @@
           <button
             class="chip on"
             onclick={() => discover.toggle(slug)}
-            aria-label={`Remove ${categories.labelOf(slug)} filter`}
+            aria-label={ui.locale === "ru" ? `Убрать фильтр «${categories.labelOf(slug, ui.locale)}»` : `Remove ${categories.labelOf(slug, ui.locale)} filter`}
           >
             <Icon size={12} />
-            <span>{categories.labelOf(slug)}</span>
+            <span>{categories.labelOf(slug, ui.locale)}</span>
             <XIcon size={12} />
           </button>
         {/each}
-        <button class="chip-clear" onclick={() => discover.clear()}>Clear</button>
+        <button class="chip-clear" onclick={() => discover.clear()}>{t("Clear", ui.locale)}</button>
       </div>
     {/if}
   </div>
 
   <div class="list-wrap">
     {#if packages.loading && !packages.list}
-      <LoadingState rows={8} label="Loading installed packages…" />
+      <LoadingState rows={8} label={ui.locale === "ru" ? "Загружаем установленные пакеты…" : "Loading installed packages…"} />
     {:else if packages.error}
       <EmptyState
-        title="Couldn't load packages"
+        title={t("Couldn't load packages", ui.locale)}
         body={packages.error}
       >
         {#snippet icon()}<PackageIcon size={48} />{/snippet}
         {#snippet cta()}
-          <Button variant="secondary" onclick={() => packages.load(true)}>Retry</Button>
+          <Button variant="secondary" onclick={() => packages.load(true)}>{t("Retry", ui.locale)}</Button>
         {/snippet}
       </EmptyState>
     {:else if sorted.length === 0}
@@ -238,24 +250,24 @@
       {@const chipFilterActive = categories.visible && discover.hasFilter}
       <EmptyState
         title={query
-          ? `Nothing matches "${query}"`
+          ? (ui.locale === "ru" ? `По запросу «${query}» ничего не найдено` : `Nothing matches "${query}"`)
           : chipFilterActive
-            ? "No installed packages in the selected categories."
-            : "No packages installed."}
+            ? (ui.locale === "ru" ? "В выбранных категориях нет установленных пакетов." : "No installed packages in the selected categories.")
+            : (ui.locale === "ru" ? "Пакеты не установлены." : "No packages installed.")}
         body={query
-          ? "Try a shorter or different term."
+          ? (ui.locale === "ru" ? "Попробуйте более короткий или другой запрос." : "Try a shorter or different term.")
           : chipFilterActive
-            ? "Remove a chip or open Discover to find more."
-            : "`brew install wget` would be a fine start. Or open Discover to look around."}
+            ? (ui.locale === "ru" ? "Уберите категорию или откройте Каталог, чтобы найти другие пакеты." : "Remove a chip or open Discover to find more.")
+            : (ui.locale === "ru" ? "`brew install wget` — хороший старт. Или откройте Каталог и посмотрите варианты." : "`brew install wget` would be a fine start. Or open Discover to look around.")}
       >
         {#snippet icon()}<PackageIcon size={48} />{/snippet}
         {#snippet cta()}
           {#if query}
-            <Button variant="secondary" onclick={() => (query = "")}>Clear filter</Button>
+            <Button variant="secondary" onclick={() => (query = "")}>{t("Clear filter", ui.locale)}</Button>
           {:else if chipFilterActive}
-            <Button variant="secondary" onclick={() => discover.clear()}>Clear categories</Button>
+            <Button variant="secondary" onclick={() => discover.clear()}>{t("Clear categories", ui.locale)}</Button>
           {:else}
-            <Button variant="primary" onclick={() => ui.setSection("discover")}>Open Discover</Button>
+            <Button variant="primary" onclick={() => ui.setSection("discover")}>{t("Open Discover", ui.locale)}</Button>
           {/if}
         {/snippet}
       </EmptyState>
@@ -266,17 +278,17 @@
            severity dot, see PackageRow's `no-kind` variant). -->
       <div class="list-header" class:no-kind={isLinux} role="row">
         <span></span>
-        <SortableHeader label="Name" sortKey="name" active={sortKey === "name"} dir={sortDir} onSort={changeSort} />
-        <span class="header-desc">Description</span>
-        <SortableHeader label="Version" sortKey="version" active={sortKey === "version"} dir={sortDir} onSort={changeSort} />
+        <SortableHeader label={t("Name", ui.locale)} sortKey="name" active={sortKey === "name"} dir={sortDir} onSort={changeSort} />
+        <span class="header-desc">{t("Description", ui.locale)}</span>
+        <SortableHeader label={t("Version", ui.locale)} sortKey="version" active={sortKey === "version"} dir={sortDir} onSort={changeSort} />
         {#if !isLinux}
-          <SortableHeader label="Type" sortKey="kind" active={sortKey === "kind"} dir={sortDir} onSort={changeSort} />
+          <SortableHeader label={t("Type", ui.locale)} sortKey="kind" active={sortKey === "kind"} dir={sortDir} onSort={changeSort} />
         {:else}
           <span></span>
         {/if}
-        <SortableHeader label="Outdated" sortKey="outdated" active={sortKey === "outdated"} dir={sortDir} onSort={changeSort} />
+        <SortableHeader label={t("Outdated", ui.locale)} sortKey="outdated" active={sortKey === "outdated"} dir={sortDir} onSort={changeSort} />
       </div>
-      <div class="list" role="list" aria-label="Installed packages">
+      <div class="list" role="list" aria-label={ui.locale === "ru" ? "Установленные пакеты" : "Installed packages"}>
         {#each sorted as p (p.fullName + p.kind)}
           <PackageRow
             pkg={p}

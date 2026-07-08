@@ -38,10 +38,14 @@ struct RecentChangesTests {
     }
 
     @Test @MainActor func failureNoticeTitlesUseActionVerb() {
-        #expect(AppModel.failureNoticeTitle(for: "Upgrading docker-desktop") == "Upgrade failed")
-        #expect(AppModel.failureNoticeTitle(for: "Installing wget") == "Install failed")
-        #expect(AppModel.failureNoticeTitle(for: "Uninstalling wget") == "Uninstall failed")
-        #expect(AppModel.failureNoticeTitle(for: "Dumping Brewfile: nightly") == "Dumping Brewfile: nightly failed")
+        let expectedUpgrade = L10n.isRussian ? "Не удалось обновить" : "Upgrade failed"
+        let expectedInstall = L10n.isRussian ? "Не удалось установить" : "Install failed"
+        let expectedUninstall = L10n.isRussian ? "Не удалось удалить" : "Uninstall failed"
+        let expectedBrewfile = L10n.isRussian ? "Не удалось выполнить: Создаём Brewfile: nightly" : "Dumping Brewfile: nightly failed"
+        #expect(AppModel.failureNoticeTitle(for: "Upgrading docker-desktop") == expectedUpgrade)
+        #expect(AppModel.failureNoticeTitle(for: "Installing wget") == expectedInstall)
+        #expect(AppModel.failureNoticeTitle(for: "Uninstalling wget") == expectedUninstall)
+        #expect(AppModel.failureNoticeTitle(for: "Dumping Brewfile: nightly") == expectedBrewfile)
     }
 
     // MARK: - classify()

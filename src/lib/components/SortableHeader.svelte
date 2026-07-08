@@ -2,6 +2,8 @@
   import ArrowUp from "@lucide/svelte/icons/arrow-up";
   import ArrowDown from "@lucide/svelte/icons/arrow-down";
   import ArrowUpDown from "@lucide/svelte/icons/arrow-up-down";
+  import { t } from "$lib/i18n/messages";
+  import { ui } from "$lib/stores/ui.svelte";
 
   /**
    * One column header in a list grid that supports sort-by-click. Designed to
@@ -36,8 +38,8 @@
    * list grids aren't true tables.
    */
   const ariaTitle = $derived.by(() => {
-    if (!active) return `Sort by ${label}`;
-    return `Sorted by ${label}, ${dir === "asc" ? "ascending" : "descending"}. Click to reverse.`;
+    if (!active) return t("table.sortBy", ui.locale, { label });
+    return t(dir === "asc" ? "table.sortedAsc" : "table.sortedDesc", ui.locale, { label });
   });
 </script>
 

@@ -18,6 +18,7 @@
   import { discover } from "$lib/stores/discover.svelte";
   import { enrichment } from "$lib/stores/enrichment.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t, ruPlural } from "$lib/i18n/messages";
   import { resolveCategoryIcon } from "$lib/util/categoryIcon";
   import { isLinux } from "$lib/util/platform";
   import type { PackageKind, SearchHit } from "$lib/types";
@@ -82,17 +83,19 @@
     if (!s) return null;
     if (s.disabled) {
       return {
-        label: "disabled",
+        label: t("disabled", ui.locale),
         tone: "danger",
-        title: s.reason ? `Disabled: ${s.reason}` : "Disabled — no longer available via Homebrew.",
+        title: s.reason
+          ? t("discover.disabledReason", ui.locale, { reason: s.reason })
+          : t("discover.disabledDefault", ui.locale),
       };
     }
     return {
-      label: "deprecated",
+      label: t("deprecated", ui.locale),
       tone: "warning",
       title: s.reason
-        ? `Deprecated: ${s.reason}`
-        : "Deprecated — may be removed in a future Homebrew update.",
+        ? t("discover.deprecatedReason", ui.locale, { reason: s.reason })
+        : t("discover.deprecatedDefault", ui.locale),
     };
   }
 
@@ -100,9 +103,9 @@
     const ok = await catalog.refresh();
     if (ok) {
       bannerDismissed = true;
-      toast.success("Catalog refreshed", "Fetched from formulae.brew.sh");
+      toast.success(t("discover.catalogRefreshed", ui.locale), t("discover.catalogFetched", ui.locale));
     } else if (catalog.refreshError) {
-      toast.error("Catalog refresh failed", catalog.refreshError);
+      toast.error(t("Catalog refresh failed", ui.locale), catalog.refreshError);
     }
   }
 
@@ -117,7 +120,14 @@
   }
 
   function fmt(n: number): string {
-    return n.toLocaleString();
+    return n.toLocaleString(ui.locale === "ru" ? "ru-RU" : undefined);
+  }
+
+  function catalogStaleText(days: number): string {
+    if (ui.locale === "ru") {
+      return `Каталог устарел на ${days} ${ruPlural(days, "день", "дня", "дней")}. Новые пакеты и сведения об устаревании могут отсутствовать.`;
+    }
+    return `Catalog is ${days} ${days === 1 ? "day" : "days"} old. Newer packages and deprecations may be missing.`;
   }
 
   /**
@@ -171,10 +181,18 @@
   let browseTitle = $derived.by(() => {
     if (discover.selectedCategories.size === 1) {
       const [slug] = discover.selectedCategories;
-      return categories.labelOf(slug);
+      return categories.labelOf(slug, ui.locale);
     }
-    return `${discover.selectedCategories.size} categories`;
+    const n = discover.selectedCategories.size;
+    return ui.locale === "ru"
+      ? `${n} ${ruPlural(n, "категория", "категории", "категорий")}`
+      : `${n} categories`;
   });
+
+  let catalogItemCount = $derived(
+    (isLinux ? 0 : Object.keys(categories.data?.casks ?? {}).length) +
+      Object.keys(categories.data?.formulae ?? {}).length,
+  );
 
   /**
    * Feature #6 — sub-categories. Co-occurrence sub-grouping is ONLY defined
@@ -191,7 +209,7 @@
   let subgroups = $derived.by(() => {
     if (discover.selectedCategories.size !== 1) return [];
     const [slug] = discover.selectedCategories;
-    const groups = categories.subgroupsInCategory(slug);
+    const groups = categories.subgroupsInCategory(slug, ui.locale);
     return groups.length > 1 ? groups : [];
   });
 
@@ -223,14 +241,16 @@
       <span class="desc truncate text-muted">{descOf(h.name, h.kind) ?? ""}</span>
       <span class="version truncate text-muted">{catalog.versionOf(h.name, h.kind) ?? ""}</span>
       <span class="kind">
-        <Pill tone={h.kind === "formula" ? "formula" : "cask"}>{h.kind}</Pill>
+        <Pill tone={h.kind === "formula" ? "formula" : "cask"}>
+          {h.kind === "formula" ? t("package.kind.formula", ui.locale) : t("package.kind.cask", ui.locale)}
+        </Pill>
         {#if deprecationBadgeOf(h.name, h.kind)}
           {@const b = deprecationBadgeOf(h.name, h.kind)!}
           <span title={b.title}><Pill tone={b.tone}>{b.label}</Pill></span>
         {/if}
       </span>
       <span class="installed">
-        {#if installed}<Pill tone="success">installed</Pill>{/if}
+        {#if installed}<Pill tone="success">{t("package.installed", ui.locale)}</Pill>{/if}
       </span>
     </button>
   </li>
@@ -248,8 +268,7 @@
     <div class="stale-banner" role="status">
       <span class="stale-icon"><AlertTriangle size={16} /></span>
       <span class="stale-text">
-        Catalog is <strong>{catalog.summary.daysOld} days old</strong>.
-        Newer packages and deprecations may be missing.
+        {catalogStaleText(catalog.summary.daysOld)}
       </span>
       <button
         type="button"
@@ -259,18 +278,18 @@
       >
         {#if catalog.refreshing}
           <Loader size={12} class="spin-slow" />
-          <span>Refreshing…</span>
+          <span>{t("Refreshing…", ui.locale)}</span>
         {:else}
           <RefreshCw size={12} />
-          <span>Refresh from brew.sh →</span>
+          <span>{t("Refresh from brew.sh →", ui.locale)}</span>
         {/if}
       </button>
       <button
         type="button"
         class="stale-dismiss"
         onclick={() => (bannerDismissed = true)}
-        aria-label="Dismiss catalog staleness banner"
-        title="Dismiss for this session"
+        aria-label={t("discover.staleDismissAria", ui.locale)}
+        title={t("Dismiss for this session", ui.locale)}
       >
         <XIcon size={14} />
       </button>
@@ -281,14 +300,14 @@
     <Input
       bind:value={search.query}
       variant="search"
-      placeholder="Search the Homebrew index…"
-      ariaLabel="Search Homebrew"
+      placeholder={t("discover.searchPlaceholder", ui.locale)}
+      ariaLabel={t("discover.searchAria", ui.locale)}
       onInput={(v) => search.setQuery(v)}
       onKeydown={handleKey}
     />
     {#if search.recent.length > 0 && !search.results && !search.query && !discover.hasFilter}
       <div class="recent">
-        <span class="uppercase-label">Recent</span>
+        <span class="uppercase-label">{t("Recent", ui.locale)}</span>
         <ul>
           {#each search.recent as r (r)}
             <li><button onclick={() => search.run(r)}>{r}</button></li>
@@ -301,7 +320,7 @@
          (categories are LLM-generated). Search results below still
          render normally because they don't depend on categories. -->
     {#if categories.visible && discover.hasFilter}
-      <div class="chip-bar" aria-label="Active category filters">
+      <div class="chip-bar" aria-label={t("discover.activeFilters", ui.locale)}>
         {#each [...discover.selectedCategories] as slug (slug)}
           {@const Icon = resolveCategoryIcon(
             categories.data?.categories[slug]?.icon ?? "HelpCircle",
@@ -309,39 +328,39 @@
           <button
             class="chip on"
             onclick={() => discover.toggle(slug)}
-            aria-label={`Remove ${categories.labelOf(slug)} filter`}
+            aria-label={t("discover.removeFilter", ui.locale, { category: categories.labelOf(slug, ui.locale) })}
           >
             <Icon size={12} />
-            <span>{categories.labelOf(slug)}</span>
+            <span>{categories.labelOf(slug, ui.locale)}</span>
             <XIcon size={12} />
           </button>
         {/each}
-        <button class="chip-clear" onclick={() => discover.clear()}>Clear</button>
+        <button class="chip-clear" onclick={() => discover.clear()}>{t("Clear", ui.locale)}</button>
       </div>
     {/if}
   </div>
 
   <div class="results">
     {#if search.loading}
-      <LoadingState rows={6} label="Searching…" />
+      <LoadingState rows={6} label={t("Searching…", ui.locale)} />
     {:else if search.error}
-      <EmptyState title="Search failed" body={search.error}>
+      <EmptyState title={t("discover.searchFailed", ui.locale)} body={search.error}>
         {#snippet icon()}<SearchIcon size={48} />{/snippet}
       </EmptyState>
     {:else if search.results && allHits.length === 0}
       <EmptyState
         title={discover.hasFilter
-          ? `No "${search.results.query}" results in the selected categories.`
-          : `Nothing matches "${search.results.query}".`}
+          ? t("discover.noResultsInCategories", ui.locale, { query: search.results.query })
+          : t("discover.noResults", ui.locale, { query: search.results.query })}
         body={discover.hasFilter
-          ? "Try removing a chip or broadening the search term."
-          : "Try a shorter or different term."}
+          ? t("discover.noResultsInCategories.body", ui.locale)
+          : t("discover.noResults.body", ui.locale)}
       >
         {#snippet icon()}<SearchIcon size={48} />{/snippet}
       </EmptyState>
     {:else if search.results}
       <!-- Search-results mode wins over category browsing -->
-      <ul class="list" aria-label="Search results">
+      <ul class="list" aria-label={t("Search results", ui.locale)}>
         {#each allHits as h (h.name + h.kind)}
           {@const installed = h.installed || packages.isInstalled(h.name, h.kind)}
           {@const isSelected = ui.selectedPackage?.name === h.name && ui.selectedPackage?.kind === h.kind}
@@ -364,14 +383,16 @@
               <span class="desc truncate text-muted">{enrichment.summaryOf(h.name) ?? h.description ?? ""}</span>
               <span class="version truncate text-muted">{catalog.versionOf(h.name, h.kind) ?? ""}</span>
               <span class="kind">
-                <Pill tone={h.kind === "formula" ? "formula" : "cask"}>{h.kind}</Pill>
+                <Pill tone={h.kind === "formula" ? "formula" : "cask"}>
+                  {h.kind === "formula" ? t("package.kind.formula", ui.locale) : t("package.kind.cask", ui.locale)}
+                </Pill>
                 {#if deprecationBadgeOf(h.name, h.kind)}
                   {@const b = deprecationBadgeOf(h.name, h.kind)!}
                   <span title={b.title}><Pill tone={b.tone}>{b.label}</Pill></span>
                 {/if}
               </span>
               <span class="installed">
-                {#if installed}<Pill tone="success">installed</Pill>{/if}
+                {#if installed}<Pill tone="success">{t("package.installed", ui.locale)}</Pill>{/if}
               </span>
             </button>
           </li>
@@ -382,18 +403,18 @@
            (no categories means no chip filter UI). -->
       <div class="cat-header">
         <h2>{browseTitle}</h2>
-        <span class="text-muted">{fmt(browseItems.length)} packages</span>
+        <span class="text-muted">{ui.locale === "ru" ? `${fmt(browseItems.length)} ${ruPlural(browseItems.length, "пакет", "пакета", "пакетов")}` : `${fmt(browseItems.length)} packages`}</span>
         {#if showSubgroups}
-          <span class="subgroup-note text-muted">grouped by overlapping category</span>
+          <span class="subgroup-note text-muted">{t("discover.subgroupNote", ui.locale)}</span>
           <InfoButton
-            title="How these sub-groups are built"
-            label="About sub-categories"
-            body={`Homebrew has no official sub-category data, so this is a co-occurrence grouping: within "${browseTitle}", packages are bucketed by the OTHER categories they also belong to. A package with several overlapping categories appears in each bucket. "General ${browseTitle}" holds packages tagged only "${browseTitle}" — it's often the largest group, and this is a grouping aid, not a strict taxonomy.`}
+            title={t("discover.subgroupsTitle", ui.locale)}
+            label={t("discover.subgroupsLabel", ui.locale)}
+            body={t("discover.subgroupsBody", ui.locale, { category: browseTitle })}
           />
         {/if}
       </div>
       {#if browseItems.length === 0}
-        <EmptyState title="No packages match this filter." body="">
+        <EmptyState title={t("discover.emptyFilter", ui.locale)} body="">
           {#snippet icon()}<SearchIcon size={48} />{/snippet}
         </EmptyState>
       {:else if showSubgroups}
@@ -405,23 +426,23 @@
             <h3>{g.label}</h3>
             <span class="text-muted">{fmt(g.items.length)}</span>
           </div>
-          <ul class="list" aria-label={`Packages in ${g.label}`}>
+          <ul class="list" aria-label={t("discover.groupPackagesLabel", ui.locale, { group: g.label })}>
             {#each g.items as h (h.name + h.kind)}
               {@render browseRow(h)}
             {/each}
           </ul>
         {/each}
       {:else}
-        <ul class="list" aria-label={`Packages in ${browseTitle}`}>
+        <ul class="list" aria-label={t("discover.packagesInCategory", ui.locale, { category: browseTitle })}>
           {#each browseItems as h (h.name + h.kind)}
             {@render browseRow(h)}
           {/each}
         </ul>
       {/if}
     {:else if categories.visible && categories.loading && categories.tiles.length === 0}
-      <LoadingState rows={4} label="Loading categories…" />
+      <LoadingState rows={4} label={t("discover.loadingCategories", ui.locale)} />
     {:else if categories.visible && categories.error}
-      <EmptyState title="Categories unavailable" body={categories.error}>
+      <EmptyState title={t("Categories unavailable", ui.locale)} body={categories.error}>
         {#snippet icon()}<SearchIcon size={48} />{/snippet}
       </EmptyState>
     {:else if categories.visible}
@@ -431,24 +452,27 @@
         <!-- Linux: the bundled categories.json includes cask tokens, but
              casks don't exist there — count formulae only. -->
         <p class="text-muted">
-          Browse {fmt(
-            (isLinux ? 0 : Object.keys(categories.data?.casks ?? {}).length) +
-              Object.keys(categories.data?.formulae ?? {}).length,
-          )} packages by category, or type a query above to search.
+          {#if ui.locale === "ru"}
+            Просматривайте {fmt(catalogItemCount)} {ruPlural(catalogItemCount, "пакет", "пакета", "пакетов")} по категориям или используйте поиск выше.
+          {:else}
+            Browse {fmt(catalogItemCount)} packages by category, or type a query above to search.
+          {/if}
         </p>
       </div>
-      <div class="tile-grid" role="grid" aria-label="Categories">
-        {#each categories.tiles as t (t.slug)}
-          {@const Icon = resolveCategoryIcon(t.icon)}
+      <div class="tile-grid" role="grid" aria-label={t("Categories", ui.locale)}>
+        {#each categories.tiles as tile (tile.slug)}
+          {@const Icon = resolveCategoryIcon(tile.icon)}
           <button
             class="tile"
             role="gridcell"
-            onclick={() => discover.selectOnly(t.slug)}
-            aria-label={`${t.label} — ${fmt(t.count)} packages`}
+            onclick={() => discover.selectOnly(tile.slug)}
+            aria-label={ui.locale === "ru"
+              ? `${categories.labelOf(tile.slug, ui.locale)} — ${fmt(tile.count)} ${ruPlural(tile.count, "пакет", "пакета", "пакетов")}`
+              : t("discover.categoryTileAria", ui.locale, { category: tile.label, count: fmt(tile.count) })}
           >
             <span class="tile-icon"><Icon size={24} /></span>
-            <span class="tile-label">{t.label}</span>
-            <span class="tile-count">{fmt(t.count)}</span>
+            <span class="tile-label">{categories.labelOf(tile.slug, ui.locale)}</span>
+            <span class="tile-count">{fmt(tile.count)}</span>
           </button>
         {/each}
       </div>
@@ -456,8 +480,8 @@
       <!-- Phase 13: AI features off — invite the user to search since
            the category tile grid is hidden. -->
       <EmptyState
-        title="Type a query to search the Homebrew index"
-        body="Category browsing is hidden because AI features are turned off in Settings &rarr; Appearance."
+        title={t("discover.searchPromptTitle", ui.locale)}
+        body={t("discover.categoryBrowsingHidden", ui.locale)}
       >
         {#snippet icon()}<SearchIcon size={48} />{/snippet}
       </EmptyState>
@@ -487,10 +511,6 @@
   .stale-text {
     flex: 1;
     min-width: 0;
-  }
-  .stale-text strong {
-    color: var(--color-warning-strong, #b45309);
-    font-weight: var(--fw-semibold);
   }
   .stale-refresh {
     display: inline-flex;

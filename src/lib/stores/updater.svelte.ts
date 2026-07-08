@@ -26,6 +26,7 @@
  */
 
 import { updateCheckNow, updateInstall, updateRelaunch, updateSkip } from "$lib/api";
+import { ui } from "$lib/stores/ui.svelte";
 import { isBrewError, brewErrorMessage, type UpdateInfo } from "$lib/types";
 
 class UpdaterStore {
@@ -98,7 +99,7 @@ class UpdaterStore {
         this.available = null;
         this.error = null;
       } else if (isBrewError(e)) {
-        this.error = brewErrorMessage(e);
+        this.error = brewErrorMessage(e, ui.locale);
       } else {
         this.error = String(e);
       }
@@ -130,7 +131,7 @@ class UpdaterStore {
       this.installComplete = true;
     } catch (e) {
       if (isBrewError(e)) {
-        this.error = brewErrorMessage(e);
+        this.error = brewErrorMessage(e, ui.locale);
       } else {
         this.error = String(e);
       }
@@ -161,7 +162,7 @@ class UpdaterStore {
       // explicitly asked to dismiss; better to keep their click than
       // surface a confusing "we couldn't dismiss" toast).
       if (isBrewError(e)) {
-        this.error = brewErrorMessage(e);
+        this.error = brewErrorMessage(e, ui.locale);
       } else {
         this.error = String(e);
       }
@@ -183,7 +184,7 @@ class UpdaterStore {
       // socket closed mid-call. Treat any error here as benign — if
       // the restart actually failed, the user will notice immediately.
       if (isBrewError(e)) {
-        this.error = brewErrorMessage(e);
+        this.error = brewErrorMessage(e, ui.locale);
       } else {
         this.error = String(e);
       }

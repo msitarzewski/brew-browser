@@ -1,20 +1,22 @@
 import en from "./en";
 import ru from "./ru";
 
-export type Locale = "en" | "ru";
-export type LocalePreference = "system" | Locale;
 export type MessageKey = keyof typeof en;
 type MessageCatalog = { [K in MessageKey]: string };
 type InterpolationValue = string | number;
 
-export const DEFAULT_LOCALE: Locale = "en";
-export const DEFAULT_LOCALE_PREFERENCE: LocalePreference = "system";
-export const LOCALE_PREFERENCES = ["system", "en", "ru"] as const;
-
-export const messages: Record<Locale, MessageCatalog> = {
+export const messages = {
   en,
   ru,
-};
+} as const satisfies Record<string, MessageCatalog>;
+
+export type Locale = keyof typeof messages;
+export type LocalePreference = "system" | Locale;
+
+export const DEFAULT_LOCALE: Locale = "en";
+export const DEFAULT_LOCALE_PREFERENCE: LocalePreference = "system";
+export const SUPPORTED_LOCALES = Object.keys(messages) as Locale[];
+export const LOCALE_PREFERENCES = ["system", ...SUPPORTED_LOCALES] as const;
 
 export const messagesEn: Record<string, string> = en;
 export const messagesRu: Record<string, string> = ru;
@@ -61,7 +63,13 @@ export function formatVulnerablePackageLabel(count: number, locale: Locale): str
 }
 
 export function isLocalePreference(value: string | null): value is LocalePreference {
-  return value === "system" || value === "en" || value === "ru";
+  return value === "system" || (value !== null && value in messages);
+}
+
+function localeFromLanguage(language: string): Locale | null {
+  const normalized = language.toLowerCase();
+  const primary = normalized.split("-")[0];
+  return SUPPORTED_LOCALES.find((locale) => locale === normalized || locale === primary) ?? null;
 }
 
 export function resolveLocalePreference(
@@ -69,5 +77,9 @@ export function resolveLocalePreference(
   languages: readonly string[] = typeof navigator === "undefined" ? [] : navigator.languages,
 ): Locale {
   if (preference !== "system") return preference;
-  return languages.some((language) => language.toLowerCase().startsWith("ru")) ? "ru" : DEFAULT_LOCALE;
+  for (const language of languages) {
+    const locale = localeFromLanguage(language);
+    if (locale) return locale;
+  }
+  return DEFAULT_LOCALE;
 }

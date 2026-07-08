@@ -471,12 +471,12 @@ actor CatalogService {
 
         var errorDescription: String? {
             switch self {
-            case .noWritableDir: return "Couldn't locate a writable catalog directory."
-            case .network(let m): return "Catalog refresh failed: \(m)"
-            case .malformedResponse: return "brew.sh returned an unexpected catalog format."
+            case .noWritableDir: return L10n.string("catalog.refresh.noWritableDir")
+            case .network(let m): return String(format: L10n.string("catalog.refresh.failed.format"), m)
+            case .malformedResponse: return L10n.string("catalog.refresh.malformedResponse")
             case .emptyResponse(let f, let c):
-                return "brew.sh returned an empty catalog (formulae=\(f), casks=\(c))."
-            case .compression: return "Couldn't compress the refreshed catalog."
+                return String(format: L10n.string("catalog.refresh.emptyResponse.format"), f, c)
+            case .compression: return L10n.string("catalog.refresh.compression")
             }
         }
     }

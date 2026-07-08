@@ -38,16 +38,16 @@ struct AboutView: View {
                     Text("🍺").font(.system(size: 48))
                 }
                 Text("Brew Browser").font(.title.weight(.semibold))
-                Text("A native macOS GUI for Homebrew.")
+                Text(L10n.string("about.tagline"))
                     .font(.callout).foregroundStyle(.secondary)
             }
 
             // Meta card
             VStack(spacing: 8) {
-                metaRow("Version") { Text(appVersion).monospaced() }
+                metaRow(L10n.string("Version")) { Text(appVersion).monospaced() }
                 metaRow("Homebrew") { Text(model.brewVersion).monospaced() }
-                metaRow("License") { Link("MIT", destination: Self.licenseURL) }
-                metaRow("Repo") {
+                metaRow(L10n.string("License")) { Link("MIT", destination: Self.licenseURL) }
+                metaRow(L10n.string("Repo")) {
                     Link("github.com/msitarzewski/brew-browser", destination: Self.repoURL)
                         .lineLimit(1).truncationMode(.middle)
                 }
@@ -61,7 +61,7 @@ struct AboutView: View {
             Link(destination: Self.sponsorURL) {
                 Label {
                     HStack(spacing: 4) {
-                        Text("Donate to the project")
+                        Text(L10n.string("Donate to the project"))
                         Image(systemName: "arrow.up.right.square").font(.caption2)
                     }
                 } icon: {
@@ -72,23 +72,23 @@ struct AboutView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(.orange)
-            .help("Open GitHub Sponsors in your browser")
+            .help(L10n.string("Open GitHub Sponsors in your browser"))
 
             // Built with
             VStack(alignment: .leading, spacing: 8) {
-                Label("Built with", systemImage: "sparkles")
+                Label(L10n.string("Built with"), systemImage: "sparkles")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
-                Text("[Agency Agents](\(Self.agencyURL.absoluteString)) — the multi-agent toolkit that orchestrated the waves (Backend Architect, Frontend Developer, Security Engineer, Code Reviewer, Technical Writer, and friends), powered by **Claude Code** in the terminal, running **Opus 4.7 [1m]**.")
+                Text("[Agency Agents](\(Self.agencyURL.absoluteString))\(L10n.string("about.creditsBody.beforeClaude"))**Claude Code**\(L10n.string("about.creditsBody.afterClaude"))**Opus 4.7 [1m]**.")
                     .font(.callout).foregroundStyle(.secondary)
-                Text("Thanks also to the Homebrew project for the package data, every formula and cask maintainer for their work, and Tauri for the native shell.")
+                Text(L10n.string("about.thanksMac"))
                     .font(.callout).italic().foregroundStyle(.secondary).opacity(0.85)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
             // Posture
-            Text("Zero telemetry. Zero accounts. Every outbound network call is documented in Settings → Network.")
+            Text(L10n.string("about.posture"))
                 .font(.caption).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -99,7 +99,7 @@ struct AboutView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .padding(12)
-                .help("Close")
+                .help(L10n.string("Close"))
         }
         .onKeyPress(.escape) { dismiss(); return .handled }
     }

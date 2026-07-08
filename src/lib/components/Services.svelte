@@ -15,6 +15,7 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { packages } from "$lib/stores/packages.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t, ruPlural, type Locale } from "$lib/i18n/messages";
   import { normalizeServiceStatus, type Service, type ServiceStatus } from "$lib/types";
   import { reportableToastError } from "$lib/util/reportIssue";
 
@@ -79,7 +80,17 @@
     }
   }
 
-  function statusLabel(s: ServiceStatus): string {
+  function statusLabel(s: ServiceStatus, locale: Locale = ui.locale): string {
+    if (locale === "ru") {
+      switch (s) {
+        case "started":   return "запущена";
+        case "stopped":   return "остановлена";
+        case "none":      return "не загружена";
+        case "error":     return "ошибка";
+        case "scheduled": return "запланирована";
+        case "unknown":   return "неизвестно";
+      }
+    }
     switch (s) {
       case "started":   return "running";
       case "stopped":   return "stopped";
@@ -90,12 +101,39 @@
     }
   }
 
+  function servicesCount(): string {
+    const running = services.list.filter((s) => normalizeServiceStatus(s.status) === "started").length;
+    const total = services.list.length;
+    if (ui.locale === "ru") {
+      return `${running} ${ruPlural(running, "служба запущена", "службы запущены", "служб запущено")} · всего ${total}`;
+    }
+    return `${running} running · ${total} total`;
+  }
+
+  function actionDone(action: "start" | "stop" | "restart", name: string): string {
+    if (ui.locale === "ru") {
+      if (action === "start") return `Запущена служба ${name}`;
+      if (action === "stop") return `Остановлена служба ${name}`;
+      return `Перезапущена служба ${name}`;
+    }
+    return `${action.charAt(0).toUpperCase() + action.slice(1)}ed ${name}`;
+  }
+
+  function actionFailed(action: "start" | "stop" | "restart", name: string): string {
+    if (ui.locale === "ru") {
+      if (action === "start") return `Не удалось запустить службу ${name}`;
+      if (action === "stop") return `Не удалось остановить службу ${name}`;
+      return `Не удалось перезапустить службу ${name}`;
+    }
+    return `Failed to ${action} ${name}`;
+  }
+
   async function act(name: string, action: "start" | "stop" | "restart") {
     try {
       await services.act(name, action);
-      toast.success(`${action.charAt(0).toUpperCase() + action.slice(1)}ed ${name}`);
+      toast.success(actionDone(action, name));
     } catch (e) {
-      reportableToastError(`Failed to ${action} ${name}`, e);
+      reportableToastError(actionFailed(action, name), e);
     }
   }
 
@@ -114,14 +152,13 @@
     <div class="head-right" data-tauri-drag-region="false">
       <span class="text-muted count">
         {#if services.list.length > 0}
-          {services.list.filter((s) => normalizeServiceStatus(s.status) === "started").length} running ·
-          {services.list.length} total
+          {servicesCount()}
         {/if}
       </span>
       <span class="refresh-wrap">
-        <Button size="sm" variant="ghost" onclick={() => services.load(true)} ariaLabel="Refresh services" title="Refresh (⌘R)" disabled={services.loading}>
+        <Button size="sm" variant="ghost" onclick={() => services.load(true)} ariaLabel={t("Refresh services", ui.locale)} title={ui.locale === "ru" ? "Обновить (⌘R)" : "Refresh (⌘R)"} disabled={services.loading}>
           {#snippet icon()}<RefreshCw size={14} />{/snippet}
-          Refresh
+          {t("Refresh", ui.locale)}
         </Button>
       </span>
     </div>
@@ -129,29 +166,29 @@
 
   <div class="list-wrap">
     {#if services.loading && services.list.length === 0}
-      <LoadingState rows={6} label="Loading brew services…" />
+      <LoadingState rows={6} label={t("Loading brew services…", ui.locale)} />
     {:else if services.error}
-      <EmptyState title="Couldn't load services" body={services.error}>
+      <EmptyState title={t("Couldn't load services", ui.locale)} body={services.error}>
         {#snippet icon()}<Activity size={48} />{/snippet}
         {#snippet cta()}
-          <Button variant="secondary" onclick={() => services.load(true)}>Retry</Button>
+          <Button variant="secondary" onclick={() => services.load(true)}>{t("Retry", ui.locale)}</Button>
         {/snippet}
       </EmptyState>
     {:else if services.list.length === 0}
       <EmptyState
-        title="No background services."
-        body="Install something like postgresql, redis, or nginx and they'll show up here."
+        title={t("No background services.", ui.locale)}
+        body={t("Install something like postgresql, redis, or nginx and they'll show up here.", ui.locale)}
       >
         {#snippet icon()}<Activity size={48} />{/snippet}
       </EmptyState>
     {:else}
       <div class="list-header" role="row">
-        <SortableHeader label="Name" sortKey="name" active={sortKey === "name"} dir={sortDir} onSort={changeSort} />
-        <SortableHeader label="Status" sortKey="status" active={sortKey === "status"} dir={sortDir} onSort={changeSort} />
-        <SortableHeader label="User" sortKey="user" active={sortKey === "user"} dir={sortDir} onSort={changeSort} />
-        <span class="header-actions">Actions</span>
+        <SortableHeader label={t("Name", ui.locale)} sortKey="name" active={sortKey === "name"} dir={sortDir} onSort={changeSort} />
+        <SortableHeader label={t("Status", ui.locale)} sortKey="status" active={sortKey === "status"} dir={sortDir} onSort={changeSort} />
+        <SortableHeader label={t("User", ui.locale)} sortKey="user" active={sortKey === "user"} dir={sortDir} onSort={changeSort} />
+        <span class="header-actions">{t("Actions", ui.locale)}</span>
       </div>
-      <ul class="list" aria-label="Brew services">
+      <ul class="list" aria-label={t("Brew services", ui.locale)}>
         {#each sorted as s (s.name)}
           {@const ns = normalizeServiceStatus(s.status)}
           {@const isPending = services.isPending(s.name)}
@@ -162,12 +199,12 @@
                 class="name truncate"
                 aria-current={isSelected ? "true" : undefined}
                 onclick={() => openPackage(s.name)}
-                title={`Open ${s.name} in detail`}
+                title={ui.locale === "ru" ? `Открыть карточку ${s.name}` : `Open ${s.name} in detail`}
               >
                 {s.name}
               </button>
               <span class="status">
-                <Pill tone={pillTone(ns)}>{statusLabel(ns)}</Pill>
+                <Pill tone={pillTone(ns)}>{statusLabel(ns, ui.locale)}</Pill>
               </span>
               <span class="user truncate text-muted">{s.user ?? "—"}</span>
               <div class="actions">
@@ -175,8 +212,8 @@
                   class="act"
                   onclick={() => act(s.name, "start")}
                   disabled={isPending || ns === "started"}
-                  title={ns === "started" ? "Already running" : "Start service"}
-                  aria-label={`Start ${s.name}`}
+                  title={ns === "started" ? t("Already running", ui.locale) : t("Start service", ui.locale)}
+                  aria-label={ui.locale === "ru" ? `Запустить ${s.name}` : `Start ${s.name}`}
                 >
                   <Play size={14} />
                 </button>
@@ -184,8 +221,8 @@
                   class="act"
                   onclick={() => act(s.name, "stop")}
                   disabled={isPending || ns === "stopped" || ns === "none"}
-                  title={ns === "started" ? "Stop service" : "Not running"}
-                  aria-label={`Stop ${s.name}`}
+                  title={ns === "started" ? t("Stop service", ui.locale) : t("Not running", ui.locale)}
+                  aria-label={ui.locale === "ru" ? `Остановить ${s.name}` : `Stop ${s.name}`}
                 >
                   <Square size={14} />
                 </button>
@@ -193,8 +230,8 @@
                   class="act"
                   onclick={() => act(s.name, "restart")}
                   disabled={isPending}
-                  title="Restart service"
-                  aria-label={`Restart ${s.name}`}
+                  title={t("Restart service", ui.locale)}
+                  aria-label={ui.locale === "ru" ? `Перезапустить ${s.name}` : `Restart ${s.name}`}
                 >
                   <RotateCcw size={14} />
                 </button>

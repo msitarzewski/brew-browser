@@ -8,7 +8,7 @@ import Foundation
 /// stable across locales.
 public enum L10n {
     public static func string(_ key: String) -> String {
-        let language = isRussian ? "ru" : "en"
+        let language = activeLanguage
         if let path = Bundle.module.path(forResource: language, ofType: "lproj"),
            let bundle = Bundle(path: path) {
             let value = bundle.localizedString(forKey: key, value: key, table: nil)
@@ -20,14 +20,25 @@ public enum L10n {
     static func display(_ source: String) -> String {
         if !isRussian { return source }
         switch source {
-        case "AI & ML": return "AI и ML"
+        case "AI & ML": return "ИИ и ML"
+        case "Browsers": return "Браузеры"
+        case "Cloud & DevOps": return "Облако и DevOps"
+        case "Communication": return "Коммуникации"
         case "Data": return "Данные"
         case "Developer Tools": return "Инструменты разработчика"
+        case "Editors & IDEs": return "Редакторы и IDE"
+        case "Education": return "Образование"
+        case "Games & Entertainment": return "Игры и развлечения"
         case "Graphics & Design": return "Графика и дизайн"
+        case "Music": return "Музыка"
+        case "Office & Docs": return "Офис и документы"
+        case "Productivity": return "Продуктивность"
         case "Security": return "Безопасность"
         case "System Utilities": return "Системные утилиты"
         case "Terminal": return "Терминал"
         case "Video & Audio": return "Видео и аудио"
+        case "Writing": return "Работа с текстом"
+        case "Uncategorized": return "Без категории"
         case "Other": return "Другое"
         case "Formulae": return "Формулы"
         case "Casks": return "Cask-пакеты"
@@ -41,6 +52,8 @@ public enum L10n {
         case "updates available": return "доступны обновления"
         case "checking updates": return "проверяем обновления"
         case "All current": return "Всё актуально"
+        case "Disabled": return "Отключено"
+        case "Deprecated": return "Устарело"
         case "Catalog": return "Каталог"
         case "Composition": return "Состав"
         case "Top categories in your library": return "Главные категории в библиотеке"
@@ -56,9 +69,9 @@ public enum L10n {
         case "Cleaning…": return "Очищаем…"
         case "Clean up cache…": return "Очистить кэш…"
         case "Scrub — also remove the latest versions' cached downloads (more aggressive)":
-            return "Scrub: также удалить кэш загрузок последних версий (агрессивнее)"
+            return "Тщательная очистка: удалить также кэш загрузок последних версий (агрессивнее)"
         case "Verbose — list every file removed":
-            return "Verbose: перечислять каждый удалённый файл"
+            return "Подробный вывод: перечислять каждый удалённый файл"
         case "Cancel": return "Отмена"
         case "Clean up": return "Очистить"
         case "bundled": return "встроенный"
@@ -70,10 +83,10 @@ public enum L10n {
             return "\(n) вручную"
         }
         if let n = Int(source.removingSuffix(" as dependency") ?? "") {
-            return "\(n) как зависимости"
+            return "\(n) \(ruPlural(n, one: "как зависимость", few: "как зависимости", many: "как зависимостей"))"
         }
         if let n = Int(source.removingSuffix(" pinned") ?? "") {
-            return "\(n) закреплено"
+            return "\(n) \(ruPlural(n, one: "закреплённый", few: "закреплённых", many: "закреплённых"))"
         }
         if let n = Int(source.removingSuffix(" formulae") ?? "") {
             return "\(n) \(ruPlural(n, one: "формула", few: "формулы", many: "формул"))"
@@ -91,7 +104,7 @@ public enum L10n {
             return "Каталог: \(value)"
         }
         if let value = source.removingPrefix("General ") {
-            return "Общие: \(display(value))"
+            return "Общее: \(display(value))"
         }
         if source.contains(" + ") {
             return source
@@ -116,9 +129,29 @@ public enum L10n {
         return "\(count) casks"
     }
 
-    static var isRussian: Bool {
-        Locale.autoupdatingCurrent.identifier.lowercased().hasPrefix("ru")
+    static func packagesCount(_ count: Int) -> String {
+        if isRussian {
+            return "\(count) \(ruPlural(count, one: "пакет", few: "пакета", many: "пакетов"))"
+        }
+        return "\(count) package\(count == 1 ? "" : "s")"
     }
+
+    static func browsePackagesByCategory(_ count: Int) -> String {
+        if isRussian {
+            return "Просматривайте \(packagesCount(count)) по категориям или используйте поиск выше."
+        }
+        return "Browse \(count) package\(count == 1 ? "" : "s") by category, or search above."
+    }
+
+    static var activeLanguage: String {
+        let preferred = Bundle.module.preferredLocalizations.first
+            ?? Bundle.main.preferredLocalizations.first
+            ?? Locale.preferredLanguages.first
+            ?? Locale.autoupdatingCurrent.identifier
+        return preferred.lowercased().hasPrefix("ru") ? "ru" : "en"
+    }
+
+    static var isRussian: Bool { activeLanguage == "ru" }
 
     static func ruPlural(_ n: Int, one: String, few: String, many: String) -> String {
         let absN = abs(n)
@@ -142,6 +175,22 @@ public enum L10n {
             return "\(count) \(packages) известные уязвимости. Нажмите, чтобы открыть их в Библиотеке."
         }
         return "\(count) installed package\(count == 1 ? " has" : "s have") known vulnerabilities. Click to view them in Library."
+    }
+
+    static func brewOperationsRunning(_ count: Int) -> String {
+        if isRussian {
+            return "\(count) \(ruPlural(count, one: "операция brew выполняется", few: "операции brew выполняются", many: "операций brew выполняется"))"
+        }
+        return "\(count) brew operation\(count == 1 ? "" : "s") running"
+    }
+
+    static func githubAction(_ action: String) -> String {
+        if !isRussian { return action }
+        switch action {
+        case "Star": return "Звезда"
+        case "Watch": return "Отслеживание"
+        default: return action
+        }
     }
 
     static func servicesSummary(running: Int, total: Int) -> String {
@@ -168,6 +217,25 @@ public enum L10n {
         return "\(days) days old"
     }
 
+    static func catalogStaleBanner(age: String) -> String {
+        if isRussian {
+            let when = age == string("date.today") ? "сегодня" : "\(age) назад"
+            return "Каталог обновлялся \(when). Новые пакеты и сведения об устаревании могут отсутствовать."
+        }
+        return "Catalog is \(age). Newer packages and deprecations may be missing."
+    }
+
+    static func shortElapsed(seconds: Int) -> String {
+        if isRussian {
+            if seconds < 60 { return "\(seconds) с" }
+            if seconds < 3600 { return "\(seconds / 60) мин." }
+            return "\(seconds / 3600) ч"
+        }
+        if seconds < 60 { return "\(seconds)s" }
+        if seconds < 3600 { return "\(seconds / 60)m" }
+        return "\(seconds / 3600)h"
+    }
+
     static func upgradePackageButton(_ count: Int) -> String {
         if count == 0 { return string("action.upgrade") }
         if isRussian {
@@ -184,7 +252,7 @@ public enum L10n {
             sourceSuffix = ""
         }
         if isRussian {
-            let findingWord = ruPlural(findings, one: "находка", few: "находки", many: "находок")
+            let findingWord = ruPlural(findings, one: "запись", few: "записи", many: "записей")
             let packageWord = ruPlural(totalPackages, one: "установленного пакета", few: "установленных пакетов", many: "установленных пакетов")
             return "\(findings) \(findingWord) в \(vulnerablePackages) из \(totalPackages) \(packageWord)\(sourceSuffix)"
         }
@@ -232,7 +300,7 @@ public enum L10n {
     static func githubStarredSummary(starred: Int, total: Int) -> String {
         if isRussian {
             let packageWord = ruPlural(total, one: "установленного пакета", few: "установленных пакетов", many: "установленных пакетов")
-            return "Вы отметили звёздочкой \(starred) из \(total) \(packageWord) с GitHub homepage."
+            return "Вы отметили звёздочкой \(starred) из \(total) \(packageWord) с домашней страницей на GitHub."
         }
         return "You've starred \(starred) of \(total) installed packages with GitHub homepages."
     }
@@ -259,13 +327,73 @@ public enum L10n {
         }
     }
 
-    private static func englishActivityDisplayLabel(_ job: ActivityJob) -> String {
-        switch job.status {
-        case .running:   return job.label
-        case .succeeded: return job.label
+    static func activityNotificationBody(label: String, succeeded: Bool) -> String {
+        if !isRussian {
+            return succeeded ? englishCompletedActivityLabel(label) : "Failed: \(label)"
+        }
+        if succeeded {
+            return russianCompletedActivityLabel(label) ?? russianActivityLabel(label)
+        }
+        return "Ошибка: \(russianActivityLabel(label))"
+    }
+
+    static func activityFailureTitle(for label: String) -> String {
+        if !isRussian {
+            if label.hasPrefix("Upgrading ") { return "Upgrade failed" }
+            if label.hasPrefix("Installing ") { return "Install failed" }
+            if label.hasPrefix("Uninstalling ") { return "Uninstall failed" }
+            return "\(label) failed"
+        }
+        if label.hasPrefix("Upgrading ") { return "Не удалось обновить" }
+        if label.hasPrefix("Installing ") { return "Не удалось установить" }
+        if label.hasPrefix("Uninstalling ") { return "Не удалось удалить" }
+        if label.hasPrefix("Adopting ") { return "Не удалось взять под управление" }
+        if label.hasPrefix("Reinstalling ") { return "Не удалось переустановить" }
+        if label.hasPrefix("Force-removing ") { return "Не удалось принудительно удалить" }
+        if label.hasPrefix("Start ") { return "Не удалось запустить службу" }
+        if label.hasPrefix("Stop ") { return "Не удалось остановить службу" }
+        if label.hasPrefix("Restart ") { return "Не удалось перезапустить службу" }
+        return "Не удалось выполнить: \(russianActivityLabel(label))"
+    }
+
+    static func progressLabel(_ p: JobProgress) -> String {
+        if !isRussian {
+            var s = p.phase
+            if !p.package.isEmpty { s += " \(p.package)" }
+            if let total = p.total { s += " (\(p.current) of \(total))" }
+            return s
+        }
+        let phase: String
+        switch p.phase {
+        case "Downloading": phase = "Загрузка"
+        case "Fetching": phase = "Загрузка"
+        case "Pouring": phase = "Распаковка"
+        case "Installing": phase = "Установка"
+        case "Upgrading": phase = "Обновление"
+        default: phase = p.phase
+        }
+        var s = phase
+        if !p.package.isEmpty { s += " \(p.package)" }
+        if let total = p.total { s += " (\(p.current) из \(total))" }
+        return s
+    }
+
+    static func packageKind(_ kind: InstalledPackage.Kind) -> String {
+        if !isRussian { return kind.rawValue }
+        return kind == .formula ? "формула" : "cask-пакет"
+    }
+
+    private static func englishCompletedActivityLabel(_ label: String) -> String {
+        label
             .replacingOccurrences(of: "Installing ", with: "Installed ")
             .replacingOccurrences(of: "Upgrading ", with: "Upgraded ")
             .replacingOccurrences(of: "Uninstalling ", with: "Uninstalled ")
+    }
+
+    private static func englishActivityDisplayLabel(_ job: ActivityJob) -> String {
+        switch job.status {
+        case .running:   return job.label
+        case .succeeded: return englishCompletedActivityLabel(job.label)
         case .failed:    return "Failed: \(job.label)"
         case .canceled:  return "Canceled: \(job.label)"
         }
@@ -277,9 +405,20 @@ public enum L10n {
         if label == "Cleaning up Homebrew cache" { return "Очищаем кэш Homebrew" }
         if label == "Upgrading all packages" { return "Обновляем все пакеты" }
         if label == "Removing unused dependencies" { return "Удаляем неиспользуемые зависимости" }
+        if let value = label.removingPrefix("Upgrading "),
+           let countText = value.removingSuffix(" packages"),
+           let count = Int(countText) {
+            return "Обновляем \(count) \(ruPlural(count, one: "пакет", few: "пакета", many: "пакетов"))"
+        }
         if let name = label.removingPrefix("Installing ") { return "Устанавливаем \(name)" }
         if let name = label.removingPrefix("Upgrading ") { return "Обновляем \(name)" }
         if let name = label.removingPrefix("Uninstalling ") { return "Удаляем \(name)" }
+        if let name = label.removingPrefix("Adopting ") { return "Берём под управление \(name)" }
+        if let name = label.removingPrefix("Reinstalling ") { return "Переустанавливаем \(name)" }
+        if let name = label.removingPrefix("Force-removing ") { return "Принудительно удаляем \(name)" }
+        if let name = label.removingPrefix("Start ") { return "Запускаем службу \(name)" }
+        if let name = label.removingPrefix("Stop ") { return "Останавливаем службу \(name)" }
+        if let name = label.removingPrefix("Restart ") { return "Перезапускаем службу \(name)" }
         if let label = label.removingPrefix("Dumping Brewfile: ") { return "Создаём Brewfile: \(label)" }
         if let label = label.removingPrefix("Restoring ") { return "Восстанавливаем \(label)" }
         return label
@@ -291,9 +430,20 @@ public enum L10n {
         if label == "Cleaning up Homebrew cache" { return "Кэш Homebrew очищен" }
         if label == "Upgrading all packages" { return "Все пакеты обновлены" }
         if label == "Removing unused dependencies" { return "Неиспользуемые зависимости удалены" }
+        if let value = label.removingPrefix("Upgrading "),
+           let countText = value.removingSuffix(" packages"),
+           let count = Int(countText) {
+            return "Обновлено \(count) \(ruPlural(count, one: "пакет", few: "пакета", many: "пакетов"))"
+        }
         if let name = label.removingPrefix("Installing ") { return "Установлено \(name)" }
         if let name = label.removingPrefix("Upgrading ") { return "Обновлено \(name)" }
         if let name = label.removingPrefix("Uninstalling ") { return "Удалено \(name)" }
+        if let name = label.removingPrefix("Adopting ") { return "Взято под управление \(name)" }
+        if let name = label.removingPrefix("Reinstalling ") { return "Переустановлено \(name)" }
+        if let name = label.removingPrefix("Force-removing ") { return "Принудительно удалено \(name)" }
+        if let name = label.removingPrefix("Start ") { return "Служба \(name) запущена" }
+        if let name = label.removingPrefix("Stop ") { return "Служба \(name) остановлена" }
+        if let name = label.removingPrefix("Restart ") { return "Служба \(name) перезапущена" }
         if let label = label.removingPrefix("Dumping Brewfile: ") { return "Brewfile создан: \(label)" }
         if let label = label.removingPrefix("Restoring ") { return "Восстановлено \(label)" }
         return nil

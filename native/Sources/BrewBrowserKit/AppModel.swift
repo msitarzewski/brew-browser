@@ -449,7 +449,7 @@ public final class AppModel {
     func refreshCatalogFromBrewSh() async {
         guard !catalogRefreshing else { return }
         guard settings.networkAllowed("catalog_refresh") else {
-            catalogRefreshError = "Offline mode is on — catalog refresh is blocked. Disable it in Settings → Network."
+            catalogRefreshError = L10n.string("catalog.refresh.offlineBlocked")
             return
         }
         catalogRefreshing = true
@@ -1214,7 +1214,7 @@ public final class AppModel {
     /// the Tauri `env.shortLabel` (`env.svelte.ts:37-42`).
     var brewShortLabel: String {
         switch brewHealth {
-        case .missing: return "brew not found"
+        case .missing: return L10n.string("brew.status.notFound")
         case .unknown: return "brew"
         default:       return brewVersion == "—" ? "brew" : "brew \(brewVersion)"
         }
@@ -1225,13 +1225,13 @@ public final class AppModel {
     var brewStatusTooltip: String {
         var base: String
         switch brewHealth {
-        case .unknown: base = "Checking Homebrew…"
-        case .missing: base = "Homebrew not found on PATH."
-        default:       base = "Homebrew \(brewVersion) · prefix \(brewPrefix)"
+        case .unknown: base = L10n.string("brew.status.checking")
+        case .missing: base = L10n.string("brew.status.notFoundOnPath")
+        default:       base = String(format: L10n.string("brew.status.ready.format"), brewVersion, brewPrefix)
         }
         let running = jobs.filter { $0.status == .running }.count
         if running > 0 {
-            base += "\n\(running) brew operation\(running == 1 ? "" : "s") running"
+            base += "\n\(L10n.brewOperationsRunning(running))"
         }
         return base
     }
@@ -1628,9 +1628,9 @@ public final class AppModel {
     /// the Tauri scope-required toast (`PackageDetail.svelte:528-540`).
     private func requireScope(_ scope: String, action: String) -> Bool {
         if githubStatus?.scopes.contains(scope) ?? false { return true }
-        pushToast(.error, "\(action) needs more access",
-                  "Needs the \"\(scope)\" GitHub permission. Click to grant it without signing out.",
-                  action: ToastAction(label: "Re-authorize") { [weak self] in
+        pushToast(.error, String(format: L10n.string("github.scopeRequired.title.format"), L10n.githubAction(action)),
+                  String(format: L10n.string("github.scopeRequired.body.format"), scope),
+                  action: ToastAction(label: L10n.string("Re-authorize")) { [weak self] in
                       Task { await self?.reauthorizeGitHub() }
                   })
         return false
@@ -2066,7 +2066,7 @@ public final class AppModel {
     private func recordFailedServiceJob(_ verb: ServiceVerb, name: String, error: Error) {
         let job = ActivityJob(
             id: UUID(),
-            label: "\(verb.verbLabel) \(name) failed",
+            label: "\(verb.verbLabel) \(name)",
             command: "brew services \(verb.rawValue) \(name)",
             startedAt: Date().timeIntervalSince1970,
             status: .failed,
@@ -2186,10 +2186,7 @@ public final class AppModel {
     }
 
     static func failureNoticeTitle(for label: String) -> String {
-        if label.hasPrefix("Upgrading ") { return "Upgrade failed" }
-        if label.hasPrefix("Installing ") { return "Install failed" }
-        if label.hasPrefix("Uninstalling ") { return "Uninstall failed" }
-        return "\(label) failed"
+        L10n.activityFailureTitle(for: label)
     }
 
     /// True when a failed job is a genuine brew-browser problem (worth a

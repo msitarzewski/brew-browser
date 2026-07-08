@@ -8,9 +8,10 @@
  */
 
 import { categoriesData, enrichmentLiveCategories, enrichmentLiveVersion } from "$lib/api";
+import { messages, type Locale } from "$lib/i18n/messages";
 import { settings } from "$lib/stores/settings.svelte";
 import { isLinux } from "$lib/util/platform";
-import { subgroupsFor, type Subgroup } from "$lib/util/subcategories";
+import { GENERAL_KEY, subgroupsFor, type Subgroup } from "$lib/util/subcategories";
 import type { CategoriesData, PackageKind } from "$lib/types";
 
 interface CategoryTile {
@@ -151,13 +152,23 @@ class CategoriesStore {
    * counts, matching the cask-free browse list (Discover.svelte browseItems).
    * Native (macOS-only) implements the identical derivation for parity.
    */
-  subgroupsInCategory(slug: string): Subgroup[] {
-    return subgroupsFor(this.data, slug, isLinux);
+  subgroupsInCategory(slug: string, locale: Locale = "en"): Subgroup[] {
+    const groups = subgroupsFor(this.data, slug, isLinux);
+    if (locale === "en") return groups;
+    const selectedLabel = this.labelOf(slug, locale);
+    return groups.map((group) => {
+      if (group.key === GENERAL_KEY) {
+        return { ...group, label: `Общее: ${selectedLabel}` };
+      }
+      return { ...group, label: `${selectedLabel} + ${this.labelOf(group.key, locale)}` };
+    });
   }
 
   /** Pretty label for a slug. Falls back to the slug if data isn't loaded. */
-  labelOf(slug: string): string {
-    return this.data?.categories[slug]?.label ?? slug;
+  labelOf(slug: string, locale: Locale = "en"): string {
+    const label = this.data?.categories[slug]?.label ?? slug;
+    if (locale === "en") return label;
+    return (messages[locale] as Record<string, string>)[label] ?? label;
   }
 
   /**

@@ -9,7 +9,9 @@
  */
 
 import { brewDoctor, brewRedetect, systemStatus } from "$lib/api";
+import { t } from "$lib/i18n/messages";
 import { packages } from "$lib/stores/packages.svelte";
+import { ui } from "$lib/stores/ui.svelte";
 import { isBrewError, brewErrorMessage } from "$lib/types";
 import type { BrewEnvironment, SystemStatus } from "$lib/types";
 
@@ -44,14 +46,14 @@ class EnvStore {
 
   /** Human-readable summary for a tooltip. */
   summary = $derived.by(() => {
-    if (this.loading && !this.report) return "Checking Homebrew…";
-    if (this.error) return `Homebrew status unknown — ${this.error}`;
-    if (!this.report) return "Homebrew status unknown";
-    if (!this.report.installed) return "Homebrew not found on PATH.";
+    if (this.loading && !this.report) return t("brew.status.checking", ui.locale);
+    if (this.error) return t("brew.status.unknownWithError", ui.locale, { error: this.error });
+    if (!this.report) return t("brew.status.unknown", ui.locale);
+    if (!this.report.installed) return t("brew.status.notFoundOnPath", ui.locale);
     const parts: string[] = [];
     if (this.report.version) parts.push(`Homebrew ${this.report.version}`);
     if (this.report.prefix) parts.push(`prefix ${this.report.prefix}`);
-    return parts.join(" · ") || "Homebrew is installed.";
+    return parts.join(" · ") || t("brew.status.installed", ui.locale);
   });
 
   /** Short label for the footer ("brew 5.1.13" / "brew" / "brew not found"). */
@@ -70,7 +72,7 @@ class EnvStore {
       this.error = null;
     } catch (e) {
       this.report = { installed: false, version: null, prefix: null, pathUsed: null };
-      this.error = isBrewError(e) ? brewErrorMessage(e) : String(e);
+      this.error = isBrewError(e) ? brewErrorMessage(e, ui.locale) : String(e);
     } finally {
       this.loading = false;
       this.lastCheckedAt = Date.now();

@@ -33,6 +33,8 @@
   import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
 
   import { github } from "$lib/stores/github.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { t } from "$lib/i18n/messages";
   import { safeOpenUrl } from "$lib/util/url";
   import { toast } from "$lib/stores/toast.svelte";
   // NOTE: `toast` is still used inside copyCode()'s clipboard handlers
@@ -91,8 +93,8 @@
     if (github.signinState.kind !== "waiting") return;
     const code = github.signinState.userCode;
     void navigator.clipboard.writeText(code).then(
-      () => toast.success("Code copied to clipboard"),
-      () => toast.error("Couldn't copy code"),
+      () => toast.success(t("Code copied to clipboard", ui.locale)),
+      () => toast.error(t("Couldn't copy code", ui.locale)),
     );
   }
 
@@ -118,15 +120,23 @@
   onDestroy(() => {
     if (tickHandle) clearInterval(tickHandle);
   });
+
+  function formatExpires(seconds: number): string {
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    return ui.locale === "ru"
+      ? `Код действует ещё ${minutes} мин ${rest} с.`
+      : `Code expires in ${minutes}m ${rest}s.`;
+  }
 </script>
 
 {#if isOpen}
   <div class="scrim" role="presentation" onclick={onCancel}></div>
-  <div class="wrap" role="dialog" aria-modal="true" aria-label="Sign in to GitHub">
+  <div class="wrap" role="dialog" aria-modal="true" aria-label={t("Sign in to GitHub", ui.locale)}>
     <div class="modal">
       <header>
-        <h2>Sign in to GitHub</h2>
-        <button class="close" aria-label="Cancel sign in" onclick={onCancel}>
+        <h2>{t("Sign in to GitHub", ui.locale)}</h2>
+        <button class="close" aria-label={t("Cancel sign in", ui.locale)} onclick={onCancel}>
           <X size={16} />
         </button>
       </header>
@@ -135,49 +145,51 @@
         {#if github.signinState.kind === "starting"}
           <div class="status">
             <Loader size={18} class="spin" />
-            <span>Contacting GitHub…</span>
+            <span>{t("Contacting GitHub…", ui.locale)}</span>
           </div>
         {:else if github.signinState.kind === "waiting"}
           <ol class="steps">
             <li>
-              Open
+              {#if ui.locale === "ru"}Откройте{:else}Open{/if}
               <button class="link" type="button" onclick={openVerification}>
                 {github.signinState.verificationUri}
                 <ExternalLink size={12} />
               </button>
-              in your browser.
+              {#if ui.locale === "ru"}в браузере.{:else}in your browser.{/if}
             </li>
-            <li>Enter this code:</li>
+            <li>{t("Enter this code:", ui.locale)}</li>
           </ol>
-          <button class="code" type="button" onclick={copyCode} title="Click to copy">
+          <button class="code" type="button" onclick={copyCode} title={t("Click to copy", ui.locale)}>
             {github.signinState.userCode}
           </button>
-          <p class="hint">Click the code to copy it.</p>
+          <p class="hint">{t("Click the code to copy it.", ui.locale)}</p>
 
           <div class="status">
             <Loader size={16} class="spin" />
-            <span>Waiting for authorization…</span>
+            <span>{t("Waiting for authorization…", ui.locale)}</span>
           </div>
 
           {#if remainingSeconds !== null}
-            <p class="expires">
-              Code expires in {Math.floor(remainingSeconds / 60)}m {remainingSeconds % 60}s.
-            </p>
+            <p class="expires">{formatExpires(remainingSeconds)}</p>
           {/if}
         {:else if github.signinState.kind === "approved"}
           <div class="status status-ok">
             <CircleCheck size={20} />
-            <span>Signed in as @{github.status?.username ?? "github user"}.</span>
+            {#if github.status?.username}
+              <span>{ui.locale === "ru" ? `Выполнен вход как @${github.status.username}.` : `Signed in as @${github.status.username}.`}</span>
+            {:else}
+              <span>{t("Signed in as GitHub user.", ui.locale)}</span>
+            {/if}
           </div>
         {:else if github.signinState.kind === "denied"}
           <div class="status status-bad">
             <CircleX size={20} />
-            <span>Sign-in denied.</span>
+            <span>{t("Sign-in denied.", ui.locale)}</span>
           </div>
         {:else if github.signinState.kind === "expired"}
           <div class="status status-bad">
             <TriangleAlert size={20} />
-            <span>Code expired. Please try again.</span>
+            <span>{t("Code expired. Please try again.", ui.locale)}</span>
           </div>
         {:else if github.signinState.kind === "error"}
           <div class="status status-bad">
@@ -190,8 +202,8 @@
       <footer>
         <button type="button" class="btn-secondary" onclick={onCancel}>
           {github.signinState.kind === "waiting" || github.signinState.kind === "starting"
-            ? "Cancel"
-            : "Close"}
+            ? t("Cancel", ui.locale)
+            : t("Close", ui.locale)}
         </button>
       </footer>
     </div>

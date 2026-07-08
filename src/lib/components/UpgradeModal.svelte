@@ -38,6 +38,7 @@
   import { toast } from "$lib/stores/toast.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { vulnerabilities } from "$lib/stores/vulnerabilities.svelte";
+  import { t, ruPlural } from "$lib/i18n/messages";
   import { brewUpgradeMany } from "$lib/api";
   import type { Package } from "$lib/types";
   import { reportableToastError } from "$lib/util/reportIssue";
@@ -107,6 +108,15 @@
 
   let upgrading = $state(false);
 
+  function formatUpgradeAction(count: number): string {
+    if (ui.locale === "ru") {
+      return count === 0
+        ? "Обновить"
+        : `Обновить ${count} ${ruPlural(count, "пакет", "пакета", "пакетов")}`;
+    }
+    return `Upgrade ${count === 0 ? "" : count} ${count === 1 ? "package" : "packages"}`;
+  }
+
   async function runUpgrade() {
     if (upgrading || selectedCount === 0) return;
     const names = rows
@@ -122,8 +132,10 @@
         : `brew upgrade ${names.slice(0, 3).join(" ")} (+${names.length - 3})`;
     activity.startJob(
       names.length === 1
-        ? `Upgrading ${names[0]}`
-        : `Upgrading ${names.length} packages`,
+        ? (ui.locale === "ru" ? `Обновляем ${names[0]}` : `Upgrading ${names[0]}`)
+        : (ui.locale === "ru"
+          ? `Обновляем ${names.length} ${ruPlural(names.length, "пакет", "пакета", "пакетов")}`
+          : `Upgrading ${names.length} packages`),
       tmpId,
       cmdLabel,
     );
@@ -141,8 +153,10 @@
       if (result.success) {
         toast.success(
           names.length === 1
-            ? `Upgraded ${names[0]}`
-            : `Upgraded ${names.length} packages`,
+            ? (ui.locale === "ru" ? `Обновлён ${names[0]}` : `Upgraded ${names[0]}`)
+            : (ui.locale === "ru"
+              ? `Обновлено ${names.length} ${ruPlural(names.length, "пакет", "пакета", "пакетов")}`
+              : `Upgraded ${names.length} packages`),
         );
         await packages.load(true);
         // v0.5.0 — upgrading many packages = bulk version changes. Easiest
@@ -156,24 +170,24 @@
           .catch(() => {});
       }
     } catch (e) {
-      reportableToastError("Upgrade failed", e);
+      reportableToastError(t("Upgrade failed", ui.locale), e);
     } finally {
       upgrading = false;
     }
   }
 </script>
 
-<Modal {open} title="Choose packages to upgrade" {onClose}>
+<Modal {open} title={t("Choose packages to upgrade", ui.locale)} {onClose}>
   {#if rows.length === 0}
-    <p class="empty">No outdated packages.</p>
+    <p class="empty">{t("No outdated packages.", ui.locale)}</p>
   {:else}
     <div class="toolbar">
-      <span class="count">{selectedCount} of {upgradablePackages.length} selected</span>
+      <span class="count">{ui.locale === "ru" ? `Выбрано ${selectedCount} из ${upgradablePackages.length}` : `${selectedCount} of ${upgradablePackages.length} selected`}</span>
       <div class="toolbar-actions">
         {#if allSelected}
-          <button type="button" class="link" onclick={deselectAll}>Deselect all</button>
+          <button type="button" class="link" onclick={deselectAll}>{t("Deselect all", ui.locale)}</button>
         {:else}
-          <button type="button" class="link" onclick={selectAll}>Select all</button>
+          <button type="button" class="link" onclick={selectAll}>{t("Select all", ui.locale)}</button>
         {/if}
       </div>
     </div>
@@ -186,18 +200,18 @@
               checked={isChecked(p)}
               disabled={p.pinned}
               onchange={() => toggle(p)}
-              aria-label={`Include ${p.name}`}
+              aria-label={ui.locale === "ru" ? `Включить ${p.name}` : `Include ${p.name}`}
             />
             <span class="row-main">
               <span class="row-name truncate">{p.name}</span>
               <span class="row-kind">
-                <Pill tone={p.kind === "formula" ? "formula" : "cask"}>{p.kind}</Pill>
+                <Pill tone={p.kind === "formula" ? "formula" : "cask"}>{p.kind === "formula" ? t("package.kind.formula", ui.locale) : t("package.kind.cask", ui.locale)}</Pill>
               </span>
               <span class="row-version mono">
                 {p.installedVersion ?? "?"} <span class="row-arrow">→</span> {p.stableVersion ?? "?"}
               </span>
               {#if p.pinned}
-                <span class="row-pinned" title="Pinned packages are not upgraded by brew. Unpin from the package detail page.">pinned</span>
+                <span class="row-pinned" title={t("Pinned packages are not upgraded by brew. Unpin from the package detail page.", ui.locale)}>{t("pinned", ui.locale)}</span>
               {/if}
             </span>
           </label>
@@ -207,7 +221,7 @@
   {/if}
 
   {#snippet actions()}
-    <Button variant="secondary" onclick={onClose}>Cancel</Button>
+    <Button variant="secondary" onclick={onClose}>{t("Cancel", ui.locale)}</Button>
     <Button
       variant="primary"
       onclick={runUpgrade}
@@ -215,7 +229,7 @@
       loading={upgrading}
     >
       {#snippet icon()}<ArrowUpCircle size={14} />{/snippet}
-      Upgrade {selectedCount === 0 ? "" : selectedCount} {selectedCount === 1 ? "package" : "packages"}
+      {formatUpgradeAction(selectedCount)}
     </Button>
   {/snippet}
 </Modal>

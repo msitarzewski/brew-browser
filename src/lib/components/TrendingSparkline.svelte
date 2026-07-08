@@ -17,6 +17,9 @@
    * trajectory is the message, not the count.
    */
 
+  import { t } from "$lib/i18n/messages";
+  import { ui } from "$lib/stores/ui.svelte";
+
   type Variant = "inline" | "detail";
 
   interface Props {
@@ -85,7 +88,7 @@
     height={dims.height}
     viewBox={`0 0 ${dims.width} ${dims.height}`}
     role="img"
-    aria-label={title ?? "Install-trend sparkline"}
+    aria-label={title ?? t("trending.sparklineAria", ui.locale)}
   >
     {#if title}<title>{title}</title>{/if}
     <path

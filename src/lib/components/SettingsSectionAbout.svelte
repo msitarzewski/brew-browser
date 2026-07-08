@@ -12,6 +12,8 @@
 
   import { appVersion } from "$lib/api";
   import { env } from "$lib/stores/env.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { t } from "$lib/i18n/messages";
   import { safeOpenUrl } from "$lib/util/url";
 
   const REPO_URL = "https://github.com/msitarzewski/brew-browser";
@@ -27,11 +29,11 @@
 </script>
 
 <div class="section">
-  <h2>About</h2>
+  <h2>{t("About", ui.locale)}</h2>
 
   <dl class="meta">
     <div class="row">
-      <dt>App version</dt>
+      <dt>{t("App version", ui.locale)}</dt>
       <dd class="mono">
         {#if version}{version}{:else if versionError}—{:else}…{/if}
       </dd>
@@ -41,11 +43,11 @@
       <dd class="mono">{env.report?.version ?? "—"}</dd>
     </div>
     <div class="row">
-      <dt>License</dt>
+      <dt>{t("License", ui.locale)}</dt>
       <dd>MIT</dd>
     </div>
     <div class="row">
-      <dt>Repository</dt>
+      <dt>{t("Repository", ui.locale)}</dt>
       <dd>
         <button class="link" type="button" onclick={() => void safeOpenUrl(REPO_URL)}>
           <code>github.com/msitarzewski/brew-browser</code>
@@ -56,12 +58,9 @@
   </dl>
 
   <div class="affirm">
-    <h3>Zero telemetry. Zero accounts.</h3>
+    <h3>{t("Zero telemetry. Zero accounts.", ui.locale)}</h3>
     <p>
-      brew-browser does not collect telemetry. It does not phone home. It does
-      not have user accounts. Every outbound network request is documented in
-      Settings → Network and the README, and only fires when you take an
-      action that requires it.
+      {t("settings.about.zeroTelemetryBody", ui.locale)}
     </p>
   </div>
 </div>

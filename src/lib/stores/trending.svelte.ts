@@ -3,6 +3,8 @@
  */
 
 import { trendingClearCache, trendingFetch } from "$lib/api";
+import { t } from "$lib/i18n/messages";
+import { ui } from "$lib/stores/ui.svelte";
 import { isBrewError, type TrendingReport, type TrendingWindow } from "$lib/types";
 
 class TrendingStore {
@@ -33,10 +35,10 @@ class TrendingStore {
     } catch (e) {
       if (isBrewError(e)) {
         this.error = e.code === "network"
-          ? "Couldn't reach formulae.brew.sh"
-          : `Failed to load trending: ${e.code}`;
+          ? t("trending.error.network", ui.locale)
+          : t("trending.error.failed", ui.locale, { error: e.code });
       } else {
-        this.error = `Backend not available: ${String(e)}`;
+        this.error = t("trending.error.backend", ui.locale, { error: String(e) });
       }
     } finally {
       this.loading = false;

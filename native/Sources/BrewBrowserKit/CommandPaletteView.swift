@@ -49,15 +49,15 @@ struct CommandPaletteView: View {
 
     private var commands: [Item] {
         [
-            .command(id: "dashboard", label: "Open Dashboard", shortcut: "⌘0") { model.go(toSectionNumber: 0) },
-            .command(id: "library",   label: "Open Library",   shortcut: "⌘1") { model.go(toSectionNumber: 1) },
-            .command(id: "discover",  label: "Open Discover",  shortcut: "⌘2") { model.go(toSectionNumber: 2) },
-            .command(id: "trending",  label: "Open Trending",  shortcut: "⌘3") { model.go(toSectionNumber: 3) },
-            .command(id: "snapshots", label: "Open Snapshots", shortcut: "⌘4") { model.go(toSectionNumber: 4) },
-            .command(id: "services",  label: "Open Services",  shortcut: "⌘5") { model.go(toSectionNumber: 5) },
-            .command(id: "activity",  label: "Open Activity",  shortcut: "⌘6") { model.go(toSectionNumber: 6) },
-            .command(id: "drawer",    label: "Toggle Activity Drawer", shortcut: "⌘L") { model.toggleDrawer() },
-            .command(id: "refresh",   label: "Refresh", shortcut: "⌘R") { Task { await model.refreshCurrent() } },
+            .command(id: "dashboard", label: L10n.string("Open Dashboard"), shortcut: "⌘0") { model.go(toSectionNumber: 0) },
+            .command(id: "library",   label: L10n.string("Open Library"),   shortcut: "⌘1") { model.go(toSectionNumber: 1) },
+            .command(id: "discover",  label: L10n.string("Open Discover"),  shortcut: "⌘2") { model.go(toSectionNumber: 2) },
+            .command(id: "trending",  label: L10n.string("Open Trending"),  shortcut: "⌘3") { model.go(toSectionNumber: 3) },
+            .command(id: "snapshots", label: L10n.string("Open Snapshots"), shortcut: "⌘4") { model.go(toSectionNumber: 4) },
+            .command(id: "services",  label: L10n.string("Open Services"),  shortcut: "⌘5") { model.go(toSectionNumber: 5) },
+            .command(id: "activity",  label: L10n.string("Open Activity"),  shortcut: "⌘6") { model.go(toSectionNumber: 6) },
+            .command(id: "drawer",    label: L10n.string("Toggle Activity drawer"), shortcut: "⌘L") { model.toggleDrawer() },
+            .command(id: "refresh",   label: L10n.string("Refresh"), shortcut: "⌘R") { Task { await model.refreshCurrent() } },
         ]
     }
 
@@ -66,14 +66,14 @@ struct CommandPaletteView: View {
 
         let installed = model.paletteInstalled(query)
         if !installed.isEmpty {
-            out.append(Group(label: "Installed", items: installed.map {
+            out.append(Group(label: L10n.string("Installed"), items: installed.map {
                 .package(token: $0.name, kind: $0.kind, homepage: "", installed: true)
             }))
         }
 
         let index = model.paletteCatalog(query)
         if !index.isEmpty {
-            out.append(Group(label: "Index", items: index.map {
+            out.append(Group(label: L10n.string("Index"), items: index.map {
                 .package(token: $0.token, kind: $0.kind, homepage: $0.homepage, installed: false)
             }))
         }
@@ -86,7 +86,7 @@ struct CommandPaletteView: View {
             return false
         }
         if !cmds.isEmpty {
-            out.append(Group(label: "Commands", items: cmds))
+            out.append(Group(label: L10n.string("Commands"), items: cmds))
         }
         return out
     }
@@ -111,7 +111,7 @@ struct CommandPaletteView: View {
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("Type a command, package, or section.", text: $query)
+            TextField(L10n.string("Type a command, package, or section."), text: $query)
                 .textFieldStyle(.plain)
                 .font(.title3)
                 .focused($searchFocused)
@@ -135,7 +135,7 @@ struct CommandPaletteView: View {
     @ViewBuilder
     private var results: some View {
         if flatItems.isEmpty {
-            ContentUnavailableView("No results", systemImage: "magnifyingglass")
+            ContentUnavailableView(L10n.string("No results"), systemImage: "magnifyingglass")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollViewReader { proxy in
@@ -174,7 +174,7 @@ struct CommandPaletteView: View {
                 PackageIcon(model: model, token: token, kind: kind, homepage: homepage, size: 18)
                 Text(token)
                 Spacer()
-                Text(installed ? "\(kind.rawValue) · installed" : kind.rawValue)
+                Text(installed ? "\(L10n.packageKind(kind)) · \(L10n.display("installed"))" : L10n.packageKind(kind))
                     .font(.callout).foregroundStyle(.secondary)
             }
         case .command(_, let label, let shortcut, _):
@@ -191,9 +191,9 @@ struct CommandPaletteView: View {
 
     private var footer: some View {
         HStack(spacing: 14) {
-            legend("↑↓", "navigate")
-            legend("⏎", "open")
-            legend("esc", "close")
+            legend("↑↓", L10n.string("keyboard.navigate"))
+            legend("⏎", L10n.string("keyboard.open"))
+            legend("esc", L10n.string("keyboard.close"))
             Spacer()
         }
         .font(.caption)

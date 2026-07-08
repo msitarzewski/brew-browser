@@ -11,6 +11,7 @@
   import { safeOpenUrl } from "$lib/util/url";
   import { isLinux } from "$lib/util/platform";
   import { SPONSOR_URL } from "$lib/util/donate";
+  import { t } from "$lib/i18n/messages";
 
   const REPO_URL = "https://github.com/msitarzewski/brew-browser";
   const LICENSE_URL = "https://github.com/msitarzewski/brew-browser/blob/main/LICENSE";
@@ -61,50 +62,47 @@
       aria-labelledby="about-title"
       data-tauri-drag-region="false"
     >
-      <button class="close" aria-label="Close About" onclick={() => ui.closeAbout()}>
+      <button class="close" aria-label={t("about.closeAria", ui.locale)} onclick={() => ui.closeAbout()}>
         <X size={16} />
       </button>
 
       <div class="hero">
         <span class="brand-mark" aria-hidden="true">🍺</span>
         <h1 id="about-title">brew-browser</h1>
-        <p class="tagline">A native macOS GUI for Homebrew.</p>
+        <p class="tagline">{t("about.tagline", ui.locale)}</p>
       </div>
 
       <dl class="meta">
-        <div><dt>Version</dt><dd class="mono">{appVer ?? "…"}</dd></div>
+        <div><dt>{t("Version", ui.locale)}</dt><dd class="mono">{appVer ?? "…"}</dd></div>
         <div><dt>Homebrew</dt><dd class="mono">{env.report?.version ?? "—"}</dd></div>
-        <div><dt>License</dt><dd><button class="link" onclick={openLicense}>MIT</button></dd></div>
-        <div><dt>Repo</dt><dd><button class="link" onclick={openRepo}>github.com/msitarzewski/brew-browser</button></dd></div>
+        <div><dt>{t("License", ui.locale)}</dt><dd><button class="link" onclick={openLicense}>MIT</button></dd></div>
+        <div><dt>{t("Repo", ui.locale)}</dt><dd><button class="link" onclick={openRepo}>github.com/msitarzewski/brew-browser</button></dd></div>
       </dl>
 
-      <button class="donate-cta" onclick={openSponsor} title="Open GitHub Sponsors in your browser">
+      <button class="donate-cta" onclick={openSponsor} title={t("Open GitHub Sponsors in your browser", ui.locale)}>
         <Heart size={16} />
-        <span>Donate to the project</span>
+        <span>{t("Donate to the project", ui.locale)}</span>
         <ExternalLink size={12} />
       </button>
 
       <section class="credits">
-        <h2><Sparkles size={14} /> Built with</h2>
+        <h2><Sparkles size={14} /> {t("Built with", ui.locale)}</h2>
         <p>
           <button class="link" onclick={openAgencyAgents}><strong>Agency Agents</strong></button>
-          — the multi-agent toolkit that orchestrated the waves (Backend
-          Architect, Frontend Developer, Security Engineer, Code Reviewer,
-          Technical Writer, and friends), powered by <strong>Claude Code</strong> in
-          the terminal, running <strong>Opus 4.7 [1m]</strong>.
+          {t("about.creditsBody.beforeClaude", ui.locale)}
+          <strong>Claude Code</strong>
+          {t("about.creditsBody.afterClaude", ui.locale)}
+          <strong>Opus 4.7 [1m]</strong>.
         </p>
         <!-- Linux: casks don't exist there, so the credit names formula
              maintainers only. -->
         <p class="thanks">
-          Thanks also to the Homebrew project for the package data, every
-          {isLinux ? "formula" : "formula and cask"} maintainer for their work,
-          and Tauri for the native shell.
+          {isLinux ? t("about.thanksLinux", ui.locale) : t("about.thanksMac", ui.locale)}
         </p>
       </section>
 
       <p class="posture text-muted">
-        Zero telemetry. Zero accounts. Every outbound network call is
-        documented in Settings → Network.
+        {t("about.posture", ui.locale)}
       </p>
     </div>
   </div>

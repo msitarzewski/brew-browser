@@ -17,7 +17,7 @@ struct DashboardView: View {
     var body: some View {
         ScrollView {
             if !model.dashboardLoaded {
-                ProgressView("Reading your Homebrew setup…")
+                ProgressView(L10n.isRussian ? "Читаем конфигурацию Homebrew…" : "Reading your Homebrew setup…")
                     .frame(maxWidth: .infinity, minHeight: 300)
             } else {
                 VStack(alignment: .leading, spacing: 16) {
@@ -170,7 +170,7 @@ struct CatalogFreshnessStrip: View {
             }
             .controlSize(.small)
             .disabled(model.catalogRefreshing)
-            .help("Re-download the Homebrew catalog from formulae.brew.sh")
+            .help(L10n.isRussian ? "Заново загрузить каталог Homebrew с formulae.brew.sh" : "Re-download the Homebrew catalog from formulae.brew.sh")
         }
         .font(.callout)
         .padding(.horizontal, 12)
@@ -287,7 +287,7 @@ struct UpdatesCard: View {
 struct KindPill: View {
     let kind: InstalledPackage.Kind
     var body: some View {
-        Text(kind.rawValue)
+        Text(L10n.packageKind(kind))
             .font(.caption2.weight(.medium))
             .padding(.horizontal, 7).padding(.vertical, 2)
             .background(kind == .formula ? Color.blue.opacity(0.18) : Color.orange.opacity(0.18),
@@ -642,7 +642,7 @@ struct ExposureCard: View {
     /// "Last scan: 2 hours ago" / "never". Same RelativeDateTimeFormatter UX
     /// language as the Tauri card's `Intl.RelativeTimeFormat`.
     private var lastScanLabel: String {
-        guard let at = model.vulnLastScannedAt else { return "never" }
+        guard let at = model.vulnLastScannedAt else { return L10n.isRussian ? "никогда" : "never" }
         let fmt = RelativeDateTimeFormatter()
         fmt.unitsStyle = .full
         return fmt.localizedString(for: at, relativeTo: Date())
@@ -660,10 +660,10 @@ struct ExposureCard: View {
                 HStack {
                     Image(systemName: freshClean ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
                         .foregroundStyle(freshClean ? .green : .orange)
-                    Text("Exposure").font(.headline)
+                    Text(L10n.string("Exposure")).font(.headline)
                     Spacer()
                     if scanned {
-                        Text("Last scan: \(lastScanLabel)")
+                        Text(L10n.isRussian ? "Последняя проверка: \(lastScanLabel)" : "Last scan: \(lastScanLabel)")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     Button {
@@ -673,15 +673,15 @@ struct ExposureCard: View {
                             // Live spinner, not a static rotate-arrow.
                             HStack(spacing: 5) {
                                 ProgressView().controlSize(.small)
-                                Text("Scanning…")
+                                Text(L10n.string("Scanning…"))
                             }
                         } else {
-                            Label("Scan now", systemImage: "arrow.clockwise")
+                            Label(L10n.string("Scan now"), systemImage: "arrow.clockwise")
                         }
                     }
                     .controlSize(.small)
                     .disabled(model.vulnScanAllLoading)
-                    .help("Re-run brew vulns against every installed formula")
+                    .help(L10n.isRussian ? "Повторно запустить brew vulns для всех установленных формул" : "Re-run brew vulns against every installed formula")
                 }
 
                 if !scanned {
@@ -689,8 +689,10 @@ struct ExposureCard: View {
                     // not imply safety we haven't verified.
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Not scanned yet.").fontWeight(.semibold)
-                            Text("We haven't checked your installed packages for known vulnerabilities. Run a scan when you can. (Vulnerability scanning is configured in Settings → Security.)")
+                            Text(L10n.string("Not scanned yet.")).fontWeight(.semibold)
+                            Text(L10n.isRussian
+                                 ? "Установленные пакеты ещё не проверялись на известные уязвимости. Запустите проверку, когда будет удобно. Настройка находится в «Настройки → Безопасность»."
+                                 : "We haven't checked your installed packages for known vulnerabilities. Run a scan when you can. (Vulnerability scanning is configured in Settings → Security.)")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     } icon: {
@@ -703,8 +705,8 @@ struct ExposureCard: View {
                     // re-scan prompt.
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("No advisories as of the last scan (\(lastScanLabel)).").fontWeight(.semibold)
-                            Text("Packages may have changed since. Re-scan to confirm.")
+                            Text(L10n.isRussian ? "На момент последней проверки (\(lastScanLabel)) записей об уязвимостях нет." : "No advisories as of the last scan (\(lastScanLabel)).").fontWeight(.semibold)
+                            Text(L10n.isRussian ? "С тех пор пакеты могли измениться. Проверьте ещё раз для подтверждения." : "Packages may have changed since. Re-scan to confirm.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     } icon: {
@@ -714,8 +716,8 @@ struct ExposureCard: View {
                     // Freshly clean — a GOOD result; frame it positively.
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("No known vulnerabilities.").fontWeight(.semibold)
-                            Text("All installed packages are clean of advisories known to brew vulns.")
+                            Text(L10n.string("No known vulnerabilities.")).fontWeight(.semibold)
+                            Text(L10n.isRussian ? "Для установленных пакетов нет уязвимостей, известных brew vulns." : "All installed packages are clean of advisories known to brew vulns.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     } icon: {

@@ -25,9 +25,8 @@
    *   5. On, lastScanError set — danger callout under the buttons.
    *
    * Detection of "is brew-vulns installed?" is implicit — the store
-   * doesn't track it directly. We use `lastScanError` containing
-   * "vulns_not_installed" as the signal; otherwise we assume installed
-   * once any scan has completed.
+   * exposes the backend `vulns_not_installed` code as a typed signal;
+   * otherwise we assume installed once any scan has completed.
    *
    * Offline Mode (paranoid_mode) hard-locks the feature even when the
    * toggle is on — same gating contract as TrendingHistory.
@@ -41,9 +40,11 @@
   import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
 
   import { settings } from "$lib/stores/settings.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
   import { vulnerabilities } from "$lib/stores/vulnerabilities.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { reportableToastError } from "$lib/util/reportIssue";
+  import { ruPlural, t } from "$lib/i18n/messages";
 
   /** Offline Mode locks the feature off regardless of toggle state. */
   let offline = $derived(settings.effective.paranoidMode);
@@ -53,10 +54,9 @@
 
   /** Whether the last scan failed because the `brew vulns` subcommand
       isn't installed. Drives the install-affordance swap. The store
-      stamps this exact phrase into `lastScanError` for us. */
+      exposes the backend error code so this state is locale-neutral. */
   let helperMissing = $derived(
-    vulnerabilities.lastScanError !== null &&
-    vulnerabilities.lastScanError.includes("not installed"),
+    vulnerabilities.lastScanErrorCode === "vulns_not_installed",
   );
 
   /** True once we've completed at least one scan without a
@@ -76,19 +76,23 @@
 
   /** Relative-time formatter for "Last scan: 3 minutes ago". Avoids
       pulling in dayjs/date-fns just for this — Intl handles it. */
-  const RELATIVE_TIME = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-
   function relativeTime(d: Date | null): string {
-    if (!d) return "never";
+    if (!d) return ui.locale === "ru" ? "никогда" : "never";
+    const formatter = new Intl.RelativeTimeFormat(ui.locale === "ru" ? "ru" : undefined, { numeric: "auto" });
     const deltaSec = Math.round((d.getTime() - Date.now()) / 1000);
     const abs = Math.abs(deltaSec);
-    if (abs < 60) return RELATIVE_TIME.format(deltaSec, "second");
-    if (abs < 3600) return RELATIVE_TIME.format(Math.round(deltaSec / 60), "minute");
-    if (abs < 86400) return RELATIVE_TIME.format(Math.round(deltaSec / 3600), "hour");
-    return RELATIVE_TIME.format(Math.round(deltaSec / 86400), "day");
+    if (abs < 60) return formatter.format(deltaSec, "second");
+    if (abs < 3600) return formatter.format(Math.round(deltaSec / 60), "minute");
+    if (abs < 86400) return formatter.format(Math.round(deltaSec / 3600), "hour");
+    return formatter.format(Math.round(deltaSec / 86400), "day");
   }
 
   let lastScanLabel = $derived(relativeTime(lastScannedAt));
+
+  function vulnPackagesNoun(count: number): string {
+    if (ui.locale !== "ru") return `package${count === 1 ? "" : "s"} with known vulnerabilities`;
+    return `${ruPlural(count, "пакет", "пакета", "пакетов")} с известными уязвимостями`;
+  }
 
   async function onToggle(e: Event) {
     const next = (e.currentTarget as HTMLInputElement).checked;
@@ -113,14 +117,14 @@
     try {
       await vulnerabilities.installHelper();
       toast.success(
-        "brew-vulns installed",
-        "Running an initial scan now…",
+        t("settings.vulnerabilities.helperInstalledTitle", ui.locale),
+        t("settings.vulnerabilities.initialScanBody", ui.locale),
       );
       // Helper is now present — kick a forced scan so the empty state
       // flips to real data immediately.
       await vulnerabilities.scanAll(true);
     } catch (e) {
-      reportableToastError("Couldn't install brew-vulns", e);
+      reportableToastError(t("settings.vulnerabilities.installFailedTitle", ui.locale), e);
     } finally {
       installing = false;
     }
@@ -130,13 +134,13 @@
 <div class="section">
   <h2>
     <ShieldAlert size={18} aria-hidden="true" />
-    Vulnerability Scanning
+    {t("Vulnerability Scanning", ui.locale)}
   </h2>
 
   <div class="field">
     <label
       class="toggle"
-      title={offline ? "Disabled by Offline Mode" : undefined}
+      title={offline ? t("Disabled by Offline Mode", ui.locale) : undefined}
     >
       <input
         type="checkbox"
@@ -146,24 +150,16 @@
         aria-describedby="vuln-scan-hint"
       />
       <span class="toggle-track" aria-hidden="true"></span>
-      <span class="toggle-label">Scan installed packages for known vulnerabilities</span>
+      <span class="toggle-label">{t("Scan installed packages for known vulnerabilities", ui.locale)}</span>
     </label>
 
     <p class="hint" id="vuln-scan-hint">
-      Opt-in, off by default. When on, brew-browser shells out to the
-      official <code>brew vulns</code> subcommand (Homebrew project), which
-      queries <code>OSV.dev</code> (operated by Google) for known
-      vulnerabilities affecting your installed formulae. If you're also
-      signed in to GitHub, individual GHSA-IDs are enriched with details
-      from <code>api.github.com</code>. Findings are cached locally; no
-      package list leaves your machine except the queries
-      <code>brew vulns</code> itself makes to OSV.
+      {t("settings.vulnerabilities.privacyHint", ui.locale)}
     </p>
 
     {#if offline}
       <p class="hint hint-warn">
-        Offline Mode is on — vulnerability scanning is suppressed even if
-        this toggle is on. Disable Offline Mode above to enable scanning.
+        {t("settings.vulnerabilities.offlineHint", ui.locale)}
       </p>
     {/if}
   </div>
@@ -174,15 +170,13 @@
   {#if on && !offline}
     {#if helperMissing}
       <!-- State 2: helper not installed. -->
-      <div class="callout install" role="region" aria-label="Install brew-vulns">
+      <div class="callout install" role="region" aria-label={t("Install brew-vulns", ui.locale)}>
         <div class="callout-head">
           <TriangleAlert size={16} />
-          <strong>The brew-vulns subcommand isn't installed.</strong>
+          <strong>{t("The brew-vulns subcommand isn't installed.", ui.locale)}</strong>
         </div>
         <p class="callout-body">
-          Vulnerability scanning needs the official
-          <code>brew vulns</code> subcommand. Install it now? This runs
-          <code>brew install homebrew/brew-vulns/brew-vulns</code>.
+          {t("settings.vulnerabilities.installPrompt", ui.locale)}
         </p>
         <div class="row">
           <button
@@ -193,10 +187,10 @@
           >
             {#if installing}
               <span class="spin"><Loader size={14} /></span>
-              Installing…
+              {t("Installing…", ui.locale)}
             {:else}
               <Download size={14} />
-              Install brew-vulns
+              {t("Install brew-vulns", ui.locale)}
             {/if}
           </button>
         </div>
@@ -210,17 +204,17 @@
             class="btn-secondary"
             onclick={onScanNow}
             disabled={vulnerabilities.loading}
-            title="Run brew vulns against every installed formula"
+            title={t("settings.vulnerabilities.scanAllTitle", ui.locale)}
           >
             {#if vulnerabilities.loading}
               <span class="spin"><Loader size={14} /></span>
-              Scanning…
+              {t("Scanning…", ui.locale)}
             {:else}
               <RefreshCw size={14} />
-              Scan now
+              {t("Scan now", ui.locale)}
             {/if}
           </button>
-          <span class="meta">Last scan: {lastScanLabel}</span>
+          <span class="meta">{t("settings.vulnerabilities.lastScan", ui.locale)}: {lastScanLabel}</span>
         </div>
 
         {#if helperConfirmedInstalled}
@@ -229,9 +223,9 @@
             <div class="callout clean" role="status">
               <CheckCircle size={16} />
               <span>
-                No known vulnerabilities across your installed packages.
+                {t("settings.vulnerabilities.cleanResult", ui.locale)}
                 {#if scanSource}
-                  <span class="meta-inline">(source: {scanSource})</span>
+                  <span class="meta-inline">({t("source", ui.locale)}: {scanSource})</span>
                 {/if}
               </span>
             </div>
@@ -239,17 +233,16 @@
             <!-- Found some. Break out by severity tier. -->
             <p class="status-line">
               <strong>{counts.vulnerablePackages}</strong>
-              package{counts.vulnerablePackages === 1 ? "" : "s"} with known
-              vulnerabilities ·
-              <span class="sev sev-danger">{counts.critical} critical</span> ·
-              <span class="sev sev-danger">{counts.high} high</span> ·
-              <span class="sev sev-warning">{counts.medium} medium</span> ·
-              <span class="sev sev-info">{counts.low} low</span>
+              {vulnPackagesNoun(counts.vulnerablePackages)} ·
+              <span class="sev sev-danger">{counts.critical} {ui.locale === "ru" ? ruPlural(counts.critical, "критическая", "критические", "критических") : "critical"}</span> ·
+              <span class="sev sev-danger">{counts.high} {ui.locale === "ru" ? ruPlural(counts.high, "высокая", "высокие", "высоких") : "high"}</span> ·
+              <span class="sev sev-warning">{counts.medium} {ui.locale === "ru" ? ruPlural(counts.medium, "средняя", "средние", "средних") : "medium"}</span> ·
+              <span class="sev sev-info">{counts.low} {ui.locale === "ru" ? ruPlural(counts.low, "низкая", "низкие", "низких") : "low"}</span>
               {#if counts.unknown > 0}
-                · <span class="sev sev-neutral">{counts.unknown} unknown</span>
+                · <span class="sev sev-neutral">{counts.unknown} {ui.locale === "ru" ? ruPlural(counts.unknown, "неизвестная", "неизвестные", "неизвестных") : "unknown"}</span>
               {/if}
               {#if scanSource}
-                <span class="meta-inline">· source: {scanSource}</span>
+                <span class="meta-inline">· {t("source", ui.locale)}: {scanSource}</span>
               {/if}
             </p>
           {/if}
@@ -298,15 +291,6 @@
     font-size: var(--text-body-sm);
     color: var(--color-text-muted);
     line-height: var(--lh-snug);
-  }
-  .hint code {
-    font-family: var(--font-mono);
-    font-size: var(--text-mono);
-    padding: 1px 4px;
-    background: var(--color-surface-sunken);
-    border-radius: var(--radius-sm);
-    color: var(--color-text-secondary);
-    word-break: break-all;
   }
   .hint-warn {
     color: var(--color-warning-strong, #b45309);
@@ -442,13 +426,6 @@
     font-size: var(--text-body-sm);
     color: var(--color-text-secondary);
     line-height: var(--lh-snug);
-  }
-  .callout-body code {
-    font-family: var(--font-mono);
-    font-size: var(--text-mono);
-    padding: 1px 4px;
-    background: var(--color-surface-sunken);
-    border-radius: var(--radius-sm);
   }
   .install {
     background: var(--color-warning-subtle);

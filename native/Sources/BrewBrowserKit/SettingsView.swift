@@ -186,7 +186,7 @@ private struct GitHubSettings: View {
                 if let status, status.signedIn {
                     LabeledContent(L10n.string("github.signedInAs"), value: "@\(status.username ?? "?")")
                     if !status.scopes.isEmpty {
-                        LabeledContent("Scopes", value: status.scopes.joined(separator: ", "))
+                        LabeledContent(L10n.isRussian ? "Разрешения" : "Scopes", value: status.scopes.joined(separator: ", "))
                             .font(.caption)
                     }
                     Button(L10n.string("github.signOut")) {
@@ -521,13 +521,13 @@ private struct AboutSettings: View {
     var body: some View {
         Form {
             SwiftUI.Section {
-                LabeledContent("App version", value: appVersion())
-                LabeledContent("License", value: "MIT")
+                LabeledContent(L10n.string("App version"), value: appVersion())
+                LabeledContent(L10n.string("License"), value: "MIT")
                 Link("github.com/msitarzewski/brew-browser",
                      destination: URL(string: "https://github.com/msitarzewski/brew-browser")!)
             }
             SwiftUI.Section {
-                Text("Zero telemetry. Zero accounts. brew-browser does not collect telemetry, phone home, or have user accounts. Every outbound request is documented in Settings → Network and only fires when you take an action that requires it.")
+                Text(L10n.string("settings.about.zeroTelemetryBody"))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

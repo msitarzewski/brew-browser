@@ -6,7 +6,14 @@ enum TrendingWindow: String, CaseIterable, Identifiable, Sendable {
     case d90 = "90d"
     case d365 = "365d"
     var id: String { rawValue }
-    var label: String { rawValue }
+    var label: String {
+        guard L10n.isRussian else { return rawValue }
+        switch self {
+        case .d30: return "30 дн."
+        case .d90: return "90 дн."
+        case .d365: return "365 дн."
+        }
+    }
 }
 
 /// One entry from the always-on Homebrew install analytics — token + install

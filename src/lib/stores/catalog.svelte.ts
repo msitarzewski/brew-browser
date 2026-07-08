@@ -22,7 +22,9 @@ import {
   catalogRefresh,
   catalogSummary,
 } from "$lib/api";
+import { t } from "$lib/i18n/messages";
 import { settings } from "$lib/stores/settings.svelte";
+import { ui } from "$lib/stores/ui.svelte";
 import { bareToken } from "$lib/util/token";
 import {
   brewErrorMessage,
@@ -104,7 +106,7 @@ class CatalogStore {
         // are surprising but should never break the UI shell. Record on
         // refreshError so the Dashboard can surface "catalog unavailable"
         // without throwing.
-        this.refreshError = isBrewError(e) ? brewErrorMessage(e) : String(e);
+        this.refreshError = isBrewError(e) ? brewErrorMessage(e, ui.locale) : String(e);
       } finally {
         this.summaryLoadPromise = null;
       }
@@ -129,14 +131,14 @@ class CatalogStore {
         switch (e.code) {
           case "paranoid_mode_blocked":
             this.refreshError =
-              "Offline mode is on — catalog refresh is blocked. Disable it in Settings → Network.";
+              t("catalog.refresh.offlineBlocked", ui.locale);
             break;
           case "brew_exit_non_zero":
             this.refreshError =
-              e.friendlyMessage ?? `brew failed during refresh (exit ${e.exitCode}).`;
+              e.friendlyMessage ?? t("catalog.refresh.brewFailed", ui.locale, { code: e.exitCode });
             break;
           default:
-            this.refreshError = brewErrorMessage(e);
+            this.refreshError = brewErrorMessage(e, ui.locale);
         }
       } else {
         this.refreshError = String(e);

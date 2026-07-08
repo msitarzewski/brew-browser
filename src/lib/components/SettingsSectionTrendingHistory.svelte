@@ -24,6 +24,8 @@
   import LineChart from "@lucide/svelte/icons/line-chart";
 
   import { settings } from "$lib/stores/settings.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { t } from "$lib/i18n/messages";
 
   /** Offline Mode hard-locks this toggle regardless of its setting. */
   let offline = $derived(settings.effective.paranoidMode);
@@ -39,11 +41,11 @@
 <div class="section">
   <h2>
     <LineChart size={18} aria-hidden="true" />
-    Enhanced Trending History
+    {t("settings.trendingHistory.title", ui.locale)}
   </h2>
 
   <div class="field">
-    <label class="toggle" title={offline ? "Disabled by Offline Mode" : undefined}>
+    <label class="toggle" title={offline ? t("Disabled by Offline Mode", ui.locale) : undefined}>
       <input
         type="checkbox"
         checked={on}
@@ -52,24 +54,18 @@
         aria-describedby="enhanced-trending-hint"
       />
       <span class="toggle-track" aria-hidden="true"></span>
-      <span class="toggle-label">Fetch trending history</span>
+      <span class="toggle-label">{t("Fetch trending history", ui.locale)}</span>
     </label>
 
     <p class="hint" id="enhanced-trending-hint">
-      When on, brew-browser fetches per-package historical install trends
-      from <code>brew-browser.zerologic.com/trending-history/*</code> to
-      power per-row sparklines on the Trending tab and a chart on each
-      package's detail panel. Only the package name you're viewing is
-      sent (one HTTP GET per package); no IP is logged at the server,
-      no cookies, no fingerprinting. The endpoint is operated by the
-      brew-browser project — a distinct trust boundary from the
-      always-on Homebrew analytics paths above.
+      {t("settings.trendingHistory.hint.beforeHost", ui.locale)}
+      <code>brew-browser.zerologic.com/trending-history/*</code>
+      {t("settings.trendingHistory.hint.afterHost", ui.locale)}
     </p>
 
     {#if offline}
       <p class="hint hint-warn">
-        Offline Mode is on — this toggle is locked off. Turn Offline
-        Mode off above to enable history fetching.
+        {t("settings.trendingHistory.offline", ui.locale)}
       </p>
     {/if}
   </div>

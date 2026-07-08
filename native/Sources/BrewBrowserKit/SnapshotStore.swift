@@ -237,9 +237,34 @@ enum SnapshotError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notFound(let id): return "Snapshot \"\(id)\" not found."
-        case .unsafePath(let why): return why
-        case .invalidID(let why): return why
+        case .notFound(let id):
+            return L10n.isRussian ? "Снимок «\(id)» не найден." : "Snapshot \"\(id)\" not found."
+        case .unsafePath(let why):
+            if !L10n.isRussian { return why }
+            switch why {
+            case "refusing to import a symlink":
+                return "Нельзя импортировать символическую ссылку."
+            case "file larger than 1 MiB":
+                return "Файл больше 1 МиБ."
+            case "refusing to import binary content":
+                return "Нельзя импортировать бинарный файл."
+            default:
+                if why.hasPrefix("refusing to write inside ") {
+                    let path = String(why.dropFirst("refusing to write inside ".count))
+                    return "Нельзя записывать снимок внутрь \(path)."
+                }
+                return why
+            }
+        case .invalidID(let why):
+            if !L10n.isRussian { return why }
+            if why == "Snapshot id must be 1–64 characters." {
+                return "Идентификатор снимка должен содержать от 1 до 64 символов."
+            }
+            if why.hasPrefix("Snapshot id contains an illegal character: ") {
+                let id = String(why.dropFirst("Snapshot id contains an illegal character: ".count))
+                return "Идентификатор снимка содержит недопустимый символ: \(id)."
+            }
+            return why
         }
     }
 }

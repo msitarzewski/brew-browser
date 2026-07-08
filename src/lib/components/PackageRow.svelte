@@ -5,6 +5,8 @@
   import { enrichment } from "$lib/stores/enrichment.svelte";
   import { settings } from "$lib/stores/settings.svelte";
   import { vulnerabilities } from "$lib/stores/vulnerabilities.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { t, ruPlural } from "$lib/i18n/messages";
   import { isLinux } from "$lib/util/platform";
   import type { Package, Severity } from "$lib/types";
 
@@ -58,8 +60,23 @@
   const vulnTitle = $derived.by(() => {
     if (!vulnRecord || vulnMaxSeverity === null) return "";
     const n = vulnRecord.vulns.length;
+    if (ui.locale === "ru") {
+      const vulnWord = ruPlural(n, "известная уязвимость", "известные уязвимости", "известных уязвимостей");
+      return `${n} ${vulnWord} (максимальная серьёзность: ${severityLabel(vulnMaxSeverity)}). Откройте строку, чтобы посмотреть подробности.`;
+    }
     return `${n} known vulnerabilit${n === 1 ? "y" : "ies"} (highest: ${vulnMaxSeverity}). Click row to see details.`;
   });
+
+  function severityLabel(severity: Severity): string {
+    if (ui.locale !== "ru") return severity;
+    switch (severity) {
+      case "critical": return "критическая";
+      case "high": return "высокая";
+      case "medium": return "средняя";
+      case "low": return "низкая";
+      default: return "неизвестная";
+    }
+  }
 
   // ── Deprecation / disabled badge (Feature #2) ──
   //
@@ -67,29 +84,29 @@
   // `disabled` is the stronger state and wins the badge when both are set
   // (the formula is gone / about to be removed → danger tone). A package
   // with neither flag shows nothing — never a placeholder.
-  const deprecationBadge = $derived.by<
-    { label: string; tone: "warning" | "danger"; title: string } | null
-  >(() => {
-    if (pkg.disabled) {
-      return {
-        label: "disabled",
-        tone: "danger",
-        title: pkg.disableReason
-          ? `Disabled: ${pkg.disableReason}`
-          : "Disabled — no longer available via Homebrew.",
-      };
-    }
-    if (pkg.deprecated) {
-      return {
-        label: "deprecated",
-        tone: "warning",
-        title: pkg.deprecationReason
-          ? `Deprecated: ${pkg.deprecationReason}`
-          : "Deprecated — may be removed in a future Homebrew update.",
-      };
-    }
-    return null;
-  });
+	  const deprecationBadge = $derived.by<
+	    { label: string; tone: "warning" | "danger"; title: string } | null
+	  >(() => {
+	    if (pkg.disabled) {
+	      return {
+	        label: t("disabled", ui.locale),
+	        tone: "danger",
+	        title: pkg.disableReason
+	          ? t("discover.disabledReason", ui.locale, { reason: pkg.disableReason })
+	          : t("No longer available via Homebrew.", ui.locale),
+	      };
+	    }
+	    if (pkg.deprecated) {
+	      return {
+	        label: t("deprecated", ui.locale),
+	        tone: "warning",
+	        title: pkg.deprecationReason
+	          ? t("discover.deprecatedReason", ui.locale, { reason: pkg.deprecationReason })
+	          : t("May be removed in a future Homebrew update.", ui.locale),
+	      };
+	    }
+	    return null;
+	  });
 
   /** AI-enriched friendly name for this row's token, or null when the
    *  AI Features toggle is off / no enrichment entry. Called inline in
@@ -134,7 +151,9 @@
        dot, which is fully meaningful on Linux. -->
   <span class="kind">
     {#if !isLinux}
-      <Pill tone={pkg.kind === "formula" ? "formula" : "cask"}>{pkg.kind}</Pill>
+      <Pill tone={pkg.kind === "formula" ? "formula" : "cask"}>
+        {pkg.kind === "formula" ? t("package.kind.formula", ui.locale) : t("package.kind.cask", ui.locale)}
+      </Pill>
     {/if}
     {#if deprecationBadge}
       <!-- Deprecation / disabled badge (Feature #2). Lives next to the
@@ -153,7 +172,7 @@
   </span>
   <span class="outdated">
     {#if pkg.outdated}
-      <span class="upgrade" title="Upgrade available">
+      <span class="upgrade" title={t("Upgrade available", ui.locale)}>
         <ChevronRight size={14} />
         {pkg.stableVersion ?? ""}
       </span>

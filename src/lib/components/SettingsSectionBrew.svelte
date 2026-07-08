@@ -18,6 +18,7 @@
   import { isBrewError, brewErrorMessage } from "$lib/types";
   import type { BrewStreamEvent } from "$lib/types";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t } from "$lib/i18n/messages";
   import Button from "./Button.svelte";
   import DestructiveConfirm from "./DestructiveConfirm.svelte";
 
@@ -31,7 +32,7 @@
     try {
       analyticsEnabled = await brewGetAnalytics();
     } catch (e) {
-      analyticsError = isBrewError(e) ? brewErrorMessage(e) : String(e);
+      analyticsError = isBrewError(e) ? brewErrorMessage(e, ui.locale) : String(e);
       // NOTE: we do NOT toast here — the inline `analyticsError` block in
       // the Settings → Brew section already renders the same message. The
       // earlier toast was firing on every Settings open and stacking, since
@@ -50,9 +51,9 @@
     try {
       await brewSetAnalytics(next);
       analyticsEnabled = next;
-      toast.success(`Homebrew analytics ${next ? "enabled" : "disabled"}`);
+      toast.success(t(next ? "Homebrew analytics enabled" : "Homebrew analytics disabled", ui.locale));
     } catch (e) {
-      analyticsError = isBrewError(e) ? brewErrorMessage(e) : String(e);
+      analyticsError = isBrewError(e) ? brewErrorMessage(e, ui.locale) : String(e);
       toast.error("Couldn't change brew analytics", analyticsError);
       // Re-probe so the UI reflects whatever brew actually settled on.
       await loadAnalytics();
@@ -95,8 +96,8 @@
       await streamJob("Removing unused dependencies", "brew autoremove", brewAutoremove);
     } catch (e) {
       toast.error(
-        "brew autoremove failed to run",
-        isBrewError(e) ? brewErrorMessage(e) : String(e),
+        t("settings.brew.autoremove.failedToRun", ui.locale),
+        isBrewError(e) ? brewErrorMessage(e, ui.locale) : String(e),
       );
     } finally {
       autoremoveRunning = false;
@@ -117,11 +118,11 @@
   <h2>Brew</h2>
 
   <section class="group">
-    <h3>Analytics</h3>
+    <h3>{t("Analytics", ui.locale)}</h3>
     <p class="desc">
-      Homebrew sends anonymous install analytics to formulae.brew.sh by
-      default. This toggle flips Homebrew's setting (the same as running
-      <code>brew analytics on</code> / <code>off</code> in your terminal).
+      {t("settings.brew.analyticsDesc.beforeCommand", ui.locale)}
+      <code>brew analytics on</code> / <code>off</code>
+      {t("settings.brew.analyticsDesc.afterCommand", ui.locale)}
     </p>
 
     <div class="row">
@@ -132,12 +133,12 @@
           disabled={analyticsLoading || analyticsEnabled === null}
           onchange={toggleAnalytics}
         />
-        <span>Send Homebrew install analytics</span>
+        <span>{t("settings.brew.analyticsToggle", ui.locale)}</span>
       </label>
       {#if analyticsLoading}
-        <span class="status">working…</span>
+        <span class="status">{t("working…", ui.locale)}</span>
       {:else if analyticsEnabled === null && analyticsError}
-        <span class="status status--err">unavailable</span>
+        <span class="status status--err">{t("unavailable", ui.locale)}</span>
       {/if}
     </div>
 
@@ -147,10 +148,9 @@
   </section>
 
   <section class="group">
-    <h3>Confirmations</h3>
+    <h3>{t("Confirmations", ui.locale)}</h3>
     <p class="desc">
-      Destructive actions (Uninstall, Zap, Delete Brewfile) ask before
-      proceeding. Power users can turn this off once they're sure.
+      {t("settings.brew.confirmationsDesc", ui.locale)}
     </p>
     <div class="row">
       <label class="toggle">
@@ -159,14 +159,14 @@
           checked={ui.confirmDestructive}
           onchange={(e) => ui.setConfirmDestructive((e.currentTarget as HTMLInputElement).checked)}
         />
-        <span>Confirm before uninstall / zap</span>
+        <span>{t("Confirm before uninstall / zap", ui.locale)}</span>
       </label>
     </div>
   </section>
 
   <section class="group">
-    <h3>Advanced</h3>
-    <p class="desc">Extra <code>brew</code> options for power users.</p>
+    <h3>{t("Advanced", ui.locale)}</h3>
+    <p class="desc">{t("settings.brew.advancedDesc.beforeCommand", ui.locale)}<code>brew</code>{t("settings.brew.advancedDesc.afterCommand", ui.locale)}</p>
 
     <div class="row">
       <label class="toggle">
@@ -175,37 +175,41 @@
           checked={ui.greedyUpgrade}
           onchange={(e) => ui.setGreedyUpgrade((e.currentTarget as HTMLInputElement).checked)}
         />
-        <span>Greedy upgrades (include self-updating casks)</span>
+        <span>{t("Greedy upgrades (include self-updating casks)", ui.locale)}</span>
       </label>
     </div>
     <p class="desc subtle">
-      Adds <code>--greedy</code> to <code>brew upgrade</code> so casks that
-      update themselves (like Chrome) are upgraded too. Off by default — greedy
-      can churn apps that manage their own updates.
+      {t("settings.brew.greedyDesc.beforeFlag", ui.locale)}
+      <code>--greedy</code>
+      {t("settings.brew.greedyDesc.between", ui.locale)}
+      <code>brew upgrade</code>
+      {t("settings.brew.greedyDesc.afterCommand", ui.locale)}
     </p>
 
     <div class="row">
       <Button variant="secondary" disabled={autoremoveRunning} onclick={onAutoremoveClick}>
-        {autoremoveRunning ? "Removing…" : "Autoremove unused dependencies"}
+        {autoremoveRunning ? t("Removing…", ui.locale) : t("Autoremove unused dependencies", ui.locale)}
       </Button>
     </div>
     <p class="desc subtle">
-      Runs <code>brew autoremove</code> to uninstall formulae that were installed
-      only as dependencies and are no longer needed by anything.
+      {t("settings.brew.autoremoveDesc.beforeCommand", ui.locale)}
+      <code>brew autoremove</code>
+      {t("settings.brew.autoremoveDesc.afterCommand", ui.locale)}
     </p>
   </section>
 </div>
 
 <DestructiveConfirm
   open={autoremoveConfirmOpen}
-  title="Remove unused dependencies?"
-  confirmLabel="Autoremove"
+  title={t("Remove unused dependencies?", ui.locale)}
+  confirmLabel={t("Autoremove", ui.locale)}
   onConfirm={runAutoremove}
   onCancel={() => (autoremoveConfirmOpen = false)}
 >
   <p>
-    This runs <code>brew autoremove</code>, which uninstalls formulae that were
-    installed only as dependencies and are no longer required by anything else.
+    {t("settings.brew.autoremoveConfirm.beforeCommand", ui.locale)}
+    <code>brew autoremove</code>
+    {t("settings.brew.autoremoveConfirm.afterCommand", ui.locale)}
   </p>
 </DestructiveConfirm>
 

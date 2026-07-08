@@ -6,7 +6,7 @@ const ATTRIBUTES = ["aria-label", "title", "placeholder", "alt"] as const;
 const SKIP_TAGS = new Set(["CODE", "KBD", "PRE", "SAMP", "SCRIPT", "STYLE", "TEXTAREA"]);
 
 const patterns: Array<[RegExp, Replacement]> = [
-  [/^Theme: (Light|Dark|System)$/u, (m) => `Тема: ${translateText(m[1])}`],
+  [/^Theme: (Light|Dark|System)$/u, (m) => `Тема: ${translateText(m[1], "ru")}`],
   [/^updates available$/u, () => "доступны обновления"],
   [/^Catalog:$/u, () => "Каталог:"],
   [/^\(bundled\)$/u, () => "(встроенный)"],
@@ -61,8 +61,14 @@ const patterns: Array<[RegExp, Replacement]> = [
   [/^frees ~(.+)$/u, (m) => `освободит ~${m[1]}`],
   [/^(.+) total$/u, (m) => `всего ${m[1]}`],
   [/^(\d+) on request$/u, (m) => `${m[1]} вручную`],
-  [/^(\d+) as dependency$/u, (m) => `${m[1]} как зависимости`],
-  [/^(\d+) pinned$/u, (m) => `${m[1]} закреплено`],
+  [/^(\d+) as dependency$/u, (m) => {
+    const n = Number(m[1]);
+    return `${n} ${ruPlural(n, "как зависимость", "как зависимости", "как зависимостей")}`;
+  }],
+  [/^(\d+) pinned$/u, (m) => {
+    const n = Number(m[1]);
+    return `${n} ${ruPlural(n, "закреплённый", "закреплённых", "закреплённых")}`;
+  }],
   [/^(\d+) formulae$/u, (m) => {
     const n = Number(m[1]);
     return `${n} ${ruPlural(n, "формула", "формулы", "формул")}`;
@@ -83,11 +89,31 @@ const patterns: Array<[RegExp, Replacement]> = [
   [/^No advisories as of the last scan \((.+)\)\.$/u, (m) => `На момент последней проверки (${m[1]}) записей об уязвимостях нет.`],
   [/^No advisories as of the last scan — re-scan to confirm$/u, () => "На момент последней проверки записей об уязвимостях нет — проверьте ещё раз для подтверждения"],
   [/^Patched in (.+)$/u, (m) => `Исправлено в ${m[1]}`],
+  [/^Security · (\d+) known vulnerabilit(?:y|ies)$/u, (m) => {
+    const n = Number(m[1]);
+    return `Безопасность · ${n} ${ruPlural(n, "известная уязвимость", "известные уязвимости", "известных уязвимостей")}`;
+  }],
+  [/^No known vulnerabilities at version (.+)\.$/u, (m) => `Известных уязвимостей в версии ${m[1]} нет.`],
+  [/^scanned (.+)$/u, (m) => `проверено ${m[1]}`],
   [/^License mismatch — brew: (.+), GitHub: (.+)$/u, (m) => `Лицензии не совпадают — brew: ${m[1]}, GitHub: ${m[2]}`],
   [/^Blocked by Offline Mode\. Disable in Settings → Network\.$/u, () => "Заблокировано офлайн-режимом. Отключите его в разделе «Настройки → Сеть»."],
+  [/^Archived (.+) — likely unmaintained\.$/u, (m) => `Архивирован ${m[1]} — вероятно, больше не поддерживается.`],
+  [/^GitHub stats temporarily unavailable \(rate limit resets at (.+)\)\. Sign in via Settings → GitHub to remove the limit\.$/u,
+    (m) => `Статистика GitHub временно недоступна (лимит запросов сбросится в ${m[1]}). Войдите через «Настройки → GitHub», чтобы снять ограничение.`],
+  [/^Couldn't load GitHub stats: (.+)$/u, (m) => `Не удалось загрузить статистику GitHub: ${m[1]}`],
+  [/^Sign in to GitHub to (star|watch|file an issue)(?: this repository)?$/u, (m) => {
+    if (m[1] === "star") return "Войдите в GitHub, чтобы поставить звезду репозиторию";
+    if (m[1] === "watch") return "Войдите в GitHub, чтобы отслеживать репозиторий";
+    return "Войдите в GitHub, чтобы создать issue";
+  }],
   [/^Backend not available: (.+)$/u, (m) => `Бэкенд недоступен: ${m[1]}`],
+  [/^Search failed: (.+)$/u, (m) => `Поиск не удался: ${m[1]}`],
+  [/^Failed to load packages: (.+)$/u, (m) => `Не удалось загрузить пакеты: ${m[1]}`],
+  [/^Failed to load snapshots: (.+)$/u, (m) => `Не удалось загрузить снимки: ${m[1]}`],
+  [/^Couldn't load services: (.+)$/u, (m) => `Не удалось загрузить службы: ${m[1]}`],
+  [/^Homebrew was not found on this Mac\.$/u, () => "Homebrew не найден на этом Mac."],
   [/^Failed to load categories: (.+)$/u, (m) => `Не удалось загрузить категории: ${m[1]}`],
-  [/^Nothing matches the (.+) filter\.$/u, (m) => `По фильтру «${translateText(m[1])}» ничего не найдено.`],
+  [/^Nothing matches the (.+) filter\.$/u, (m) => `По фильтру «${translateText(m[1], "ru") || m[1]}» ничего не найдено.`],
   [/^Nothing in this category\.$/u, () => "В этой категории пока ничего нет."],
   [/^The bundled package catalog couldn't be loaded\.$/u, () => "Не удалось загрузить встроенный каталог пакетов."],
   [/^Browse (\d+) packages by category, or search above\.$/u, (m) => {
@@ -126,7 +152,7 @@ const patterns: Array<[RegExp, Replacement]> = [
   [/^Updating Homebrew taps$/u, () => "Обновляем tap-репозитории Homebrew"],
   [/^Running brew doctor$/u, () => "Запускаем brew doctor"],
   [/^(.+) is already installed outside Homebrew\.$/u, (m) => `${m[1]} уже установлен вне Homebrew.`],
-  [/^(.+) is still required by another installed package\.$/u, (m) => `${m[1]} всё ещё требуется другому установленному пакету.`],
+  [/^(.+) is still required by another installed package\.$/u, (m) => `${m[1]} ещё нужен другому установленному пакету.`],
   [/^Refusing to open (.+) URL$/u, (m) => `Не открываем URL со схемой ${m[1]}`],
 ];
 

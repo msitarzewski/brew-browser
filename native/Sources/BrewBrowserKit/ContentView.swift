@@ -283,11 +283,11 @@ struct LibraryView: View {
     var body: some View {
         Group {
             if model.isLoading && model.installed.isEmpty {
-                ProgressView("Reading your Homebrew install…")
+                ProgressView(L10n.string("Reading your Homebrew install…"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let err = model.loadError {
                 ContentUnavailableView(
-                    "Couldn't load packages",
+                    L10n.string("Couldn't load packages"),
                     systemImage: "exclamationmark.triangle",
                     description: Text(err)
                 )
@@ -324,7 +324,7 @@ struct LibraryView: View {
     // Segmented type filter with per-filter counts. Stock control, no overrides.
     // Centered in the bar — the macOS view-switcher convention (Finder/Preview).
     private var filterBar: some View {
-        Picker("Filter", selection: $model.libraryFilter) {
+        Picker(L10n.string("Filter"), selection: $model.libraryFilter) {
             ForEach(model.availableLibraryFilters) { f in
                 Text("\(f.localizedTitle) (\(model.libraryFilterCount(f)))").tag(f)
             }
@@ -368,9 +368,11 @@ struct LibraryView: View {
         if model.sortedLibraryRows.isEmpty {
             if model.globalQuery.isEmpty {
                 ContentUnavailableView(
-                    "No packages",
+                    L10n.string("No packages"),
                     systemImage: "shippingbox",
-                    description: Text("Nothing matches the \(model.libraryFilter.rawValue.lowercased()) filter.")
+                    description: Text(L10n.isRussian
+                                      ? "По фильтру «\(model.libraryFilter.localizedTitle)» ничего не найдено."
+                                      : "Nothing matches the \(model.libraryFilter.rawValue.lowercased()) filter.")
                 )
             } else {
                 ContentUnavailableView.search(text: model.globalQuery)
@@ -391,27 +393,27 @@ struct LibraryView: View {
 
     private var tableWithDescription: some View {
         Table(model.sortedLibraryRows, selection: $selectedID, sortOrder: $model.librarySort) {
-            TableColumn("Name", value: \.name) { row in
+            TableColumn(L10n.string("Name"), value: \.name) { row in
                 nameCell(row)
             }
             .width(min: 140, ideal: 200)
 
-            TableColumn("Description", value: \.summary) { row in
+            TableColumn(L10n.string("Description"), value: \.summary) { row in
                 Text(row.summary).foregroundStyle(.secondary).lineLimit(1)
             }
             .width(min: 160, ideal: 320)
 
-            TableColumn("Version", value: \.version) { row in
+            TableColumn(L10n.string("Version"), value: \.version) { row in
                 Text(row.version).foregroundStyle(.secondary).monospacedDigit()
             }
             .width(min: 80, ideal: 120)
 
-            TableColumn("Type", value: \.kind.rawValue) { row in
+            TableColumn(L10n.string("Type"), value: \.kind.rawValue) { row in
                 KindPill(kind: row.kind)
             }
             .width(min: 64, ideal: 80)
 
-            TableColumn("Outdated", value: \.outdatedRank) { row in
+            TableColumn(L10n.string("Outdated"), value: \.outdatedRank) { row in
                 outdatedCell(row)
             }
             .width(min: 56, ideal: 72)
@@ -421,22 +423,22 @@ struct LibraryView: View {
 
     private var tableNoDescription: some View {
         Table(model.sortedLibraryRows, selection: $selectedID, sortOrder: $model.librarySort) {
-            TableColumn("Name", value: \.name) { row in
+            TableColumn(L10n.string("Name"), value: \.name) { row in
                 nameCell(row)
             }
             .width(min: 140, ideal: 240)
 
-            TableColumn("Version", value: \.version) { row in
+            TableColumn(L10n.string("Version"), value: \.version) { row in
                 Text(row.version).foregroundStyle(.secondary).monospacedDigit()
             }
             .width(min: 80, ideal: 120)
 
-            TableColumn("Type", value: \.kind.rawValue) { row in
+            TableColumn(L10n.string("Type"), value: \.kind.rawValue) { row in
                 KindPill(kind: row.kind)
             }
             .width(min: 64, ideal: 80)
 
-            TableColumn("Outdated", value: \.outdatedRank) { row in
+            TableColumn(L10n.string("Outdated"), value: \.outdatedRank) { row in
                 outdatedCell(row)
             }
             .width(min: 56, ideal: 72)
@@ -475,7 +477,7 @@ struct LibraryView: View {
         if row.isOutdated {
             Image(systemName: "arrow.up.circle.fill")
                 .foregroundStyle(.orange)
-                .help("Update available")
+                .help(L10n.string("Update available"))
         }
     }
 

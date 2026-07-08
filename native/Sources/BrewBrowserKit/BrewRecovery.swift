@@ -64,23 +64,23 @@ enum BrewRecovery {
             // --adopt only exists for casks; it's the safe, recommended fix.
             if kind == .cask {
                 choices.append(ChoiceSpec(
-                    choice: .adopt, label: "Adopt existing", isDanger: false,
-                    hint: "Let Homebrew manage the copy already on your Mac (keeps it in place)."))
+                    choice: .adopt, label: L10n.string("Adopt existing"), isDanger: false,
+                    hint: L10n.isRussian ? "Передать Homebrew уже установленную копию на этом Mac, не перемещая её." : "Let Homebrew manage the copy already on your Mac (keeps it in place)."))
             }
             choices.append(ChoiceSpec(
-                choice: .overwrite, label: "Overwrite", isDanger: true,
-                hint: "Replace the existing copy with a fresh Homebrew install."))
+                choice: .overwrite, label: L10n.isRussian ? "Заменить" : "Overwrite", isDanger: true,
+                hint: L10n.string("Replace the existing copy with a fresh Homebrew install.")))
             return Option(action: action, name: name, kind: kind,
-                          reason: "\(name) is already installed outside Homebrew.",
+                          reason: L10n.isRussian ? "\(name) уже установлен вне Homebrew." : "\(name) is already installed outside Homebrew.",
                           choices: choices)
         }
 
         if action == .uninstall, requiredBy(text) {
             return Option(action: action, name: name, kind: kind,
-                          reason: "\(name) is still required by another installed package.",
+                          reason: L10n.isRussian ? "\(name) всё ещё требуется другому установленному пакету." : "\(name) is still required by another installed package.",
                           choices: [ChoiceSpec(
-                            choice: .forceRemove, label: "Force remove", isDanger: true,
-                            hint: "Remove it anyway, ignoring packages that depend on it.")])
+                            choice: .forceRemove, label: L10n.string("Force remove"), isDanger: true,
+                            hint: L10n.string("Remove it anyway, ignoring packages that depend on it."))])
         }
 
         return nil
