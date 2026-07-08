@@ -309,9 +309,12 @@ pub async fn scan_all(brew: &Path) -> Result<Vec<RawScanResult>, BrewError> {
     // on stdout and break JSON parsing (parity with the native scanner, and
     // belt-and-suspenders for issue #62). parse_scan_output also salvages JSON
     // from any residual noise.
-    let raw =
-        run_vulns_capture(brew, &["vulns", "--quiet", "--json"], "brew vulns --quiet --json")
-            .await?;
+    let raw = run_vulns_capture(
+        brew,
+        &["vulns", "--quiet", "--json"],
+        "brew vulns --quiet --json",
+    )
+    .await?;
     parse_scan_output(&raw, "brew vulns --quiet --json")
 }
 
@@ -463,7 +466,9 @@ pub fn validate_formula_name(name: &str) -> Result<(), BrewError> {
     // `a//b`, `.`/`..` path segments, or deeper paths.
     let segments: Vec<&str> = name.split('/').collect();
     let well_formed = matches!(segments.len(), 1 | 3)
-        && segments.iter().all(|s| !s.is_empty() && *s != "." && *s != "..");
+        && segments
+            .iter()
+            .all(|s| !s.is_empty() && *s != "." && *s != "..");
     if !well_formed {
         return Err(BrewError::InvalidArgument {
             message: format!("invalid character(s) in formula name: {name}"),

@@ -287,7 +287,10 @@ impl VulnsCache {
     /// that cruft so the cache always mirrors the latest scan, exactly like the
     /// native shell's wholesale `vulnFindings = findings`. Fingerprint state is
     /// preserved (set separately via [`Self::record_fingerprint`]).
-    pub fn replace_full_scan(&mut self, records: impl IntoIterator<Item = (VulnKey, Vec<RawVuln>)>) {
+    pub fn replace_full_scan(
+        &mut self,
+        records: impl IntoIterator<Item = (VulnKey, Vec<RawVuln>)>,
+    ) {
         self.file.entries.clear();
         let now = Utc::now();
         for (key, vulns) in records {
@@ -427,7 +430,10 @@ mod tests {
         // cache, not accumulate. Prior scans left stale records.
         let mut c = VulnsCache::new_empty();
         c.put(key("augeas", "1.14.0"), vec![vuln("CVE-OLD")]); // old version
-        c.put(key("ghostscript", "10.0"), vec![vuln("CVE-GONE-1"), vuln("CVE-GONE-2")]); // no longer flagged
+        c.put(
+            key("ghostscript", "10.0"),
+            vec![vuln("CVE-GONE-1"), vuln("CVE-GONE-2")],
+        ); // no longer flagged
         assert_eq!(c.file.entries.len(), 2);
 
         // Fresh full scan: only augeas@1.14.1 with two findings.
@@ -435,10 +441,19 @@ mod tests {
 
         assert_eq!(c.file.entries.len(), 1, "stale entries must be cleared");
         assert!(c.get_any(&key("augeas", "1.14.1")).is_some());
-        assert!(c.get_any(&key("augeas", "1.14.0")).is_none(), "old version dropped");
-        assert!(c.get_any(&key("ghostscript", "10.0")).is_none(), "no-longer-flagged dropped");
+        assert!(
+            c.get_any(&key("augeas", "1.14.0")).is_none(),
+            "old version dropped"
+        );
+        assert!(
+            c.get_any(&key("ghostscript", "10.0")).is_none(),
+            "no-longer-flagged dropped"
+        );
         let total: usize = c.file.entries.values().map(|r| r.vulns.len()).sum();
-        assert_eq!(total, 2, "finding total reflects the scan, not the accumulation");
+        assert_eq!(
+            total, 2,
+            "finding total reflects the scan, not the accumulation"
+        );
         assert!(c.dirty);
     }
 

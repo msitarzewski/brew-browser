@@ -368,9 +368,9 @@ public final class AppModel {
                                                     slug: cat, subgroupKey: subKey) ?? false) {
                 return nil
             }
+            let searchEntry = enrichmentEntry(for: pkg.token)
             if !q.isEmpty,
-               !pkg.token.localizedCaseInsensitiveContains(q),
-               !pkg.displayName.localizedCaseInsensitiveContains(q) {
+               !catalogPackageMatches(pkg, query: q, entry: searchEntry) {
                 return nil
             }
             let entry = showSummary ? enrichmentEntry(for: pkg.token) : nil
@@ -403,7 +403,7 @@ public final class AppModel {
         if bundledDataLoaded { return }
         bundledDataLoaded = true
         let (cat, enr) = await Task.detached(priority: .userInitiated) {
-            (CategoryCatalog.loadBundled(), EnrichmentCatalog.loadBundled())
+            (CategoryCatalog.loadBundled(), EnrichmentCatalog.loadBundled(locale: L10n.activeLanguage))
         }.value
         categoryCatalog = cat
         enrichment = enr
@@ -798,9 +798,7 @@ public final class AppModel {
         return Array(
             catalog
                 .lazy
-                .filter {
-                    $0.token.lowercased().contains(q) || $0.displayName.lowercased().contains(q)
-                }
+                .filter { self.catalogPackageMatches($0, query: q, entry: self.enrichmentEntry(for: $0.token)) }
                 .filter { !installedNames.contains($0.token.lowercased()) }
                 .prefix(10)
         )
@@ -1506,15 +1504,59 @@ public final class AppModel {
 
     // MARK: - Live enrichment overlay (opt-in)
 
-    /// Enrichment for a token, with the live overlay preferred over the bundled
-    /// catalog (mirrors the Tauri enrichment store's `lookup`).
+    /// Enrichment for a token. In English, live enrichment wins over bundled
+    /// data. In localized UI, localized bundled prose wins while live data can
+    /// still fill technical fallback fields (mirrors the Tauri store).
     func enrichmentEntry(for token: String) -> EnrichmentEntry? {
-        if let hit = liveEnrichment[token] ?? enrichment?.entry(for: token) { return hit }
+        if let hit = preferredEnrichment(
+            live: liveEnrichment[token],
+            bundled: enrichment?.entry(for: token)
+        ) { return hit }
         // Tap-qualified token (`user/tap/name`) → retry under the bare name the
         // enrichment is keyed by.
         let bare = Self.bareToken(token)
         guard bare != token else { return nil }
-        return liveEnrichment[bare] ?? enrichment?.entry(for: bare)
+        return preferredEnrichment(
+            live: liveEnrichment[bare],
+            bundled: enrichment?.entry(for: bare)
+        )
+    }
+
+    private func preferredEnrichment(
+        live: EnrichmentEntry?,
+        bundled: EnrichmentEntry?
+    ) -> EnrichmentEntry? {
+        guard L10n.isRussian, let bundled else { return live ?? bundled }
+        guard let live else { return bundled }
+        return bundled.localized(over: live)
+    }
+
+    private func catalogPackageMatches(
+        _ pkg: CatalogPackage,
+        query: String,
+        entry: EnrichmentEntry?
+    ) -> Bool {
+        let fields: [String?] = [
+            pkg.token,
+            pkg.displayName,
+            pkg.desc,
+            entry?.friendlyName,
+            entry?.summary,
+        ]
+        if fields.contains(where: { $0?.localizedCaseInsensitiveContains(query) == true }) {
+            return true
+        }
+        if entry?.searchTerms.contains(where: { $0.localizedCaseInsensitiveContains(query) }) == true {
+            return true
+        }
+        if entry?.tags.contains(where: { $0.localizedCaseInsensitiveContains(query) }) == true {
+            return true
+        }
+        let labels = categoryCatalog?.categoryLabels(for: pkg.token, kind: pkg.kind) ?? []
+        return labels.contains {
+            $0.localizedCaseInsensitiveContains(query)
+                || L10n.display($0).localizedCaseInsensitiveContains(query)
+        }
     }
 
     /// Fetch a token's live enrichment on demand and overlay it. Deduped +

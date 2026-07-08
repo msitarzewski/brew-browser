@@ -35,7 +35,11 @@ fn kind_flag(kind: PackageKind) -> &'static str {
 /// with "It seems there is already an App at…" — the in-app fix for #13/#102.
 /// `--force` overwrites instead of adopting (the heavier hammer).
 fn install_args(name: &str, kind: PackageKind, force: bool, adopt: bool) -> Vec<String> {
-    let mut args = vec!["install".to_string(), kind_flag(kind).to_string(), name.to_string()];
+    let mut args = vec![
+        "install".to_string(),
+        kind_flag(kind).to_string(),
+        name.to_string(),
+    ];
     if adopt && matches!(kind, PackageKind::Cask) {
         args.push("--adopt".to_string());
     }
@@ -49,8 +53,17 @@ fn install_args(name: &str, kind: PackageKind, force: bool, adopt: bool) -> Vec<
 /// cask-only (removes leftover files). `--ignore-dependencies` forces removal
 /// even when another installed package still requires it — the in-app escape
 /// for "Refusing to uninstall … because it is required by…" (#100).
-fn uninstall_args(name: &str, kind: PackageKind, zap: bool, ignore_dependencies: bool) -> Vec<String> {
-    let mut args = vec!["uninstall".to_string(), kind_flag(kind).to_string(), name.to_string()];
+fn uninstall_args(
+    name: &str,
+    kind: PackageKind,
+    zap: bool,
+    ignore_dependencies: bool,
+) -> Vec<String> {
+    let mut args = vec![
+        "uninstall".to_string(),
+        kind_flag(kind).to_string(),
+        name.to_string(),
+    ];
     if zap && matches!(kind, PackageKind::Cask) {
         args.push("--zap".to_string());
     }
@@ -365,7 +378,12 @@ mod tests {
     fn uninstall_ignore_dependencies_force_remove() {
         assert_eq!(
             uninstall_args("gstreamer-runtime", PackageKind::Cask, false, true),
-            svec(&["uninstall", "--cask", "gstreamer-runtime", "--ignore-dependencies"])
+            svec(&[
+                "uninstall",
+                "--cask",
+                "gstreamer-runtime",
+                "--ignore-dependencies"
+            ])
         );
     }
 

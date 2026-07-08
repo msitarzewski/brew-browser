@@ -446,6 +446,10 @@ export interface EnrichmentEntry {
   /** Tech-stack tags (lowercase, hyphenated). 3-8 expected. Empty when
       Tier B hasn't been run. */
   tags: string[];
+  /** Locale-specific search aliases. Not rendered as tags; used so
+      translated package summaries can be searched without renaming
+      Homebrew tokens or upstream metadata. */
+  searchTerms?: string[];
 }
 
 /**

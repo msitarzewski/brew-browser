@@ -11,6 +11,8 @@
  */
 
 import { localSearch } from "$lib/api";
+import { t } from "$lib/i18n/messages";
+import { ui } from "$lib/stores/ui.svelte";
 import { isBrewError, type SearchResults } from "$lib/types";
 
 class SearchStore {
@@ -38,14 +40,14 @@ class SearchStore {
     this.loading = true;
     this.error = null;
     try {
-      this.results = await localSearch(q);
+      this.results = await localSearch(q, ui.locale);
       // push to recent (dedupe, cap 8)
       this.recent = [q, ...this.recent.filter((r) => r !== q)].slice(0, 8);
     } catch (e) {
       if (isBrewError(e)) {
-        this.error = `Search failed: ${e.code}`;
+        this.error = `${t("discover.searchFailed", ui.locale)}: ${e.code}`;
       } else {
-        this.error = `Backend not available: ${String(e)}`;
+        this.error = `${t("trending.error.backend", ui.locale, { error: String(e) })}`;
       }
       this.results = null;
     } finally {

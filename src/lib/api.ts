@@ -143,8 +143,8 @@ export function brewSearchDesc(query: string): Promise<SearchResults> {
  * Multi-term queries AND across fields. Cap is 200 hits split between
  * formulae and casks.
  */
-export function localSearch(query: string): Promise<SearchResults> {
-  return invoke<SearchResults>("local_search", { query });
+export function localSearch(query: string, locale?: string): Promise<SearchResults> {
+  return invoke<SearchResults>("local_search", { query, locale });
 }
 
 // ============================================================
@@ -486,8 +486,8 @@ export function categoriesData(): Promise<CategoriesData> {
  * Features toggle gate; components should reach for the store, not
  * this raw wrapper.
  */
-export function enrichmentData(): Promise<EnrichmentData> {
-  return invoke<EnrichmentData>("enrichment_data");
+export function enrichmentData(locale?: string): Promise<EnrichmentData> {
+  return invoke<EnrichmentData>("enrichment_data", { locale });
 }
 
 /**
@@ -496,8 +496,8 @@ export function enrichmentData(): Promise<EnrichmentData> {
  * etc.). The backend validates the token against `validate_package_name`
  * first so an IPC caller can't probe with shell metacharacters.
  */
-export function enrichmentLookup(name: string): Promise<EnrichmentEntry | null> {
-  return invoke<EnrichmentEntry | null>("enrichment_lookup", { name });
+export function enrichmentLookup(name: string, locale?: string): Promise<EnrichmentEntry | null> {
+  return invoke<EnrichmentEntry | null>("enrichment_lookup", { name, locale });
 }
 
 // ============================================================

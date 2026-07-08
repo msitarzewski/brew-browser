@@ -39,6 +39,7 @@ Every command is `async`. Every command returns `Result<T, BrewError>` (serializ
 |---|---|---|---|---|---|
 | `brew_search` | `async fn brew_search(query: String) -> Result<SearchResults, BrewError>` | Searches the Homebrew index for matching formulae and casks. | `brew search --formula <q>` and `brew search --cask <q>` (parallel within the command; plain stdout — no `--json` support) | no | shared-read |
 | `brew_search_desc` | `async fn brew_search_desc(query: String) -> Result<SearchResults, BrewError>` | Searches by description text. Optional / "Phase 2.1" if time permits. | `brew search --desc <q>` | no | shared-read |
+| `local_search` | `async fn local_search(query: String, locale: Option<String>, state) -> Result<SearchResults, BrewError>` | In-memory search across package token/name, upstream desc, bundled enrichment, category labels, tags, and locale overlay search terms. `locale` selects a partial `enrichment.<locale>.json.gz` overlay when present, while English fields remain searchable fallbacks. | none — scans bundled/user-refreshed catalog already in memory | no | no |
 
 ### Phase 3 — Install / uninstall / upgrade (streaming)
 
@@ -1194,8 +1195,8 @@ All six commands share the `authed_gate` helper in `commands/github.rs:152` whic
 
 | Command | Signature | Purpose | Paranoid gate | Auth | Source |
 |---|---|---|---|---|---|
-| `enrichment_data` | `async fn enrichment_data(state) -> Result<Arc<EnrichmentData>, BrewError>` | Returns the full bundled enrichment payload. Memoised on `AppState.enrichment_cache` — subsequent calls return an Arc clone, not a re-parse. Zero runtime LLM calls; the bundle is `include_bytes!`d at compile time. | no (bundled) | none | `commands/enrichment.rs:23` |
-| `enrichment_lookup` | `async fn enrichment_lookup(name: String, state) -> Result<Option<EnrichmentEntry>, BrewError>` | Per-token lookup. `validate_package_name` gates the input. Returns `None` when the token is missing (placeholder bundle, unmapped package). | no | none | `commands/enrichment.rs:43` |
+| `enrichment_data` | `async fn enrichment_data(locale: Option<String>, state) -> Result<Arc<EnrichmentData>, BrewError>` | Returns the full bundled enrichment payload, optionally merged with a small locale overlay such as `enrichment.ru.json.gz`. Base English data is memoised on `AppState.enrichment_cache`; localized copies are memoised by locale in `enrichment_locale_cache`. Zero runtime LLM calls; bundles are `include_bytes!`d at compile time. | no (bundled) | none | `commands/enrichment.rs:23` |
+| `enrichment_lookup` | `async fn enrichment_lookup(name: String, locale: Option<String>, state) -> Result<Option<EnrichmentEntry>, BrewError>` | Per-token lookup with the same locale overlay semantics as `enrichment_data`. `validate_package_name` gates the input. Returns `None` when the token is missing (placeholder bundle, unmapped package). | no | none | `commands/enrichment.rs:65` |
 
 ### 13.10 New error variants
 
@@ -1364,4 +1365,3 @@ Critical invariants pinned:
 - Cache corrupt → empty cache returned, no panic
 - GHSA enrichment soft-fails when `github_enabled` is off
 - Install-set fingerprint is deterministic across runs (sorted input → stable hash)
-

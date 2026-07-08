@@ -59,6 +59,7 @@ let package = Package(
                 .process("Resources/ru.lproj"),
                 .copy("Resources/categories.json"),
                 .copy("Resources/enrichment.json"),
+                .copy("Resources/enrichment.ru.json"),
                 // GitHub Octocat mark (vector PDF, Primer/Octicons MIT). Rendered
                 // as a template image in the toolbar's "connected" chip.
                 .copy("Resources/github-mark.pdf"),
