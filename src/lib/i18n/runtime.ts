@@ -10,6 +10,7 @@ const patterns: Array<[RegExp, Replacement]> = [
   [/^updates available$/u, () => "доступны обновления"],
   [/^Catalog:$/u, () => "Каталог:"],
   [/^\(bundled\)$/u, () => "(встроенный)"],
+  [/^\(user-refreshed\)$/u, () => "(обновлён пользователем)"],
   [/^(\d+) days old$/u, (m) => {
     const n = Number(m[1]);
     return `${n} ${ruPlural(n, "день", "дня", "дней")}`;

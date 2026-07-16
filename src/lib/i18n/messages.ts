@@ -74,6 +74,23 @@ export function formatBundlePackageSummary(formulae: number, casks: number, loca
   return parts.join(" · ") || "no packages";
 }
 
+export function formatCatalogSource(source: "bundled" | "user-refreshed", locale: Locale): string {
+  if (locale === "ru") {
+    switch (source) {
+      case "bundled": return "встроенный";
+      case "user-refreshed": return "обновлён пользователем";
+    }
+  }
+  return source;
+}
+
+export function formatPackageKind(kind: "formula" | "cask", locale: Locale): string {
+  if (locale === "ru") {
+    return kind === "formula" ? "формула" : "cask-пакет";
+  }
+  return kind;
+}
+
 export function formatReadinessLabel(verdict: "ready" | "marginal" | "blocked", locale: Locale): string {
   if (locale === "ru") {
     switch (verdict) {

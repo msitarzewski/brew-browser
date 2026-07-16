@@ -38,7 +38,7 @@
   import { reportableToastError } from "$lib/util/reportIssue";
   import { isLinux, isMac } from "$lib/util/platform";
   import { fmtBytes } from "$lib/util/format";
-  import { t, ruPlural } from "$lib/i18n/messages";
+  import { formatCatalogSource, formatPackageKind, t, ruPlural } from "$lib/i18n/messages";
 
   let disk = $state<DiskUsageReport | null>(null);
   let diskLoading = $state(false);
@@ -742,7 +742,7 @@
         <span class="catalog-text">
           Catalog: <strong>{catalog.daysOldLabel}</strong>
           {#if catalog.summary}
-            <span class="text-muted catalog-source">({catalog.summary.source})</span>
+            <span class="text-muted catalog-source">({formatCatalogSource(catalog.summary.source, ui.locale)})</span>
           {/if}
         </span>
         <button
@@ -805,7 +805,7 @@
                   onclick={() => openPackage(p.name, p.kind)}
                 >
                   <span class="o-name truncate">{p.name}</span>
-                  <span class="o-kind"><Pill tone={p.kind === "formula" ? "formula" : "cask"}>{p.kind}</Pill></span>
+                  <span class="o-kind"><Pill tone={p.kind === "formula" ? "formula" : "cask"}>{formatPackageKind(p.kind, ui.locale)}</Pill></span>
                   <span class="o-version mono text-muted">
                     {p.installedVersion ?? "?"} → {p.stableVersion ?? "?"}
                   </span>

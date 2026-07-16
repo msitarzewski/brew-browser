@@ -75,6 +75,7 @@ public enum L10n {
         case "Cancel": return "Отмена"
         case "Clean up": return "Очистить"
         case "bundled": return "встроенный"
+        case "user-refreshed": return "обновлён пользователем"
         default:
             break
         }
@@ -239,7 +240,7 @@ public enum L10n {
     }
 
     static func catalogAge(days: Int) -> String {
-        if days <= 0 { return string("date.today") }
+        if days <= 0 { return isRussian ? "сегодня" : "today" }
         if isRussian {
             return "\(days) \(ruPlural(days, one: "день", few: "дня", many: "дней"))"
         }
@@ -249,7 +250,7 @@ public enum L10n {
 
     static func catalogStaleBanner(age: String) -> String {
         if isRussian {
-            let when = age == string("date.today") ? "сегодня" : "\(age) назад"
+            let when = age == "сегодня" ? "сегодня" : "\(age) назад"
             return "Каталог обновлялся \(when). Новые пакеты и сведения об устаревании могут отсутствовать."
         }
         return "Catalog is \(age). Newer packages and deprecations may be missing."

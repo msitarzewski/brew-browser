@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveLocalePreference } from "./messages";
+import { formatCatalogSource, formatPackageKind, resolveLocalePreference } from "./messages";
 import { translateText } from "./runtime";
 
 describe("Russian runtime localization", () => {
@@ -12,6 +12,18 @@ describe("Russian runtime localization", () => {
     expect(resolveLocalePreference("system", ["ru-RU", "en-US"])).toBe("ru");
     expect(resolveLocalePreference("system", ["en-US"])).toBe("en");
     expect(resolveLocalePreference("ru", ["en-US"])).toBe("ru");
+  });
+
+  it("formats catalog source labels without changing wire values", () => {
+    expect(formatCatalogSource("bundled", "ru")).toBe("встроенный");
+    expect(formatCatalogSource("user-refreshed", "ru")).toBe("обновлён пользователем");
+    expect(formatCatalogSource("user-refreshed", "en")).toBe("user-refreshed");
+  });
+
+  it("formats package kind badges without changing package identifiers", () => {
+    expect(formatPackageKind("formula", "ru")).toBe("формула");
+    expect(formatPackageKind("cask", "ru")).toBe("cask-пакет");
+    expect(formatPackageKind("cask", "en")).toBe("cask");
   });
 
   it("translates exact UI labels", () => {
@@ -37,6 +49,7 @@ describe("Russian runtime localization", () => {
     expect(translateText("updates available", "ru")).toBe("доступны обновления");
     expect(translateText("Catalog:", "ru")).toBe("Каталог:");
     expect(translateText("(bundled)", "ru")).toBe("(встроенный)");
+    expect(translateText("(user-refreshed)", "ru")).toBe("(обновлён пользователем)");
   });
 
   it("localizes activity labels without changing package tokens", () => {
