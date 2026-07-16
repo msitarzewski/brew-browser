@@ -425,7 +425,9 @@
   /** Counts derived from the loaded package list. All zero until `load` completes. */
   let counts = $derived.by(() => {
     const all = packages.all;
-    const outdated = packages.outdated.length;
+    // "updates available" counts only upgradable packages — pinned ones are
+    // held back (#90) and brew upgrade skips them, so they don't nag here.
+    const outdated = packages.outdatedUpgradable.length;
     const formulae = packages.formulae.length;
     const casks = packages.casks.length;
     const pinned = all.filter((p) => p.pinned).length;
@@ -632,9 +634,10 @@
     discover.selectOnly(slug);
   }
 
-  /** First 5 outdated packages, sorted alphabetically for stable display. */
+  /** First 5 *upgradable* packages, sorted alphabetically for stable display.
+   *  Pinned packages are held back (#90) and don't appear in the updates card. */
   let outdatedPreview = $derived.by(() =>
-    [...packages.outdated].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 5),
+    [...packages.outdatedUpgradable].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 5),
   );
 
   let upgradeAllRunning = $state(false);

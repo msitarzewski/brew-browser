@@ -6,6 +6,7 @@
 pub mod actions;
 pub mod brew_env;
 pub mod brewfile;
+pub mod bundles;
 pub mod cask_icon;
 pub mod cask_icon_homepage;
 pub mod catalog;
@@ -27,6 +28,7 @@ pub mod vulns;
 pub use actions::*;
 pub use brew_env::*;
 pub use brewfile::*;
+pub use bundles::*;
 pub use cask_icon::*;
 pub use cask_icon_homepage::*;
 pub use catalog::*;

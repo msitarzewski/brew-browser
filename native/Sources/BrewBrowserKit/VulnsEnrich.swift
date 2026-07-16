@@ -198,7 +198,22 @@ struct RawAdvisory: Decodable {
     }
 }
 
-struct RawReference: Decodable { var url: String = "" }
+/// A reference from the advisory API. The global advisories endpoint returns
+/// `references` as an array of plain URL **strings** — not `[{ "url": … }]`
+/// objects (an earlier assumption that silently dropped all references).
+/// Decodes BOTH shapes so neither endpoint variant breaks enrichment.
+struct RawReference: Decodable {
+    let url: String
+    enum CodingKeys: String, CodingKey { case url }
+    init(from decoder: Decoder) throws {
+        if let s = try? decoder.singleValueContainer().decode(String.self) {
+            url = s
+        } else {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            url = (try? c.decode(String.self, forKey: .url)) ?? ""
+        }
+    }
+}
 struct RawVulnerableProduct: Decodable {
     var firstPatchedVersion: String?
     enum CodingKeys: String, CodingKey { case firstPatchedVersion = "first_patched_version" }

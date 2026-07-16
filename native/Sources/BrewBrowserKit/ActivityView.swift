@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Bottom Activity drawer — live console for the active streaming job (install /
 /// upgrade / uninstall / update). Mirrors the Tauri `ActivityDrawer`: collapsed
@@ -7,6 +8,23 @@ import SwiftUI
 /// switcher. Mounted as a bottom bar below the split view.
 struct ActivityDrawer: View {
     @Bindable var model: AppModel
+    /// `VSplitView` owns the live divider when expanded. The collapsed drawer
+    /// keeps its existing compact bar layout.
+    let fillsAvailableHeight: Bool
+
+    init(model: AppModel, fillsAvailableHeight: Bool = false) {
+        self.model = model
+        self.fillsAvailableHeight = fillsAvailableHeight
+    }
+
+    /// The existing 200 px console plus the header and native split divider.
+    /// This keeps an expanded drawer from becoming smaller than before.
+    static let minimumConsoleHeight: CGFloat = 200
+    static let minimumDrawerHeight: CGFloat = 252
+
+    static func clampedDrawerHeight(_ height: CGFloat, maximum: CGFloat) -> CGFloat {
+        min(max(height, minimumDrawerHeight), max(minimumDrawerHeight, maximum))
+    }
 
     /// The drawer shows the explicitly-active job only. nil `activeJobId`
     /// (after Close) hides the drawer entirely; selecting a job in the Activity
@@ -39,7 +57,7 @@ struct ActivityDrawer: View {
             // Full bleed edge-to-edge so the bar covers the window's rounded
             // bottom corners (no dark notch where the split-view corner shows
             // through). .bar material fills the whole width.
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: fillsAvailableHeight && model.drawerOpen ? .infinity : nil)
             .background(.bar)
             // Auto-collapse the console when a job finishes successfully — keeps
             // the one-line status visible (+ in Activity history) without the
@@ -131,12 +149,13 @@ struct ActivityDrawer: View {
     private func expandedContent(_ job: ActivityJob) -> some View {
         HStack(alignment: .top, spacing: 0) {
             console(job)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: fillsAvailableHeight ? .infinity : nil)
             if job.status == .failed {
                 failureNotice(job)
                     .frame(width: 360)
             }
         }
+        .frame(maxHeight: fillsAvailableHeight ? .infinity : nil)
     }
 
     @ViewBuilder
@@ -235,7 +254,8 @@ struct ActivityDrawer: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
             }
-            .frame(height: 200)
+            .frame(minHeight: Self.minimumConsoleHeight,
+                   maxHeight: fillsAvailableHeight ? .infinity : Self.minimumConsoleHeight)
             .onChange(of: job.lines.count) { _, count in
                 if count > 0 { proxy.scrollTo(count - 1, anchor: .bottom) }
             }

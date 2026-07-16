@@ -81,6 +81,7 @@ struct SettingsDTO: Codable {
     var enhancedTrendingEnabled: Bool
     var vulnerabilityScanningEnabled: Bool
     var liveEnrichmentEnabled: Bool
+    var liveBundlesEnabled: Bool
 
     /// Explicit keys = no automatic conversion. These are the literal JSON
     /// keys the Tauri app writes (`commands/settings.rs` field names under
@@ -98,6 +99,7 @@ struct SettingsDTO: Codable {
         case enhancedTrendingEnabled
         case vulnerabilityScanningEnabled
         case liveEnrichmentEnabled
+        case liveBundlesEnabled
     }
 
     /// All-defaults DTO. Mirrors Rust `impl Default for Settings`
@@ -118,7 +120,8 @@ struct SettingsDTO: Codable {
         skippedUpdateVersions: [String],
         enhancedTrendingEnabled: Bool,
         vulnerabilityScanningEnabled: Bool,
-        liveEnrichmentEnabled: Bool
+        liveEnrichmentEnabled: Bool,
+        liveBundlesEnabled: Bool
     ) {
         self.paranoidMode = paranoidMode
         self.catalogAutoRefresh = catalogAutoRefresh
@@ -132,6 +135,7 @@ struct SettingsDTO: Codable {
         self.enhancedTrendingEnabled = enhancedTrendingEnabled
         self.vulnerabilityScanningEnabled = vulnerabilityScanningEnabled
         self.liveEnrichmentEnabled = liveEnrichmentEnabled
+        self.liveBundlesEnabled = liveBundlesEnabled
     }
 
     static func defaults() -> SettingsDTO {
@@ -147,7 +151,8 @@ struct SettingsDTO: Codable {
             skippedUpdateVersions: [],
             enhancedTrendingEnabled: false,
             vulnerabilityScanningEnabled: false,
-            liveEnrichmentEnabled: false
+            liveEnrichmentEnabled: false,
+            liveBundlesEnabled: false
         )
     }
 
@@ -172,6 +177,7 @@ struct SettingsDTO: Codable {
         enhancedTrendingEnabled = try c.decodeIfPresent(Bool.self, forKey: .enhancedTrendingEnabled) ?? d.enhancedTrendingEnabled
         vulnerabilityScanningEnabled = try c.decodeIfPresent(Bool.self, forKey: .vulnerabilityScanningEnabled) ?? d.vulnerabilityScanningEnabled
         liveEnrichmentEnabled = try c.decodeIfPresent(Bool.self, forKey: .liveEnrichmentEnabled) ?? d.liveEnrichmentEnabled
+        liveBundlesEnabled = try c.decodeIfPresent(Bool.self, forKey: .liveBundlesEnabled) ?? d.liveBundlesEnabled
     }
 }
 
@@ -282,6 +288,14 @@ public final class AppSettings {
     /// (`commands/settings.rs` live_enrichment_enabled)
     public var liveEnrichmentEnabled: Bool
 
+    /// Opt-in live Bundles-catalog refresh (project infra, M5). Default `false`.
+    /// Fetches `bundles/bundles.json` from the same first-party host; unlike
+    /// enrichment it is NOT an AI feature, so its gate omits the AI requirement.
+    /// The Tauri `Settings` struct ignores this key until its own M5 lands
+    /// (`#[serde(default)]`, no `deny_unknown_fields`), so writing it is
+    /// forward-compatible across shells.
+    public var liveBundlesEnabled: Bool
+
     /// Current load state. `.corrupt` fails closed (paranoid effectively ON).
     /// Mirrors the in-memory `SettingsLoadState` slot in `state.rs`.
     public private(set) var loadState: SettingsLoadState
@@ -303,6 +317,7 @@ public final class AppSettings {
         self.enhancedTrendingEnabled = dto.enhancedTrendingEnabled
         self.vulnerabilityScanningEnabled = dto.vulnerabilityScanningEnabled
         self.liveEnrichmentEnabled = dto.liveEnrichmentEnabled
+        self.liveBundlesEnabled = dto.liveBundlesEnabled
         self.loadState = loadState
         self.clamp()
     }
@@ -469,7 +484,8 @@ public final class AppSettings {
             skippedUpdateVersions: skippedUpdateVersions,
             enhancedTrendingEnabled: enhancedTrendingEnabled,
             vulnerabilityScanningEnabled: vulnerabilityScanningEnabled,
-            liveEnrichmentEnabled: liveEnrichmentEnabled
+            liveEnrichmentEnabled: liveEnrichmentEnabled,
+            liveBundlesEnabled: liveBundlesEnabled
         )
 
         let encoder = JSONEncoder()
@@ -534,6 +550,7 @@ public final class AppSettings {
         skippedUpdateVersions = d.skippedUpdateVersions
         enhancedTrendingEnabled = d.enhancedTrendingEnabled
         vulnerabilityScanningEnabled = d.vulnerabilityScanningEnabled
+        liveBundlesEnabled = d.liveBundlesEnabled
         try? save()   // save() sets loadState = .loaded on success
     }
 
@@ -589,6 +606,13 @@ public final class AppSettings {
     /// is an AI feature).
     public var liveEnrichmentAllowed: Bool {
         !paranoidMode && !isCorrupt && liveEnrichmentEnabled && aiFeaturesEnabled
+    }
+
+    /// Composed gate for the live Bundles-catalog refresh (M5). Opt-in +
+    /// network only — bundles are not AI-derived, so (unlike live enrichment)
+    /// this does NOT require `aiFeaturesEnabled`.
+    public var liveBundlesAllowed: Bool {
+        !paranoidMode && !isCorrupt && liveBundlesEnabled
     }
 
     /// Whether AI-derived UI (categories, enrichment, donut, pills, summaries,

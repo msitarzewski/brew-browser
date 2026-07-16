@@ -18,6 +18,15 @@ class PackagesStore {
 
   outdated = $derived(this.all.filter((p) => p.outdated));
 
+  /**
+   * Outdated packages that aren't pinned — the honest "updates available" set
+   * (#90/#134). A pinned package may have a newer version, but the user has
+   * deliberately held it back and `brew upgrade` skips it, so it must not
+   * inflate the nag count or the "Upgrade all" set. Lists that want to *show*
+   * pinned-but-outdated rows (with a pin badge) still use `outdated`.
+   */
+  outdatedUpgradable = $derived(this.outdated.filter((p) => !p.pinned));
+
   async load(force = false) {
     if (this.loading) return;
     if (!force && this.list && this.lastLoadedAt && Date.now() - this.lastLoadedAt < 5_000) {

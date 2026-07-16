@@ -42,6 +42,7 @@ Project-scoped memory bank. **All agents working on this project read from and w
 |------|-------|----------|
 | `tasks/YYYY-MM/*.md` | Lead | Per-shipped-unit task records. One file per phase or release. See `tasks/2026-05/README.md` for index. |
 | `phases/phaseNN-plan.md` | Lead | **Shipped** phase plans (Phase 12, Phase 13, Phase 15, etc.) — design-time intent preserved as historical context. In-flight plans live at `memory-bank/phase{N}-plan.md` (top level) while active, then move to `phases/` when the phase ships. **No in-flight plan as of v0.3.0.** |
+| `releases/<version>/` | Lead | Per-release working directory: `README.md` (release tracker — contents, checklist, open items) + feature plans for that release. Current: `releases/0.7.0/` (0.7.0 / native 0.3.0 — pin/unpin shipped, Bundles planned). |
 | `scans/YYYY-MM-DD/*` | Security Engineer | Point-in-time outputs from `cargo audit`, `cargo deny`, `semgrep`, `gitleaks`, etc. Date-stamped folders. Latest scans should match `security.md`'s most recent §N audit. |
 
 ## Agent collaboration protocol

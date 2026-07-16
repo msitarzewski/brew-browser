@@ -307,10 +307,27 @@ struct RawAdvisory {
     vulnerabilities: Vec<RawVulnerableProduct>,
 }
 
-#[derive(Debug, Default, Deserialize)]
-#[serde(default)]
-struct RawReference {
-    url: String,
+/// A reference from the advisory API. The global advisories endpoint
+/// (`/advisories/{ghsa_id}`) returns `references` as an array of **plain URL
+/// strings** — NOT `[{ "url": … }]` objects, which an earlier version assumed
+/// (that mismatch made the whole `RawAdvisory` parse fail, silently disabling
+/// enrichment). Untagged so we tolerate BOTH shapes: a bare string, or an
+/// object with a `url` field (the GraphQL/object shape), future-proofing
+/// against either endpoint variant.
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum RawReference {
+    Url(String),
+    Object { url: String },
+}
+
+impl RawReference {
+    fn into_url(self) -> String {
+        match self {
+            RawReference::Url(u) => u,
+            RawReference::Object { url } => url,
+        }
+    }
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -324,7 +341,7 @@ impl From<RawAdvisory> for GhsaAdvisory {
         let refs = raw
             .references
             .into_iter()
-            .map(|r| r.url)
+            .map(RawReference::into_url)
             .filter(|u| !u.is_empty())
             .collect();
         let first_patched = raw
@@ -789,14 +806,17 @@ mod tests {
 
     #[test]
     fn ghsa_advisory_ignores_unknown_fields() {
-        // Forward-compat: extra fields a future api.github.com release
-        // adds must not break parsing.
+        // Fixture matches the REAL `GET /advisories/{ghsa_id}` shape captured
+        // from api.github.com: `references` is an array of plain STRINGS (not
+        // `[{url}]`), and `vulnerabilities[]` carries extra keys (package,
+        // vulnerable_version_range, …) we ignore. Forward-compat: extra
+        // top-level fields must not break parsing.
         let json = r#"{
             "summary": "boom",
             "description": "details",
             "severity": "high",
-            "references": [{"url": "https://example.com/x"}],
-            "vulnerabilities": [{"first_patched_version": "1.0.0"}],
+            "references": ["https://example.com/x", "https://example.com/y"],
+            "vulnerabilities": [{"first_patched_version": "1.0.0", "package": {"name": "p"}, "vulnerable_version_range": "< 1.0.0"}],
             "new_field_added_in_2027": {"nested": true},
             "another_unknown": [1, 2, 3]
         }"#;
@@ -805,8 +825,25 @@ mod tests {
         assert_eq!(adv.summary, "boom");
         assert_eq!(adv.description, "details");
         assert_eq!(adv.severity, "high");
-        assert_eq!(adv.references, vec!["https://example.com/x"]);
+        assert_eq!(
+            adv.references,
+            vec!["https://example.com/x".to_string(), "https://example.com/y".to_string()]
+        );
         assert_eq!(adv.first_patched_version.as_deref(), Some("1.0.0"));
+    }
+
+    #[test]
+    fn ghsa_advisory_references_accept_string_and_object_shapes() {
+        // Defensive: tolerate BOTH the real string-array shape AND the
+        // object-array (`[{url}]`) shape, so neither endpoint variant nor a
+        // future change silently disables enrichment again.
+        let strings: RawAdvisory =
+            serde_json::from_str(r#"{"references": ["https://a/1"]}"#).expect("string-array");
+        assert_eq!(GhsaAdvisory::from(strings).references, vec!["https://a/1"]);
+
+        let objects: RawAdvisory =
+            serde_json::from_str(r#"{"references": [{"url": "https://b/2"}]}"#).expect("object-array");
+        assert_eq!(GhsaAdvisory::from(objects).references, vec!["https://b/2"]);
     }
 
     #[test]

@@ -1,7 +1,9 @@
 # Brew Browser — native Swift / Liquid Glass build
 
 > **Status:** shipping native macOS build. `0.1.0` shipped alongside Tauri
-> `0.5.1`; `0.2.0` is staged for the next feature-request release.
+> `0.5.1`, and `0.2.0` alongside Tauri `0.6.0`; `0.3.0` (≙ Tauri `0.7.0`) is the
+> current release. The two version numbers track the same feature batch under
+> the project's split-track scheme.
 > This is the fully native Swift 6 + SwiftUI + Liquid Glass implementation for
 > macOS 26 "Tahoe". The Tauri app remains the cross-platform build for macOS
 > 13+ and Linux; both shells share the same product contract.

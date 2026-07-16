@@ -1,0 +1,29 @@
+{
+  "id": "lemp",
+  "name": "LEMP Stack",
+  "tagline": "Nginx, MariaDB, and PHP-FPM — a fast, modern web stack",
+  "description": "A modern take on the classic web stack: Nginx serves your site with high concurrency, MariaDB (a drop-in MySQL replacement) stores your data, and PHP-FPM runs your application code. It's the go-to setup for Laravel, WordPress, and high-traffic PHP apps that want Nginx's performance. Install all three as background services for a fast local web server in one step.",
+  "category": "Development",
+  "icon": "server",
+  "packages": [
+    { "name": "nginx", "kind": "formula" },
+    { "name": "mariadb", "kind": "formula" },
+    { "name": "php", "kind": "formula" }
+  ],
+  "requires": { "minRamGB": 4, "recommendedRamGB": 8, "minDiskGB": 5, "arch": "any", "gpu": "none" },
+  "setup": [
+    { "kind": "service", "service": "nginx", "label": "Start Nginx" },
+    { "kind": "service", "service": "mariadb", "label": "Start MariaDB" },
+    { "kind": "service", "service": "php", "label": "Start PHP-FPM" },
+    { "kind": "command", "run": "mariadb-secure-installation", "label": "Secure your MariaDB install (you run this)", "external": true },
+    { "kind": "note", "text": "Wire PHP-FPM into Nginx: add a fastcgi_pass (e.g. 127.0.0.1:9000) to your server block, then reload Nginx. See the Nginx + PHP-FPM docs below." }
+  ],
+  "caveats": "Nginx, MariaDB, and PHP-FPM run as background services. PHP-FPM must be wired into your Nginx server block manually — follow the setup steps.",
+  "links": [
+    { "label": "Nginx docs", "url": "https://nginx.org/en/docs/" },
+    { "label": "PHP-FPM docs", "url": "https://www.php.net/manual/en/install.fpm.php" },
+    { "label": "MariaDB docs", "url": "https://mariadb.org/documentation/" }
+  ],
+  "maintainer": "brew-browser",
+  "addedIn": "0.7.0"
+}

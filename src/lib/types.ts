@@ -682,6 +682,15 @@ export interface Settings {
       Trending, new `…/enrichment/*` path; only the viewed package name is sent.
       Suppressed by Offline Mode regardless. */
   liveEnrichmentEnabled: boolean;
+
+  /** v0.7.0 — opt-in live refresh of the curated Bundles recipe set. When on,
+      the app fetches the latest `bundles.json` from
+      `brew-browser.zerologic.com/bundles/bundles.json` (one static-file GET, no
+      package names sent) and replaces its list on a non-empty success; any
+      error keeps the bundled copy. Off by default; same first-party host as
+      Live enrichment, new `…/bundles/*` path. Suppressed by Offline Mode
+      regardless. Shared settings key with the native shell. */
+  liveBundlesEnabled: boolean;
 }
 
 /** Defaults matching the Rust `Settings::default()`. Used when seeding
@@ -711,6 +720,9 @@ export const SETTINGS_DEFAULTS: Settings = {
   // Opt-in live refresh of categories + descriptions. Off by default; same
   // first-party host as Enhanced Trending, new /enrichment/* path.
   liveEnrichmentEnabled: false,
+  // v0.7.0 — opt-in live refresh of the Bundles recipe set. Off by default;
+  // same first-party host, new /bundles/* path.
+  liveBundlesEnabled: false,
 };
 
 // =========================================================
@@ -1052,7 +1064,8 @@ export type SidebarSection =
   | "trending"
   | "snapshots"
   | "services"
-  | "activity";
+  | "activity"
+  | "bundles";
 
 export type ThemePreference = "light" | "dark" | "system";
 
@@ -1118,6 +1131,101 @@ export interface RecentChange {
   /** Job start time normalized to epoch milliseconds. */
   timestamp: number;
   status: "succeeded" | "failed" | "canceled";
+}
+
+// =========================================================
+// Bundles M1 — capability profile + readiness
+// =========================================================
+
+/** Machine capabilities probed with zero installs by `system_profile`.
+ *  Mirrors the Rust `SystemProfile` struct (and the Swift one) byte-for-byte
+ *  on the wire. `ramGB`/`freeDiskGB` are whole GiB rounded to the nearest GB. */
+export interface SystemProfile {
+  ramGB: number;
+  arch: "apple-silicon" | "intel" | "linux";
+  chip: string;
+  cpuCores: number;
+  gpu: "metal" | "cuda" | "none" | "unknown";
+  freeDiskGB: number;
+  osVersion: string;
+}
+
+/** What a bundle needs from the host. Consumed by `readiness()`; `null`
+ *  requires means "runs anywhere" (always ready). */
+export interface BundleRequires {
+  minRamGB: number;
+  recommendedRamGB: number;
+  minDiskGB: number;
+  arch: "any" | "apple-silicon" | "intel" | "linux";
+  gpu: "none" | "preferred" | "required";
+}
+
+/** Readiness verdict for a bundle against a profile. `"blocked"` is advisory
+ *  — M3's UI still allows install behind a confirm. */
+export type ReadinessVerdict = "ready" | "marginal" | "blocked";
+
+/** A verdict plus a human-readable one-line reason. */
+export interface Readiness {
+  verdict: ReadinessVerdict;
+  reason: string;
+}
+
+// =========================================================
+// Bundles M2 — curated recipe contract
+// =========================================================
+
+/** One package inside a bundle. `kind` is a plain string (not `PackageKind`)
+ *  so an unexpected value in a live-refreshed recipe degrades gracefully.
+ *  Mirrors the Rust `BundlePackage`. */
+export interface BundlePackage {
+  name: string;
+  kind: string;
+}
+
+/** A post-install setup step. Which fields apply depends on `kind`
+ *  (`service` | `open` | `reveal` | `command` | `note`); all but `kind` are
+ *  optional. `command` steps always carry `external: true` — the app never
+ *  auto-runs a shell. Mirrors the Rust `SetupStep`. */
+export interface SetupStep {
+  kind: string;
+  service?: string;
+  label?: string;
+  url?: string;
+  path?: string;
+  run?: string;
+  external?: boolean;
+  text?: string;
+}
+
+/** An external reference link (docs, homepage, source). */
+export interface BundleLink {
+  label: string;
+  url: string;
+}
+
+/** A curated bundle recipe. See `recipes/recipe.schema.json` for the authoring
+ *  contract. `capabilityNotes` maps a RAM-tier (integer-as-string key) to a
+ *  human note the readiness gate surfaces. Mirrors the Rust `Bundle`. */
+export interface Bundle {
+  id: string;
+  name: string;
+  tagline: string;
+  /** Optional 2–4 sentence intent paragraph ("what is this / why"), distinct
+   *  from the short one-line `tagline` and from the cautionary `caveats`.
+   *  Rendered as body copy under the tagline in the detail pane. Absent on
+   *  recipes authored before the field was added. */
+  description?: string;
+  category: string;
+  icon?: string | null;
+  packages: BundlePackage[];
+  tap?: string | null;
+  requires?: BundleRequires | null;
+  capabilityNotes: Record<string, string>;
+  setup: SetupStep[];
+  caveats?: string | null;
+  links: BundleLink[];
+  maintainer?: string | null;
+  addedIn?: string | null;
 }
 
 /** Command-palette item — either a verb (action) or a package. */

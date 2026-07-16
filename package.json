@@ -1,6 +1,6 @@
 {
   "name": "brew-browser",
-  "version": "0.6.0",
+  "version": "0.7.1",
   "description": "An honestly open Homebrew browser, manager, and Brewfile snapshot tool.",
   "type": "module",
   "author": "Michael Sitarzewski",

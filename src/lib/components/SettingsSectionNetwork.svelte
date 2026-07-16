@@ -31,6 +31,7 @@
   import SettingsSectionUpdates from "$lib/components/SettingsSectionUpdates.svelte";
   import SettingsSectionTrendingHistory from "$lib/components/SettingsSectionTrendingHistory.svelte";
   import SettingsSectionLiveEnrichment from "$lib/components/SettingsSectionLiveEnrichment.svelte";
+  import SettingsSectionLiveBundles from "$lib/components/SettingsSectionLiveBundles.svelte";
   import SettingsSectionVulnerabilities from "$lib/components/SettingsSectionVulnerabilities.svelte";
   import type {
     CaskIconMode,
@@ -385,6 +386,10 @@
     <!-- Live category + description updates — opt-in, same first-party host
          as Enhanced Trending (distinct /enrichment/* path). Network opt-in. -->
     <SettingsSectionLiveEnrichment />
+
+    <!-- v0.7.0: Bundles live-refresh — opt-in, same first-party host as Live
+         enrichment (distinct /bundles/* path). Single static-file fetch. -->
+    <SettingsSectionLiveBundles />
 
     <!-- v0.5.0: Vulnerability scanning — opt-in, OSV.dev + GitHub
          Advisories trust boundary. Lives in Network because it's a

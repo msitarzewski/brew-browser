@@ -62,6 +62,52 @@ export function formatVulnerablePackageLabel(count: number, locale: Locale): str
   return `vulnerable package${count === 1 ? "" : "s"}`;
 }
 
+export function formatBundlePackageSummary(formulae: number, casks: number, locale: Locale): string {
+  const parts: string[] = [];
+  if (locale === "ru") {
+    if (formulae > 0) parts.push(`${formulae} ${ruPlural(formulae, "формула", "формулы", "формул")}`);
+    if (casks > 0) parts.push(`${casks} ${ruPlural(casks, "cask-пакет", "cask-пакета", "cask-пакетов")}`);
+    return parts.join(" · ") || "пакетов нет";
+  }
+  if (formulae > 0) parts.push(`${formulae} ${formulae === 1 ? "formula" : "formulae"}`);
+  if (casks > 0) parts.push(`${casks} cask${casks === 1 ? "" : "s"}`);
+  return parts.join(" · ") || "no packages";
+}
+
+export function formatReadinessLabel(verdict: "ready" | "marginal" | "blocked", locale: Locale): string {
+  if (locale === "ru") {
+    switch (verdict) {
+      case "ready": return "Готово";
+      case "marginal": return "Ограниченно";
+      case "blocked": return "Не рекомендуется";
+    }
+  }
+  switch (verdict) {
+    case "ready": return "Ready";
+    case "marginal": return "Marginal";
+    case "blocked": return "Not recommended";
+  }
+}
+
+export function formatReadinessReason(reason: string, locale: Locale): string {
+  if (locale !== "ru") return reason;
+  if (reason === "Ready.") return "Готово.";
+
+  let match = reason.match(/^Built for (.+)\.$/u);
+  if (match) return `Рассчитано на ${match[1]}.`;
+
+  match = reason.match(/^Needs ≥(\d+) GB RAM \(you have (\d+) GB\)\.$/u);
+  if (match) return `Нужно ≥${match[1]} ГБ RAM (сейчас ${match[2]} ГБ).`;
+
+  match = reason.match(/^Needs ≥(\d+) GB free disk \(you have (\d+) GB\)\.$/u);
+  if (match) return `Нужно ≥${match[1]} ГБ свободного места (сейчас ${match[2]} ГБ).`;
+
+  match = reason.match(/^Below the recommended (\d+) GB — may be slow\.$/u);
+  if (match) return `Меньше рекомендуемых ${match[1]} ГБ — может работать медленно.`;
+
+  return reason;
+}
+
 export function isLocalePreference(value: string | null): value is LocalePreference {
   return value === "system" || (value !== null && value in messages);
 }

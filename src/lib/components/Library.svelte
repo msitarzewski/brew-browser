@@ -39,8 +39,8 @@
   // Linux: casks don't exist there, so the Casks pill (always 0) is dropped.
   let libraryFilters = $derived.by<LibraryFilter[]>(() => {
     const base: LibraryFilter[] = vulnerabilities.enabled
-      ? ["all", "formulae", "casks", "outdated", "manual", "dependency", "vulnerable"]
-      : ["all", "formulae", "casks", "outdated", "manual", "dependency"];
+      ? ["all", "formulae", "casks", "outdated", "pinned", "manual", "dependency", "vulnerable"]
+      : ["all", "formulae", "casks", "outdated", "pinned", "manual", "dependency"];
     return base.filter((f) => !(isLinux && f === "casks"));
   });
 
@@ -54,6 +54,8 @@
       case "formulae": base = packages.formulae; break;
       case "casks":    base = packages.casks; break;
       case "outdated": base = packages.outdated; break;
+      // #90 — pinned packages (held back from brew upgrade); formulae + casks.
+      case "pinned":   base = packages.all.filter((p) => p.pinned); break;
       // Feature #3 — Manual = installed_on_request; Dependency = installed
       // as a dependency and NOT on request (so a both-flags-true package
       // counts as Manual only, never Dependency). Predicates are shared
@@ -124,6 +126,45 @@
     return arr;
   });
 
+  // Bottom status bar text. Leads with the count of the ACTIVE filter (the
+  // rows currently shown, so it reflects the search box too), labelled by the
+  // filter; then the standing outdated + pinned stats — skipping whichever the
+  // lead already names so we don't print "7 outdated · 7 outdated". #90.
+  let countBar = $derived.by(() => {
+    const shown = sorted.length;
+    const f = library.filter;
+    const pinned = packages.all.filter((p) => p.pinned).length;
+    const parts = [formatCountBarPart(f, shown)];
+    if (f !== "outdated") parts.push(formatCountBarPart("outdated", packages.outdated.length));
+    if (f !== "pinned") parts.push(formatCountBarPart("pinned", pinned));
+    return parts.join(" · ");
+  });
+
+  function formatCountBarPart(filter: LibraryFilter, count: number): string {
+    if (ui.locale === "ru") {
+      switch (filter) {
+        case "all":        return `${count} ${ruPlural(count, "пакет", "пакета", "пакетов")}`;
+        case "formulae":   return `${count} ${ruPlural(count, "формула", "формулы", "формул")}`;
+        case "casks":      return `${count} ${ruPlural(count, "cask-пакет", "cask-пакета", "cask-пакетов")}`;
+        case "outdated":   return `${count} ${ruPlural(count, "с обновлением", "с обновлениями", "с обновлениями")}`;
+        case "pinned":     return `${count} ${ruPlural(count, "закреплён", "закреплены", "закреплены")}`;
+        case "manual":     return `${count} ${ruPlural(count, "установлен вручную", "установлены вручную", "установлены вручную")}`;
+        case "dependency": return `${count} ${ruPlural(count, "зависимость", "зависимости", "зависимостей")}`;
+        case "vulnerable": return `${count} ${ruPlural(count, "уязвимый", "уязвимых", "уязвимых")}`;
+      }
+    }
+    switch (filter) {
+      case "all":        return `${count} package${count === 1 ? "" : "s"}`;
+      case "formulae":   return `${count} ${count === 1 ? "formula" : "formulae"}`;
+      case "casks":      return `${count} cask${count === 1 ? "" : "s"}`;
+      case "outdated":   return `${count} outdated`;
+      case "pinned":     return `${count} pinned`;
+      case "manual":     return `${count} manual`;
+      case "dependency": return `${count} ${count === 1 ? "dependency" : "dependencies"}`;
+      case "vulnerable": return `${count} vulnerable`;
+    }
+  }
+
   function changeSort(key: string) {
     const k = key as SortKey;
     if (sortKey === k) {
@@ -168,7 +209,8 @@
        keeps the install count + filter input + Refresh button. -->
   <header class="panel-head" data-tauri-drag-region>
     <div class="head-left">
-      <span class="count text-muted">{ui.locale === "ru" ? `${packages.all.length} ${ruPlural(packages.all.length, "установленный пакет", "установленных пакета", "установленных пакетов")}` : `${packages.all.length} installed`}</span>
+      <!-- Install count relocated to the bottom status bar (`count-bar`),
+           alongside the outdated + pinned tallies (#90). -->
     </div>
     <div class="head-right" data-tauri-drag-region="false">
       <Input bind:value={query} placeholder={ui.locale === "ru" ? "Фильтр…" : "Filter…"} variant="search" size="sm" ariaLabel={ui.locale === "ru" ? "Фильтр установленных пакетов" : "Filter installed packages"} />
@@ -184,15 +226,8 @@
   <div class="filter-bar">
     <div class="pillgroup" role="tablist" aria-label={ui.locale === "ru" ? "Фильтр по типу" : "Type filter"}>
       {#each libraryFilters as f (f)}
-        {@const count = f === "outdated"
-          ? packages.outdated.length
-          : f === "manual"
-            ? packages.all.filter(isManual).length
-            : f === "dependency"
-              ? packages.all.filter(isDependencyOnly).length
-              : f === "vulnerable"
-                ? vulnerabilities.severityCounts.vulnerablePackages
-                : null}
+        <!-- Counts moved to the bottom status bar (`count-bar`) — the tabs
+             stay clean labels. -->
         <button
           role="tab"
           aria-selected={library.filter === f}
@@ -200,9 +235,6 @@
           onclick={() => library.setFilter(f)}
         >
           {filterLabel(f)}
-          {#if count !== null && count > 0}
-            <span class="filter-count" class:filter-count-danger={f === "vulnerable"}>{count}</span>
-          {/if}
         </button>
       {/each}
     </div>
@@ -299,6 +331,11 @@
       </div>
     {/if}
   </div>
+
+  <!-- Bottom status tally — mirrors the Services header style, at the foot of
+       the Library. Replaces the per-tab counts + the old header "N installed".
+       Leads with the active filter's count (see `countBar`). #90. -->
+  <footer class="count-bar text-muted">{countBar}</footer>
 </section>
 
 <style>
@@ -325,7 +362,12 @@
   @media (max-width: 1000px) {
     .refresh-wrap { display: none; }
   }
-  .count { font-size: var(--text-body-sm); }
+  .count-bar {
+    flex-shrink: 0;
+    padding: var(--space-2) var(--space-4);
+    border-top: 1px solid var(--color-border);
+    font-size: var(--text-body-sm);
+  }
 
   .filter-bar {
     padding: var(--space-2) var(--space-4);
@@ -359,23 +401,6 @@
     color: var(--color-text-primary);
     box-shadow: var(--shadow-xs);
   }
-  .filter-count {
-    display: inline-flex;
-    align-items: center;
-    height: 14px;
-    padding: 0 4px;
-    border-radius: var(--radius-full);
-    background: var(--color-brand);
-    color: var(--color-text-inverse);
-    font-size: 10px;
-    font-weight: var(--fw-semibold);
-  }
-  /* v0.5.0 — danger-toned count for the Vulnerable pill so the
-     severity signal carries through even before the user clicks. */
-  .filter-count-danger {
-    background: var(--color-danger);
-  }
-
   .chip-bar {
     display: flex;
     flex-wrap: wrap;

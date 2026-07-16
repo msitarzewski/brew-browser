@@ -10,11 +10,11 @@ use tauri::ipc::Channel;
 use tauri::State;
 use uuid::Uuid;
 
-use crate::brew::exec::run_brew_streaming;
+use crate::brew::exec::{run_brew_capture, run_brew_streaming};
 use crate::commands::info::validate_package_name;
 use crate::error::BrewError;
 use crate::state::AppState;
-use crate::types::{BrewStreamEvent, JobResult, PackageKind};
+use crate::types::{BrewStreamEvent, BundlePackage, JobResult, PackageKind};
 
 // ---------- Pure argv builders ----------
 //
@@ -83,6 +83,55 @@ fn upgrade_args(names: &[String], greedy: bool) -> Vec<String> {
         args.push("--greedy".to_string());
     }
     args
+}
+
+/// `brew pin <kind> <name>` / `brew unpin <kind> <name>`. Pinning holds a
+/// package back so `brew upgrade` (including `--greedy`) skips it — the in-app
+/// "stop nagging me about this one" hold for #90/#134. Current Homebrew pins
+/// both formulae and casks, so the kind flag disambiguates a name that exists
+/// as both. `pinned == true` pins; `false` unpins.
+fn pin_args(name: &str, kind: PackageKind, pinned: bool) -> Vec<String> {
+    let verb = if pinned { "pin" } else { "unpin" };
+    vec![verb.to_string(), kind_flag(kind).to_string(), name.to_string()]
+}
+
+/// Build the `brew install` invocation(s) for a whole bundle.
+///
+/// Homebrew's `--formula` / `--cask` flags each mean "treat ALL named
+/// arguments as this kind" — they're mutually exclusive, so a single mixed
+/// `brew install --formula A --cask B` is NOT accepted (verified: brew prints
+/// usage). We therefore emit one grouped invocation per kind present:
+///   - `["install", "--formula", <f1>, <f2>, ...]`
+///   - `["install", "--cask", <c1>, <c2>, ...]`
+/// Formulae first, casks second, each preserving the recipe's declared order.
+/// A group is omitted when empty; an empty package list yields no steps. The
+/// caller runs the steps sequentially, streaming each into Activity.
+///
+/// Kind is the free-form string from the recipe; anything that isn't `"cask"`
+/// is treated as a formula (the command validates kinds up-front, so in
+/// practice only `formula`/`cask` reach here).
+fn install_bundle_args(packages: &[BundlePackage]) -> Vec<Vec<String>> {
+    let mut formulae: Vec<String> = Vec::new();
+    let mut casks: Vec<String> = Vec::new();
+    for p in packages {
+        match p.kind.as_str() {
+            "cask" => casks.push(p.name.clone()),
+            _ => formulae.push(p.name.clone()),
+        }
+    }
+
+    let mut steps: Vec<Vec<String>> = Vec::new();
+    if !formulae.is_empty() {
+        let mut args = vec!["install".to_string(), "--formula".to_string()];
+        args.extend(formulae);
+        steps.push(args);
+    }
+    if !casks.is_empty() {
+        let mut args = vec!["install".to_string(), "--cask".to_string()];
+        args.extend(casks);
+        steps.push(args);
+    }
+    steps
 }
 
 /// User-facing command string for the Activity log, derived from the argv.
@@ -210,6 +259,81 @@ pub async fn brew_upgrade_many(
     result
 }
 
+/// Install every package in a bundle (Bundles M3). Mirrors `brew_upgrade_many`:
+/// validate every name, take the write lock once, stream into Activity, and
+/// invalidate caches once brew has run.
+///
+/// Because `--formula`/`--cask` can't be mixed in one invocation (see
+/// `install_bundle_args`), a bundle with both kinds runs as two sequential
+/// streamed steps under the SAME write lock — formulae first, then casks. If
+/// the formula step fails (non-zero exit), the cask step is skipped and that
+/// failing `JobResult` is returned. Each step emits its own `Started`→`Exit`
+/// lifecycle on the shared channel, so the frontend surfaces one Activity job
+/// per step.
+///
+/// Empty list → InvalidArgument. Every `kind` must be `formula` or `cask`; an
+/// unknown kind is rejected rather than silently coerced. Names go through the
+/// same allowlist regex as `brew_install` to block shell-metacharacter injection.
+#[tauri::command]
+pub async fn brew_install_bundle(
+    packages: Vec<BundlePackage>,
+    on_event: Channel<BrewStreamEvent>,
+    state: State<'_, AppState>,
+) -> Result<JobResult, BrewError> {
+    if packages.is_empty() {
+        return Err(BrewError::InvalidArgument {
+            message: "brew_install_bundle requires at least one package".to_string(),
+        });
+    }
+    for p in &packages {
+        validate_package_name(&p.name)?;
+        if p.kind != "formula" && p.kind != "cask" {
+            return Err(BrewError::InvalidArgument {
+                message: format!("package '{}' has unknown kind '{}'", p.name, p.kind),
+            });
+        }
+    }
+    let path = state.require_brew_path().await?;
+
+    let steps = install_bundle_args(&packages);
+    let jobs = state.jobs.clone();
+    let lock = state.brew_write_lock.clone();
+
+    // Hold the write lock across BOTH steps so nothing interleaves between the
+    // formula and cask installs of a single bundle.
+    let _guard = lock.lock_owned().await;
+
+    let mut ran_any = false;
+    let mut last: Option<JobResult> = None;
+    for args in steps {
+        let display = display_for(&args);
+        match run_brew_streaming(&path, args, display, on_event.clone(), jobs.clone()).await {
+            Ok(result) => {
+                ran_any = true;
+                let succeeded = result.success;
+                last = Some(result);
+                // A failed step (e.g. formulae) means we skip the rest.
+                if !succeeded {
+                    break;
+                }
+            }
+            Err(e) => {
+                // Spawn failure. Reflect any partial state before propagating.
+                if ran_any {
+                    state.invalidate_caches().await;
+                }
+                return Err(e);
+            }
+        }
+    }
+
+    if ran_any {
+        state.invalidate_caches().await;
+    }
+    // `packages` is non-empty and every kind is valid, so at least one step ran.
+    Ok(last.expect("at least one install step ran for a non-empty bundle"))
+}
+
 #[tauri::command]
 pub async fn brew_update(
     on_event: Channel<BrewStreamEvent>,
@@ -323,6 +447,36 @@ pub async fn brew_autoremove(
     result
 }
 
+/// `brew pin`/`unpin` a single package (issue #90, folds in #134). Fast and
+/// non-streaming — pin is an instant metadata flip with trivial output, so it
+/// runs through `run_brew_capture` and returns once done rather than spawning a
+/// tracked Activity job. Still serialized behind the write lock (so it can't
+/// race a concurrent upgrade) and invalidates caches on success so the pinned
+/// badge and the honest "updates available" count re-derive from fresh
+/// `brew info`/`brew outdated` data. A non-zero exit (e.g. package not
+/// installed) surfaces as a friendly `BrewExitNonZero`, same as the other
+/// write commands.
+#[tauri::command]
+pub async fn brew_set_pinned(
+    name: String,
+    kind: PackageKind,
+    pinned: bool,
+    state: State<'_, AppState>,
+) -> Result<(), BrewError> {
+    validate_package_name(&name)?;
+    let path = state.require_brew_path().await?;
+
+    let args = pin_args(&name, kind, pinned);
+    let str_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    let display = display_for(&args);
+    let lock = state.brew_write_lock.clone();
+
+    let _guard = lock.lock_owned().await;
+    run_brew_capture(&path, &str_args, &display).await?;
+    state.invalidate_caches().await;
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn cancel_job(job_id: Uuid, state: State<'_, AppState>) -> Result<(), BrewError> {
     let mut map = state.jobs.lock().await;
@@ -422,6 +576,69 @@ mod tests {
         assert_eq!(
             display_for(&install_args("cursor", PackageKind::Cask, false, true)),
             "brew install --cask cursor --adopt"
+        );
+    }
+
+    #[test]
+    fn pin_formula_and_cask() {
+        assert_eq!(
+            pin_args("wget", PackageKind::Formula, true),
+            svec(&["pin", "--formula", "wget"])
+        );
+        // Casks pin too in current Homebrew — the actual #90/#134 case.
+        assert_eq!(
+            pin_args("google-chrome", PackageKind::Cask, true),
+            svec(&["pin", "--cask", "google-chrome"])
+        );
+    }
+
+    fn pkg(name: &str, kind: &str) -> BundlePackage {
+        BundlePackage { name: name.to_string(), kind: kind.to_string() }
+    }
+
+    #[test]
+    fn install_bundle_mixed_kinds_split_into_two_grouped_steps() {
+        // local-llm: ollama (formula) + open-webui (cask). Interleaved flags
+        // don't work in brew, so we emit one grouped invocation per kind,
+        // formulae first. (Verified: `brew install --formula X --cask Y`
+        // prints usage — the flags mean "treat ALL args as this kind".)
+        assert_eq!(
+            install_bundle_args(&[pkg("ollama", "formula"), pkg("open-webui", "cask")]),
+            vec![
+                svec(&["install", "--formula", "ollama"]),
+                svec(&["install", "--cask", "open-webui"]),
+            ]
+        );
+    }
+
+    #[test]
+    fn install_bundle_all_formulae_is_one_step() {
+        // media: ffmpeg + yt-dlp + mpv, all formulae → a single invocation.
+        assert_eq!(
+            install_bundle_args(&[pkg("ffmpeg", "formula"), pkg("yt-dlp", "formula"), pkg("mpv", "formula")]),
+            vec![svec(&["install", "--formula", "ffmpeg", "yt-dlp", "mpv"])]
+        );
+    }
+
+    #[test]
+    fn install_bundle_all_casks_is_one_step() {
+        // graphics: inkscape + gimp + krita, all casks → a single invocation.
+        assert_eq!(
+            install_bundle_args(&[pkg("inkscape", "cask"), pkg("gimp", "cask"), pkg("krita", "cask")]),
+            vec![svec(&["install", "--cask", "inkscape", "gimp", "krita"])]
+        );
+    }
+
+    #[test]
+    fn install_bundle_empty_has_no_steps() {
+        assert!(install_bundle_args(&[]).is_empty());
+    }
+
+    #[test]
+    fn unpin_uses_unpin_verb() {
+        assert_eq!(
+            pin_args("google-chrome", PackageKind::Cask, false),
+            svec(&["unpin", "--cask", "google-chrome"])
         );
     }
 }

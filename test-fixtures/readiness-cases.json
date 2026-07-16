@@ -1,0 +1,75 @@
+{
+  "_comment": "SHARED PARITY FIXTURE for Bundles readiness(). Loaded by the Rust/TS AND Swift test suites so both implementations produce byte-identical verdicts + reasons. Do not fork per shell. Algorithm (both shells): if requires==null -> (ready,'Ready.'); else check in order: arch mismatch -> (blocked,'Built for {ArchLabel}.'); ram<minRamGB -> (blocked,'Needs ≥{min} GB RAM (you have {ram} GB).'); freeDiskGB<minDiskGB -> (blocked,'Needs ≥{min} GB free disk (you have {free} GB).'); then note=nearestTierNote(capabilityNotes, ram) = value at the largest integer key ≤ ram, or null; if ram<recommendedRamGB -> (marginal, note ?? 'Below the recommended {rec} GB — may be slow.'); else -> (ready, note ?? 'Ready.'). ArchLabel: apple-silicon->'Apple Silicon', intel->'Intel', linux->'Linux'.",
+  "cases": [
+    {
+      "name": "no requires -> ready",
+      "requires": null,
+      "capabilityNotes": null,
+      "profile": { "ramGB": 8, "arch": "apple-silicon", "freeDiskGB": 100, "gpu": "metal" },
+      "expect": { "verdict": "ready", "reason": "Ready." }
+    },
+    {
+      "name": "arch mismatch beats everything -> blocked",
+      "requires": { "minRamGB": 8, "recommendedRamGB": 16, "minDiskGB": 12, "arch": "apple-silicon", "gpu": "required" },
+      "capabilityNotes": null,
+      "profile": { "ramGB": 4, "arch": "intel", "freeDiskGB": 5, "gpu": "none" },
+      "expect": { "verdict": "blocked", "reason": "Built for Apple Silicon." }
+    },
+    {
+      "name": "ram below min -> blocked",
+      "requires": { "minRamGB": 8, "recommendedRamGB": 16, "minDiskGB": 12, "arch": "any", "gpu": "preferred" },
+      "capabilityNotes": null,
+      "profile": { "ramGB": 4, "arch": "apple-silicon", "freeDiskGB": 100, "gpu": "metal" },
+      "expect": { "verdict": "blocked", "reason": "Needs ≥8 GB RAM (you have 4 GB)." }
+    },
+    {
+      "name": "disk below min -> blocked",
+      "requires": { "minRamGB": 8, "recommendedRamGB": 16, "minDiskGB": 30, "arch": "any", "gpu": "preferred" },
+      "capabilityNotes": null,
+      "profile": { "ramGB": 32, "arch": "apple-silicon", "freeDiskGB": 10, "gpu": "metal" },
+      "expect": { "verdict": "blocked", "reason": "Needs ≥30 GB free disk (you have 10 GB)." }
+    },
+    {
+      "name": "marginal with tier note (ram==min<rec)",
+      "requires": { "minRamGB": 8, "recommendedRamGB": 16, "minDiskGB": 12, "arch": "any", "gpu": "preferred" },
+      "capabilityNotes": { "8": "small (~7-8B Q4) models only", "16": "13-14B comfortably", "32": "32B class" },
+      "profile": { "ramGB": 8, "arch": "apple-silicon", "freeDiskGB": 100, "gpu": "metal" },
+      "expect": { "verdict": "marginal", "reason": "small (~7-8B Q4) models only" }
+    },
+    {
+      "name": "marginal no notes -> generic",
+      "requires": { "minRamGB": 8, "recommendedRamGB": 16, "minDiskGB": 12, "arch": "any", "gpu": "none" },
+      "capabilityNotes": null,
+      "profile": { "ramGB": 8, "arch": "apple-silicon", "freeDiskGB": 100, "gpu": "metal" },
+      "expect": { "verdict": "marginal", "reason": "Below the recommended 16 GB — may be slow." }
+    },
+    {
+      "name": "ready picks nearest tier note (ram 24 -> tier 16)",
+      "requires": { "minRamGB": 8, "recommendedRamGB": 16, "minDiskGB": 12, "arch": "any", "gpu": "preferred" },
+      "capabilityNotes": { "8": "small", "16": "13-14B comfortably", "32": "32B class" },
+      "profile": { "ramGB": 24, "arch": "apple-silicon", "freeDiskGB": 100, "gpu": "metal" },
+      "expect": { "verdict": "ready", "reason": "13-14B comfortably" }
+    },
+    {
+      "name": "ready high tier (ram 128 -> tier 32)",
+      "requires": { "minRamGB": 8, "recommendedRamGB": 16, "minDiskGB": 12, "arch": "any", "gpu": "preferred" },
+      "capabilityNotes": { "8": "small", "16": "13-14B", "32": "32B class" },
+      "profile": { "ramGB": 128, "arch": "apple-silicon", "freeDiskGB": 2000, "gpu": "metal" },
+      "expect": { "verdict": "ready", "reason": "32B class" }
+    },
+    {
+      "name": "ready no notes -> generic",
+      "requires": { "minRamGB": 8, "recommendedRamGB": 16, "minDiskGB": 12, "arch": "any", "gpu": "none" },
+      "capabilityNotes": null,
+      "profile": { "ramGB": 32, "arch": "apple-silicon", "freeDiskGB": 100, "gpu": "metal" },
+      "expect": { "verdict": "ready", "reason": "Ready." }
+    },
+    {
+      "name": "ram below smallest tier key -> generic marginal (no note)",
+      "requires": { "minRamGB": 4, "recommendedRamGB": 16, "minDiskGB": 12, "arch": "any", "gpu": "preferred" },
+      "capabilityNotes": { "8": "small", "16": "13-14B" },
+      "profile": { "ramGB": 6, "arch": "apple-silicon", "freeDiskGB": 100, "gpu": "metal" },
+      "expect": { "verdict": "marginal", "reason": "Below the recommended 16 GB — may be slow." }
+    }
+  ]
+}

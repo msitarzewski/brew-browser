@@ -13,6 +13,9 @@ export type LibraryFilter =
   | "formulae"
   | "casks"
   | "outdated"
+  /** #90 — show only pinned packages (held back from `brew upgrade`).
+      Keys on `Package.pinned` (formulae + casks). Always available. */
+  | "pinned"
   /** Feature #3 — installed-on-request ("Manual") vs installed-as-a-
       dependency-only ("Dependency"). Both key on the per-keg brew flags
       carried on `Package` (`installedOnRequest` / `installedAsDependency`).

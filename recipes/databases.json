@@ -1,0 +1,28 @@
+{
+  "id": "databases",
+  "name": "Local Databases",
+  "tagline": "PostgreSQL + Redis, managed as services",
+  "description": "A local relational + cache stack managed as background services. PostgreSQL is the default production-grade SQL database; Redis handles caching, queues, and sessions. Bundled GUI clients — TablePlus (Mac-native polish) and DBeaver (free and cross-platform) — let you browse tables, run queries, and inspect keys without living in the terminal. Start and stop the services from the Services tab; data grows on disk over time.",
+  "category": "Data",
+  "icon": "database",
+  "packages": [
+    { "name": "postgresql@16", "kind": "formula" },
+    { "name": "redis", "kind": "formula" },
+    { "name": "tableplus", "kind": "cask" },
+    { "name": "dbeaver-community", "kind": "cask" }
+  ],
+  "requires": { "minRamGB": 4, "recommendedRamGB": 8, "minDiskGB": 5, "arch": "any", "gpu": "none" },
+  "setup": [
+    { "kind": "service", "service": "postgresql@16", "label": "Start PostgreSQL" },
+    { "kind": "service", "service": "redis", "label": "Start Redis" }
+  ],
+  "caveats": "Databases grow with your data. Manage start/stop from the Services tab.",
+  "links": [
+    { "label": "PostgreSQL", "url": "https://www.postgresql.org" },
+    { "label": "Redis", "url": "https://redis.io" },
+    { "label": "TablePlus", "url": "https://tableplus.com" },
+    { "label": "DBeaver", "url": "https://dbeaver.io" }
+  ],
+  "maintainer": "brew-browser",
+  "addedIn": "0.7.0"
+}

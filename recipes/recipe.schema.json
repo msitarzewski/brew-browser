@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brew-browser/recipe.schema.json",
+  "title": "Bundle Recipe",
+  "type": "object",
+  "required": ["id", "name", "tagline", "category", "packages"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+    "tagline": { "type": "string", "minLength": 1, "maxLength": 90 },
+    "description": { "type": "string", "minLength": 40, "maxLength": 600 },
+    "category": { "enum": ["AI", "Graphics", "Media", "Development", "Data", "Productivity"] },
+    "icon": { "type": "string" },
+    "packages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "kind"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["formula", "cask"] }
+        }
+      }
+    },
+    "tap": { "type": ["string", "null"], "pattern": "^[^/]+/[^/]+$" },
+    "requires": {
+      "type": "object",
+      "required": ["minRamGB", "recommendedRamGB", "minDiskGB", "arch", "gpu"],
+      "additionalProperties": false,
+      "properties": {
+        "minRamGB": { "type": "integer", "minimum": 1 },
+        "recommendedRamGB": { "type": "integer", "minimum": 1 },
+        "minDiskGB": { "type": "integer", "minimum": 1 },
+        "arch": { "enum": ["any", "apple-silicon", "intel", "linux"] },
+        "gpu": { "enum": ["none", "preferred", "required"] }
+      }
+    },
+    "capabilityNotes": {
+      "type": "object",
+      "patternProperties": { "^[0-9]+$": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "setup": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": { "enum": ["service", "open", "reveal", "command", "note"] },
+          "service": { "type": "string" },
+          "label": { "type": "string" },
+          "url": { "type": "string", "format": "uri" },
+          "path": { "type": "string" },
+          "run": { "type": "string" },
+          "external": { "type": "boolean" },
+          "text": { "type": "string" }
+        }
+      }
+    },
+    "caveats": { "type": "string", "maxLength": 240 },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["label", "url"],
+        "additionalProperties": false,
+        "properties": {
+          "label": { "type": "string" },
+          "url": { "type": "string", "format": "uri" }
+        }
+      }
+    },
+    "maintainer": { "type": "string" },
+    "addedIn": { "type": "string" }
+  }
+}

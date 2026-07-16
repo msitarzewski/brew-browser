@@ -169,6 +169,12 @@
            card. -->
       <span class="vuln-dot vuln-tone-{vulnTone}" title={vulnTitle} aria-label={vulnTitle}></span>
     {/if}
+    {#if pkg.pinned}
+      <!-- Pinned badge (#90) — package is held back from brew upgrade. -->
+      <span title="Pinned — held back from brew upgrade">
+        <Pill tone="neutral">Pinned</Pill>
+      </span>
+    {/if}
   </span>
   <span class="outdated">
     {#if pkg.outdated}

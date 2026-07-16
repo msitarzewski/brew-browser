@@ -3,12 +3,13 @@
   import { ui } from "$lib/stores/ui.svelte";
 
   /**
-   * ResizeHandle — vertical drag handle for resizing a sibling pane horizontally.
+   * ResizeHandle — drag handle for resizing a sibling pane.
    *
-   * Renders a 6px-wide invisible hit zone with a 1px hairline in the middle so
-   * the cursor target is generous but the visual is calm. Drag horizontally to
-   * change `width`; pointer events are captured so dragging continues even when
-   * the cursor briefly leaves the handle.
+   * Renders a 6px invisible hit zone with a 1px hairline in the middle so the
+   * cursor target is generous but the visual is calm. It supports both the
+   * vertical splitter used by the package-detail pane and the horizontal one
+   * used by the Activity drawer. Pointer events are captured so dragging
+   * continues even when the cursor briefly leaves the handle.
    *
    * Keyboard (when focused, role=separator):
    *   - Left / Right arrows: ±8 px
@@ -16,25 +17,27 @@
    *   - Home: jump to `min`
    *   - End:  jump to `max` (computed from window for the live max)
    *
-   * Double-click resets to `defaultWidth` (small polish; per spec).
+   * Double-click resets to `defaultSize` (small polish; per spec).
    *
-   * Width is "owned" by the parent — we just emit changes via `onChange(next)`
+   * Size is "owned" by the parent — we just emit changes via `onChange(next)`
    * (live, while dragging) and `onCommit(next)` (mouseup/keyup) so the parent
    * can persist on commit and avoid thrashing localStorage during the drag.
    *
-   * `direction` controls which way a positive delta grows the pane.  For a
+   * `direction` controls which way a positive delta grows the pane. For a
    * left-edge handle on a right-anchored pane, dragging LEFT grows the pane,
    * so direction = "left". The default fits brew-browser's right-side detail pane.
    */
 
   type Props = {
-    width: number;
+    size: number;
     min: number;
-    defaultWidth: number;
+    defaultSize: number;
     /** Optional cap. If omitted, parent should clamp inside onChange/onCommit. */
     max?: number;
-    /** Direction the pane grows when the user drags the handle LEFT. */
-    direction?: "left" | "right";
+    /** Visual and ARIA orientation of the separator. */
+    orientation?: "vertical" | "horizontal";
+    /** Direction the pane grows when the user drags the handle. */
+    direction?: "left" | "right" | "up" | "down";
     /** Live updates during drag / arrow key — parent applies but should NOT persist. */
     onChange: (next: number) => void;
     /** Fires on drag end or keyup — parent should persist here. */
@@ -44,10 +47,11 @@
   };
 
   let {
-    width,
+    size,
     min,
-    defaultWidth,
+    defaultSize,
     max,
+    orientation = "vertical",
     direction = "left",
     onChange,
     onCommit,
@@ -59,22 +63,26 @@
   // Drag state — `dragging` is reactive (`class:dragging` styles the hairline);
   // the rest are imperative-only (set in pointerdown, read in pointermove).
   let dragging = $state(false);
-  let startX = 0;
-  let startWidth = 0;
-  let pendingWidth = 0;
+  let startCoordinate = 0;
+  let startSize = 0;
+  let pendingSize = 0;
   let pointerId: number | null = null;
 
-  // Sign multiplier: dragging right grows a "right" pane, shrinks a "left" pane.
-  // Derived so a parent that flips `direction` at runtime would be honored.
-  let dirSign = $derived(direction === "left" ? -1 : 1);
+  // Sign multiplier: dragging toward `direction` grows the pane. Derived so a
+  // parent that flips it at runtime would be honored.
+  let dirSign = $derived(direction === "left" || direction === "up" ? -1 : 1);
+
+  function coordinate(e: PointerEvent): number {
+    return orientation === "vertical" ? e.clientX : e.clientY;
+  }
 
   function onPointerDown(e: PointerEvent) {
     // Only primary button
     if (e.button !== 0) return;
     dragging = true;
-    startX = e.clientX;
-    startWidth = width;
-    pendingWidth = width;
+    startCoordinate = coordinate(e);
+    startSize = size;
+    pendingSize = size;
     pointerId = e.pointerId;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     e.preventDefault();
@@ -82,9 +90,9 @@
 
   function onPointerMove(e: PointerEvent) {
     if (!dragging) return;
-    const dx = (e.clientX - startX) * dirSign;
-    pendingWidth = clamp(startWidth + dx);
-    onChange(pendingWidth);
+    const delta = (coordinate(e) - startCoordinate) * dirSign;
+    pendingSize = clamp(startSize + delta);
+    onChange(pendingSize);
   }
 
   function endDrag(e: PointerEvent) {
@@ -94,7 +102,7 @@
       try { (e.currentTarget as HTMLElement).releasePointerCapture(pointerId); } catch { /* ignore */ }
       pointerId = null;
     }
-    onCommit(pendingWidth);
+    onCommit(pendingSize);
   }
 
   function clamp(w: number): number {
@@ -106,10 +114,12 @@
   function onKeyDown(e: KeyboardEvent) {
     let next: number | null = null;
     const step = e.shiftKey ? 32 : 8;
-    // Arrow direction matches the visual: pressing Left grows a "left"-direction
-    // pane (right-anchored) and shrinks a "right"-direction pane.
-    if (e.key === "ArrowLeft")  next = clamp(width - step * dirSign);
-    else if (e.key === "ArrowRight") next = clamp(width + step * dirSign);
+    // Arrow direction matches the visual: pressing toward the pane's growth
+    // direction makes it larger; pressing away makes it smaller.
+    const decreaseKey = orientation === "vertical" ? "ArrowLeft" : "ArrowUp";
+    const increaseKey = orientation === "vertical" ? "ArrowRight" : "ArrowDown";
+    if (e.key === decreaseKey)  next = clamp(size - step * dirSign);
+    else if (e.key === increaseKey) next = clamp(size + step * dirSign);
     else if (e.key === "Home")  next = clamp(min);
     else if (e.key === "End")   next = clamp(max ?? Number.POSITIVE_INFINITY);
     if (next != null) {
@@ -120,9 +130,9 @@
   }
 
   function onDblClick() {
-    const w = clamp(defaultWidth);
-    onChange(w);
-    onCommit(w);
+    const next = clamp(defaultSize);
+    onChange(next);
+    onCommit(next);
   }
 </script>
 
@@ -133,13 +143,14 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
   class="handle"
+  class:horizontal={orientation === "horizontal"}
   class:dragging
   role="separator"
-  aria-orientation="vertical"
+  aria-orientation={orientation}
   aria-label={resolvedLabel}
   aria-valuemin={min}
   aria-valuemax={max ?? undefined}
-  aria-valuenow={Math.round(width)}
+  aria-valuenow={Math.round(size)}
   tabindex="0"
   onpointerdown={onPointerDown}
   onpointermove={onPointerMove}
@@ -166,6 +177,11 @@
     touch-action: none;
     user-select: none;
   }
+  .handle.horizontal {
+    width: auto;
+    height: 6px;
+    cursor: row-resize;
+  }
 
   /* 1px hairline using the design-system border token. */
   .handle::before {
@@ -177,6 +193,13 @@
     transform: translateX(-50%);
     background: var(--color-border);
     transition: background var(--motion-duration-fast) var(--motion-ease-out);
+  }
+  .handle.horizontal::before {
+    top: 50%;
+    left: 0;
+    width: auto;
+    height: 1px;
+    transform: translateY(-50%);
   }
 
   .handle:hover::before,
@@ -194,6 +217,10 @@
   .handle:focus-visible::before {
     width: 2px;
     background: var(--color-border-focus);
+  }
+  .handle.horizontal:focus-visible::before {
+    width: auto;
+    height: 2px;
   }
 
   @media (prefers-reduced-motion: reduce) {

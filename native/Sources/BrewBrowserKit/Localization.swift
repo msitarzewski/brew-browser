@@ -129,6 +129,36 @@ public enum L10n {
         return "\(count) casks"
     }
 
+    static func bundlePackageSummary(formulae: Int, casks: Int) -> String {
+        var parts: [String] = []
+        if isRussian {
+            if formulae > 0 { parts.append("\(formulae) \(ruPlural(formulae, one: "формула", few: "формулы", many: "формул"))") }
+            if casks > 0 { parts.append("\(casks) \(ruPlural(casks, one: "cask-пакет", few: "cask-пакета", many: "cask-пакетов"))") }
+            return parts.isEmpty ? "пакетов нет" : parts.joined(separator: " · ")
+        }
+        if formulae > 0 { parts.append("\(formulae) formula\(formulae == 1 ? "" : "e")") }
+        if casks > 0 { parts.append("\(casks) cask\(casks == 1 ? "" : "s")") }
+        return parts.isEmpty ? "no packages" : parts.joined(separator: " · ")
+    }
+
+    static func readinessReason(_ reason: String) -> String {
+        guard isRussian else { return reason }
+        if reason == "Ready." { return "Готово." }
+        if let value = reason.removingPrefix("Built for ")?.removingSuffix(".") {
+            return "Рассчитано на \(value)."
+        }
+        if let match = reason.wholeMatch(of: /Needs ≥(\d+) GB RAM \(you have (\d+) GB\)\./) {
+            return "Нужно ≥\(match.1) ГБ RAM (сейчас \(match.2) ГБ)."
+        }
+        if let match = reason.wholeMatch(of: /Needs ≥(\d+) GB free disk \(you have (\d+) GB\)\./) {
+            return "Нужно ≥\(match.1) ГБ свободного места (сейчас \(match.2) ГБ)."
+        }
+        if let match = reason.wholeMatch(of: /Below the recommended (\d+) GB — may be slow\./) {
+            return "Меньше рекомендуемых \(match.1) ГБ — может работать медленно."
+        }
+        return reason
+    }
+
     static func packagesCount(_ count: Int) -> String {
         if isRussian {
             return "\(count) \(ruPlural(count, one: "пакет", few: "пакета", many: "пакетов"))"
@@ -312,6 +342,57 @@ public enum L10n {
         return "+ \(count) more in Library"
     }
 
+    static func upgradeAllButton(_ count: Int) -> String {
+        if isRussian { return "Обновить всё (\(count))" }
+        return "Upgrade all (\(count))"
+    }
+
+    static func libraryCountBar(shown: Int, filter: LibraryFilter, outdated: Int, pinned: Int) -> String {
+        var parts = [libraryFilterCount(shown, filter: filter)]
+        if filter != .outdated { parts.append(libraryFilterCount(outdated, filter: .outdated)) }
+        if filter != .pinned { parts.append(libraryFilterCount(pinned, filter: .pinned)) }
+        return parts.joined(separator: " · ")
+    }
+
+    static func libraryFilterEmpty(_ filter: LibraryFilter) -> String {
+        if isRussian { return "По фильтру «\(filter.localizedTitle)» ничего не найдено." }
+        return "Nothing matches the \(filter.rawValue.lowercased()) filter."
+    }
+
+    static func pinButton(isPinned: Bool) -> String {
+        if isRussian { return isPinned ? "Открепить" : "Закрепить" }
+        return isPinned ? "Unpin" : "Pin"
+    }
+
+    static func pinHelp(isPinned: Bool, kind: InstalledPackage.Kind?) -> String {
+        if isRussian {
+            if isPinned { return "Снять закрепление — brew upgrade снова сможет обновлять этот пакет" }
+            if kind == .cask {
+                return "Закрепить — не обновлять через brew upgrade. Cask-пакет с собственным автообновлением всё равно может обновиться сам."
+            }
+            return "Закрепить — не обновлять через brew upgrade"
+        }
+        if isPinned { return "Unpin — let brew upgrade update this again" }
+        if kind == .cask {
+            return "Pin — hold back from brew upgrade. A cask that self-updates may still update on its own."
+        }
+        return "Pin — hold back from brew upgrade"
+    }
+
+    static func pinToast(_ name: String, pinned: Bool) -> String {
+        if isRussian { return pinned ? "\(name) закреплён" : "\(name) откреплён" }
+        return pinned ? "Pinned \(name)" : "Unpinned \(name)"
+    }
+
+    static func pinFailedTitle(pinned: Bool) -> String {
+        if isRussian { return pinned ? "Не удалось закрепить" : "Не удалось открепить" }
+        return pinned ? "Pin failed" : "Unpin failed"
+    }
+
+    static var pinnedBadgeHelp: String {
+        isRussian ? "Закреплено — brew upgrade не будет обновлять этот пакет" : "Pinned — held back from brew upgrade"
+    }
+
     static func activityDisplayLabel(_ job: ActivityJob) -> String {
         if !isRussian { return englishActivityDisplayLabel(job) }
         let running = russianActivityLabel(job.label)
@@ -447,6 +528,31 @@ public enum L10n {
         if let label = label.removingPrefix("Dumping Brewfile: ") { return "Brewfile создан: \(label)" }
         if let label = label.removingPrefix("Restoring ") { return "Восстановлено \(label)" }
         return nil
+    }
+
+    private static func libraryFilterCount(_ count: Int, filter: LibraryFilter) -> String {
+        if isRussian {
+            switch filter {
+            case .all:
+                return packagesCount(count)
+            case .formulae:
+                return formulaeCount(count)
+            case .casks:
+                return casksCount(count)
+            case .outdated:
+                return "\(count) \(ruPlural(count, one: "требует обновления", few: "требуют обновления", many: "требуют обновления"))"
+            case .pinned:
+                return "\(count) \(ruPlural(count, one: "закреплён", few: "закреплены", many: "закреплено"))"
+            case .manual:
+                return "\(count) вручную"
+            case .dependency:
+                return "\(count) \(ruPlural(count, one: "как зависимость", few: "как зависимости", many: "как зависимостей"))"
+            case .vulnerable:
+                return vulnerablePackages(count)
+            }
+        }
+        if filter == .all { return "\(count) package\(count == 1 ? "" : "s")" }
+        return "\(count) \(filter.rawValue.lowercased())"
     }
 }
 

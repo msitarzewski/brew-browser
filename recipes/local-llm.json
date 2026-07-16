@@ -1,0 +1,31 @@
+{
+  "id": "local-llm",
+  "name": "Local LLMs",
+  "tagline": "Run models locally with Ollama + a web UI",
+  "description": "Run open-weight models entirely on your own machine — private, offline-capable, no API bills. Ollama pulls and serves models with one command and exposes an OpenAI-compatible API on localhost:11434; Open WebUI adds a polished browser chat UI on top. Best for developers and privacy-conscious users who want ChatGPT-style workflows without sending data to the cloud.",
+  "category": "AI",
+  "icon": "brain",
+  "packages": [
+    { "name": "ollama", "kind": "formula" },
+    { "name": "open-webui", "kind": "cask" }
+  ],
+  "requires": { "minRamGB": 8, "recommendedRamGB": 16, "minDiskGB": 12, "arch": "any", "gpu": "preferred" },
+  "capabilityNotes": {
+    "8": "Small (~7–8B Q4) models only; larger will swap",
+    "16": "13–14B models comfortably",
+    "24": "26–32B class (Qwen, Gemma)",
+    "48": "70B models"
+  },
+  "setup": [
+    { "kind": "service", "service": "ollama", "label": "Start the Ollama server" },
+    { "kind": "command", "run": "ollama pull llama3.2", "label": "Pull a starter model (you run this)", "external": true },
+    { "kind": "open", "url": "http://localhost:8080", "label": "Open Open WebUI" }
+  ],
+  "caveats": "Installs the tools; you still download models yourself (several GB each). Apple Silicon unified memory counts as VRAM — more RAM = bigger models.",
+  "links": [
+    { "label": "Ollama docs", "url": "https://docs.ollama.com" },
+    { "label": "Open WebUI", "url": "https://openwebui.com" }
+  ],
+  "maintainer": "brew-browser",
+  "addedIn": "0.7.0"
+}

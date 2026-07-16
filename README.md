@@ -25,22 +25,29 @@ Same features, same `brew` integration, same privacy posture — see [Two builds
 
 ![Brew Browser — native SwiftUI build, Dashboard (dark)](docs/screenshots/dashboard-native.png)
 
+**Bundles** — capability-gated one-click package stacks, in both builds
+
+![Brew Browser — Tauri build, Bundles: the LAMP Stack recipe with its list + Details pane, packages, caveats, and setup checklist](docs/screenshots/bundles-tauri.png)
+
+![Brew Browser — native SwiftUI build, Bundles: the Web Dev Starter recipe with per-package install actions](docs/screenshots/bundles-native.png)
+
 ## Why this exists
 
 Homebrew is the standard package manager on macOS. brew-browser gives it a real native GUI: browse what you have installed, search the full catalog, install / uninstall / upgrade with live output, snapshot your setup to a Brewfile and restore it on a new Mac. Trending packages come from Homebrew's published analytics. The whole thing is a thin, respectful frontend over the `brew` CLI itself.
 
 ## Features
 
-- **Dashboard** — your Homebrew setup at a glance: installed count, updates available, brew version, formula/cask split, top-categories donut chart, storage usage (Cellar / Caskroom / var/log / cache) with one-click "Reveal in Finder" (macOS) / "Show in file manager" (Linux), and an opt-in **Exposure** card surfacing known vulnerabilities across your install
-- **Library** — every installed formula and cask in one dense, filterable list, with outdated badges, sortable columns, category chip filters, an opt-in **Vulnerable** filter pill, inline severity dots, and a slide-over detail panel
+- **Dashboard** — your Homebrew setup at a glance: installed count, updates available, brew version, formula/cask split, top-categories donut chart, storage usage (Cellar / Caskroom / var/log / cache) with one-click "Reveal in Finder" (macOS) / "Show in file manager" (Linux), one-click **Run brew doctor** and **Clean up cache** (with a reclaimable-space estimate), and an opt-in **Exposure** card surfacing known vulnerabilities across your install
+- **Library** — every installed formula and cask in one dense, filterable list, with outdated badges, sortable columns, category chip filters, an opt-in **Vulnerable** filter pill, inline severity dots, a **Pinned** filter with per-package **pin / unpin** (hold packages back from "Update all" — formulae *and* casks), and a slide-over detail panel
 - **Discover** — search the full Homebrew catalog (16k+ packages, bundled at build time + user-refreshable) by name, browse via the 19-category tile grid, and drill into subcategory groupings for large categories; multi-select chip filter
+- **Bundles** — capability-gated one-click package stacks (Local LLMs, Image Generation, Graphics & Design, Media Toolkit, Web Dev Starter, Local Databases, Agentic Web Dev, LAMP, LEMP). A master list + Details pane like the rest of the app: an intent paragraph, per-package install with live installed state, expandable package descriptions, and a setup checklist where brew-native steps (start a service, open a URL) run in-app while external commands stay copy-only. A zero-install system profile (RAM / arch / GPU / disk) grades each stack **Ready / Marginal / Not recommended** so an 8 GB Mac isn't told to install a local-LLM stack it can't run. Recipes are validated JSON anyone can contribute against a published contract
 - **Trending** — top packages from Homebrew's published `formulae.brew.sh` analytics, with 30 / 90 / 365-day windows, sortable columns, a **velocity index** (recent-month vs prior-11-month adoption signal), and opt-in per-package install-trend sparklines
 - **Snapshots** — save and restore Brewfiles using Homebrew's own `brew bundle` mechanism; "set up a new Mac" in one click
 - **Services** — list, start, stop, and restart background services managed by launchd through `brew services`
 - **Security** — opt-in vulnerability scanning. Surfaces known CVEs against your installed formulae via the official `brew vulns` subcommand (OSV.dev), with optional GHSA enrichment when you're signed into GitHub. Inline severity dots, per-package Security card with "Upgrade to fix" wired to the existing upgrade pipeline. Off by default; one-click installer for `brew vulns` itself when you opt in
-- **Activity** — every `brew` invocation streams live into a bottom drawer with full stdout/stderr; session history persists across launches (last 200 jobs, capped lines)
+- **Activity** — every `brew` invocation streams live into a resizable bottom drawer with full stdout/stderr; session history persists across launches (last 200 jobs, capped lines)
 
-A global Cmd+K command palette covers the verbs. Cmd+0 returns to the Dashboard; Cmd+1…6 jumps between sections. Cmd+, opens Settings. Click the 🍺 brand to return home. Window dragging works from any panel header (native macOS overlay title bar + NSVisualEffectView vibrancy).
+A global Cmd+K command palette covers the verbs. Cmd+0 returns to the Dashboard; Cmd+1…7 jumps between sections (Bundles is ⌘7). Cmd+, opens Settings. Click the 🍺 brand to return home. Window dragging works from any panel header (native macOS overlay title bar + NSVisualEffectView vibrancy).
 
 ## What this isn't
 
@@ -210,9 +217,29 @@ Contributions welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the dev loop
 
 ## Status
 
-**Next release:** Tauri `0.6.0` and native `0.2.0` are staged on the feature-request branch. This batch rolls up the Reddit-request backlog across both shells: reverse-dependency detail, deprecated/disabled indicators, Manual vs Dependency filters, per-package disk size, and Discover subcategory browsing.
+**Next release:** Tauri `0.7.1` and native `0.3.1` (split-track; native 0.3.1 ≙ Tauri 0.7.1, single tag `v0.7.1`) — a small follow-up that adds the **resizable Activity console** (community contribution by @cseelye) which landed just after the 0.7.0 build, plus a Linux-CI fix so the `.deb` / `.rpm` / `.AppImage` bundles publish again. Full notes: [docs/release-notes/0.7.1.md](./docs/release-notes/0.7.1.md).
 
-**Current stable release:** Tauri `0.5.1` + native `0.1.0` shipped signed + notarized together. All seven core panes live in both shells: Dashboard, Library, Discover, Trending, Snapshots, Services, and Activity. Optional GitHub integration via OAuth Device Flow is intent-discovered — sign-in only prompts when you actually try to star / watch / file an issue, never as static UI clutter. Two opt-in surfaces beyond the always-on core: **Enhanced Trending History** (v0.4.0+) for per-package install-trend sparklines, and **Vulnerability Scanning** (v0.5.0+) shelling out to the official `brew vulns` subcommand for CVE surfacing against your installed formulae. Settings ships with Offline Mode and a corrupt-recovery default. Native macOS title bar with traffic-light alignment, collapsible sidebar with persistent type-ahead search, and (i) info popovers in place of AI badges for every enriched field.
+**Current stable release:** Tauri `0.7.0` + native `0.3.0` shipped signed + notarized together — headlined by **Bundles** (capability-gated one-click package stacks, 9 recipes, both shells), plus per-package **pin / unpin** (formulae and casks), in-app brew command options with reactive recovery, **Brew Doctor + Cleanup** on the Dashboard Storage card, and vulnerability-scanning hardening. All seven core panes plus Bundles live in both shells; optional GitHub integration via OAuth Device Flow is intent-discovered; opt-in **Enhanced Trending History** (v0.4.0+) and **Vulnerability Scanning** (v0.5.0+) sit beyond the always-on core; Settings ships with Offline Mode and a corrupt-recovery default.
+
+**v0.7.1 / native 0.3.1** — small follow-up. Highlights:
+- **Resizable Activity console** (#136) — the live `brew` output drawer resizes in both shells, with the height persisted across launches. Community contribution by **@cseelye**. (Listed in the 0.7.0 notes but it landed just after that build; it ships here.)
+- **Linux CI fix** (#149) — the Linux workflow was failing at updater-signing and dropping the built `.deb` / `.rpm` / `.AppImage`; it now skips the unused updater artifact and publishes them.
+- Full notes: [docs/release-notes/0.7.1.md](./docs/release-notes/0.7.1.md).
+
+**v0.7.0 / native 0.3.0** — Bundles + polish. Highlights:
+- **Bundles.** New nav section: capability-gated one-click package stacks with a master list + Details pane, intent paragraphs, expandable per-package descriptions, per-package install, and a setup checklist (brew-native steps run in-app; external commands stay copy-only). A zero-install RAM/arch/GPU/disk profile grades each stack Ready / Marginal / Not recommended. Nine recipes ship (Local LLMs, Image Generation, Graphics & Design, Media Toolkit, Web Dev Starter, Local Databases, Agentic Web Dev, LAMP, LEMP), and recipes are validated JSON anyone can contribute against a published contract + CI. Both shells.
+- **Pin / unpin packages** (#141). Hold packages back from "Update all" — formulae *and* casks — with a Library **Pinned** filter and a bottom count bar. Closes #90 / #134.
+- **In-app brew command options** (#109). Reactive recovery UI (adopt / overwrite / force-remove) + an Advanced disclosure (greedy upgrade, autoremove).
+- **Brew Doctor + Cleanup** on the Dashboard Storage card (#82 / #83; `--scrub` opt-in, off by default) — requested by **@modeezie**.
+- **Vulnerability-scanning hardening.** Exposure over-count fix + native GHSA enrichment (#107), tap-qualified formula names + JSON salvage (#103, #62 / #92), native catalog empty-response guard (#108), GHSA advisory `references` shape fix (#110).
+- **UX / correctness fixes.** Native list scaling under the sidebar (#142), install-trend sparkline scale in both shells (#143), Tauri vulnerable-footer navigation (#144), native outdated tap-name undercount (#145).
+- Full notes: [docs/release-notes/0.7.0.md](./docs/release-notes/0.7.0.md).
+
+**v0.6.0 / native 0.2.0** — Linux + Intel + Reddit backlog. Highlights:
+- **Linux support.** The Tauri build now ships `.deb` / `.rpm` / `.AppImage` (Ubuntu 22.04+ era), with casks gated off where Homebrew has no cask concept.
+- **Separate Intel builds** for macOS 13+, plus a **guided onboarding** flow when Homebrew isn't installed yet (per-platform install guidance that auto-dissolves once `brew` appears).
+- **Reddit-request batch:** reverse-dependency detail, deprecated/disabled indicators, Manual vs Dependency filters, per-package on-disk size, a Recent-changes card, and Discover subcategory browsing.
+- Full notes: [docs/release-notes/0.6.0.md](./docs/release-notes/0.6.0.md).
 
 **v0.5.1** — reliability + first native release. Highlights:
 - **Both builds shipped together.** Tauri `0.5.1` remains the cross-platform macOS 13+ / Linux build; native `0.1.0` is the macOS 26 SwiftUI build with Sparkle updates.

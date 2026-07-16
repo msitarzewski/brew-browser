@@ -1,0 +1,41 @@
+# Bundle recipe validation — enforces the recipe contract on every PR that
+# touches recipes/. A contributor adds recipes/<id>.json and this decides if
+# it's mergeable, with no maintainer code change for the common case.
+#
+# Runs on macOS because the validator resolves every package with `brew info`
+# (macOS runners ship Homebrew), and checks tap-trust + link reachability.
+# See memory-bank/releases/0.7.0/bundles/recipe-contract.md for the contract
+# and .../m5-live-refresh-and-contributions.md for the pipeline.
+
+name: Validate Recipes
+
+on:
+  pull_request:
+    paths:
+      - "recipes/**"
+      - "scripts/validate-recipes.mjs"
+      - ".github/workflows/validate-recipes.yml"
+  push:
+    branches: [main]
+    paths:
+      - "recipes/**"
+      - "scripts/validate-recipes.mjs"
+
+jobs:
+  validate:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: brew --version (Homebrew is preinstalled on macOS runners)
+        run: brew --version
+      - name: Validate recipes (structure + brew resolution + strict links)
+        run: node scripts/validate-recipes.mjs --strict-links
+      - name: Confirm all bundles.json copies are in sync with recipes
+        run: |
+          git diff --exit-code bundles.json src-tauri/data/bundles.json native/Sources/BrewBrowserKit/Resources/bundles.json || {
+            echo "::error::A bundles.json copy is stale — run 'node scripts/validate-recipes.mjs' and commit the result (it writes all three copies).";
+            exit 1;
+          }

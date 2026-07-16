@@ -474,6 +474,25 @@ private struct TrendingSettings: View {
                         .font(.caption).foregroundStyle(.orange)
                 }
             }
+
+            SwiftUI.Section {
+                Toggle(L10n.string("settings.liveBundles.toggle"), isOn: Binding(
+                    get: { settings.liveBundlesEnabled },
+                    set: { settings.liveBundlesEnabled = $0; try? settings.save() }
+                ))
+                .disabled(offline || settings.isCorrupt)
+                Text(
+                    L10n.string("settings.liveBundles.hint.beforeHost")
+                    + " brew-browser.zerologic.com/bundles/bundles.json"
+                    + L10n.string("settings.liveBundles.hint.afterHost")
+                )
+                    .font(.caption).foregroundStyle(.secondary)
+                if offline {
+                    Label(L10n.string("settings.liveBundles.offline"),
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption).foregroundStyle(.orange)
+                }
+            }
         }
         .formStyle(.grouped)
         .padding(20)

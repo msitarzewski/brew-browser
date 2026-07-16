@@ -93,8 +93,16 @@ jobs:
       # Builds the frontend (beforeBuildCommand: npm run build), compiles
       # the Rust binary, and bundles .deb / .rpm / .AppImage. bundle.targets
       # is "all" in tauri.conf.json, which on Linux means these three.
+      #
+      # Override createUpdaterArtifacts=false here: tauri.conf.json sets it true
+      # (macOS needs the signed .app.tar.gz for the in-app updater), but on Linux
+      # it makes the build try to sign an updater .AppImage.tar.gz — which needs
+      # TAURI_SIGNING_PRIVATE_KEY, a secret CI doesn't hold, so the job failed
+      # AFTER building the installers. The Linux auto-updater is unwired anyway
+      # (users grab the .deb / .AppImage directly), so skipping the artifact is
+      # correct, not a regression.
       - name: Build Tauri app
-        run: npm run tauri build
+        run: npm run tauri build -- --config '{"bundle":{"createUpdaterArtifacts":false}}'
 
       - name: Upload .deb
         uses: actions/upload-artifact@v4

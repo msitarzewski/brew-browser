@@ -26,10 +26,15 @@ public struct ContentView: View {
     var updater: UpdaterController
     @Environment(\.openSettings) private var openSettings
     @Environment(\.scenePhase) private var scenePhase
+    private static let activityDrawerHeightKey = "activity.drawerHeight.v2"
+    @State private var initialActivityDrawerHeight: CGFloat
 
     public init(model: AppModel, updater: UpdaterController) {
         self.model = model
         self.updater = updater
+        let savedHeight = UserDefaults.standard.object(forKey: Self.activityDrawerHeightKey) as? Double
+            ?? Double(ActivityDrawer.minimumDrawerHeight)
+        _initialActivityDrawerHeight = State(initialValue: CGFloat(savedHeight))
     }
 
     public var body: some View {
@@ -47,7 +52,83 @@ public struct ContentView: View {
     }
 
     private var mainContent: some View {
-      VStack(spacing: 0) {
+      activityLayout
+      // In-window toasts (Bundle F) — layered top-trailing over everything so
+      // they're clear of the bottom Activity drawer. See Toast.swift.
+      .overlay { ToastOverlay(model: model) }
+      .task {
+            model.loadJobs()
+            model.loadVulns()
+            if model.installed.isEmpty { await model.loadLibrary() }
+      }
+      // ⌘K command palette — stock `.sheet` overlay (BrewBrowserApp's .commands
+      // flips `paletteOpen`). The catalog backs the palette's index search, so
+      // make sure it's loaded the first time the palette opens.
+      .sheet(isPresented: $model.paletteOpen) {
+          CommandPaletteView(model: model)
+      }
+      // Custom About box (replaces the bare standard panel) — opened from the
+      // app menu's "About brew-browser". Mirrors the Tauri AboutModal.
+      .sheet(isPresented: $model.aboutOpen) {
+          AboutView(model: model)
+      }
+      // Esc closes the open detail inspector. The palette is a `.sheet`, which
+      // handles its own Esc, so by the time Esc reaches here the palette is
+      // already closed and only the inspector remains. Returns `.ignored` when
+      // there's nothing to close so Esc keeps its default behavior elsewhere.
+      .onKeyPress(.escape) {
+          model.closeTopmostOverlay() ? .handled : .ignored
+      }
+    }
+
+    @ViewBuilder
+    private var activityLayout: some View {
+        if model.drawerOpen, model.activeJobId != nil {
+            // Match the sidebar's smooth native divider: VSplitView is AppKit-
+            // backed, so live resizing does not recreate the console hierarchy.
+            VSplitView {
+                navigationContent
+                resizableActivityDrawer
+            }
+        } else {
+            VStack(spacing: 0) {
+                navigationContent
+                ActivityDrawer(model: model)
+            }
+        }
+    }
+
+    private var maximumActivityDrawerHeight: CGFloat {
+        let window = NSApp.keyWindow ?? NSApp.mainWindow
+        return max(ActivityDrawer.minimumDrawerHeight, (window?.contentLayoutRect.height ?? 720) * 0.6)
+    }
+
+    private var resizableActivityDrawer: some View {
+        let maximum = maximumActivityDrawerHeight
+        let ideal = ActivityDrawer.clampedDrawerHeight(initialActivityDrawerHeight, maximum: maximum)
+        return ActivityDrawer(model: model, fillsAvailableHeight: true)
+            .frame(minHeight: ActivityDrawer.minimumDrawerHeight,
+                   idealHeight: ideal,
+                   maxHeight: maximum)
+            // The split view owns the current size. Persisting the observed size
+            // does not feed it back into this layout, avoiding resize feedback.
+            .background {
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear { persistActivityDrawerHeight(proxy.size.height) }
+                        .onChange(of: proxy.size.height) { _, height in
+                            persistActivityDrawerHeight(height)
+                        }
+                }
+            }
+    }
+
+    private func persistActivityDrawerHeight(_ height: CGFloat) {
+        guard height >= ActivityDrawer.minimumDrawerHeight else { return }
+        UserDefaults.standard.set(Double(height), forKey: Self.activityDrawerHeightKey)
+    }
+
+    private var navigationContent: some View {
         NavigationSplitView {
             List(Section.allCases, selection: $model.selection) { section in
                 Label(section.localizedTitle, systemImage: section.symbol)
@@ -207,7 +288,13 @@ public struct ContentView: View {
                     // drag rather than an accidental nudge; the in-panel close box
                     // (xmark.circle in PackageDetailView) is the intended dismiss.
                     Group {
-                        if let pkg = model.detailPackage {
+                        // One inspector slot, two detail kinds (mutually exclusive
+                        // per AppModel.openDetail/openBundleDetail): a bundle takes
+                        // precedence, else the package detail.
+                        if let bundle = model.detailBundle {
+                            BundleDetailView(model: model, bundle: bundle)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else if let pkg = model.detailPackage {
                             PackageDetailView(model: model, pkg: pkg)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
@@ -215,37 +302,6 @@ public struct ContentView: View {
                     .inspectorColumnWidth(min: 360, ideal: 400, max: 560)
                 }
         }
-        // Activity drawer as a true full-width bottom bar BELOW the whole split
-        // view (sibling, not an inset/overlay) — so the split view + the
-        // inspector's own footer live entirely above it and nothing is covered.
-        ActivityDrawer(model: model)
-      }
-      // In-window toasts (Bundle F) — layered top-trailing over everything so
-      // they're clear of the bottom Activity drawer. See Toast.swift.
-      .overlay { ToastOverlay(model: model) }
-      .task {
-            model.loadJobs()
-            model.loadVulns()
-            if model.installed.isEmpty { await model.loadLibrary() }
-      }
-      // ⌘K command palette — stock `.sheet` overlay (BrewBrowserApp's .commands
-      // flips `paletteOpen`). The catalog backs the palette's index search, so
-      // make sure it's loaded the first time the palette opens.
-      .sheet(isPresented: $model.paletteOpen) {
-          CommandPaletteView(model: model)
-      }
-      // Custom About box (replaces the bare standard panel) — opened from the
-      // app menu's "About brew-browser". Mirrors the Tauri AboutModal.
-      .sheet(isPresented: $model.aboutOpen) {
-          AboutView(model: model)
-      }
-      // Esc closes the open detail inspector. The palette is a `.sheet`, which
-      // handles its own Esc, so by the time Esc reaches here the palette is
-      // already closed and only the inspector remains. Returns `.ignored` when
-      // there's nothing to close so Esc keeps its default behavior elsewhere.
-      .onKeyPress(.escape) {
-          model.closeTopmostOverlay() ? .handled : .ignored
-      }
     }
 
     @ViewBuilder
@@ -265,6 +321,8 @@ public struct ContentView: View {
             SnapshotsView(model: model)
         case .services:
             ServicesView(model: model)
+        case .bundles:
+            BundlesView(model: model)
         }
     }
 }
@@ -300,6 +358,8 @@ struct LibraryView: View {
                     Divider()
                     table
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Divider()
+                    libraryCountBar
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
@@ -326,7 +386,9 @@ struct LibraryView: View {
     private var filterBar: some View {
         Picker(L10n.string("Filter"), selection: $model.libraryFilter) {
             ForEach(model.availableLibraryFilters) { f in
-                Text("\(f.localizedTitle) (\(model.libraryFilterCount(f)))").tag(f)
+                // Counts moved to the bottom status bar (`libraryCountBar`) —
+                // the tabs stay clean labels.
+                Text(f.localizedTitle).tag(f)
             }
         }
         .pickerStyle(.segmented)
@@ -335,6 +397,31 @@ struct LibraryView: View {
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    /// Bottom status tally — the same subtle style as the Services header
+    /// (`ServicesView.headerBar`), moved to the foot of the Library. It replaces
+    /// the per-tab counts removed above. Leads with the count of the ACTIVE
+    /// filter (the number of rows currently shown, so it also reflects the
+    /// search box), labelled by that filter; then the standing outdated + pinned
+    /// stats — skipping whichever the lead already names to avoid "7 outdated ·
+    /// 7 outdated". `pinned` counts formulae + casks (#90).
+    private var libraryCountBar: some View {
+        let f = model.libraryFilter
+        let shown = model.sortedLibraryRows.count
+        return HStack(spacing: 0) {
+            Text(L10n.libraryCountBar(
+                shown: shown,
+                filter: f,
+                outdated: model.libraryFilterCount(.outdated),
+                pinned: model.pinnedCount
+            ))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
     }
 
     // Removable chip showing the active category filter (set by tapping a
@@ -370,9 +457,7 @@ struct LibraryView: View {
                 ContentUnavailableView(
                     L10n.string("No packages"),
                     systemImage: "shippingbox",
-                    description: Text(L10n.isRussian
-                                      ? "По фильтру «\(model.libraryFilter.localizedTitle)» ничего не найдено."
-                                      : "Nothing matches the \(model.libraryFilter.rawValue.lowercased()) filter.")
+                    description: Text(L10n.libraryFilterEmpty(model.libraryFilter))
                 )
             } else {
                 ContentUnavailableView.search(text: model.globalQuery)
@@ -392,31 +477,38 @@ struct LibraryView: View {
     }
 
     private var tableWithDescription: some View {
+        // Column minimums sum to 388pt (120+88+72+60+48), which fits UNDER the
+        // detail column's 420pt `.frame(minWidth:)` floor. They used to sum to
+        // 500pt — above the floor — so when the inspector was dragged wide the
+        // Table couldn't compress to fit and its leading edge slid under the
+        // sidebar instead of scaling down. `ideal` widths (unchanged) still
+        // drive the comfortable wide-window layout; the mins only bite when the
+        // pane is squeezed, and now they let it scale rather than clip.
         Table(model.sortedLibraryRows, selection: $selectedID, sortOrder: $model.librarySort) {
             TableColumn(L10n.string("Name"), value: \.name) { row in
                 nameCell(row)
             }
-            .width(min: 140, ideal: 200)
+            .width(min: 120, ideal: 200)
 
             TableColumn(L10n.string("Description"), value: \.summary) { row in
                 Text(row.summary).foregroundStyle(.secondary).lineLimit(1)
             }
-            .width(min: 160, ideal: 320)
+            .width(min: 88, ideal: 320)
 
             TableColumn(L10n.string("Version"), value: \.version) { row in
                 Text(row.version).foregroundStyle(.secondary).monospacedDigit()
             }
-            .width(min: 80, ideal: 120)
+            .width(min: 72, ideal: 120)
 
             TableColumn(L10n.string("Type"), value: \.kind.rawValue) { row in
                 KindPill(kind: row.kind)
             }
-            .width(min: 64, ideal: 80)
+            .width(min: 60, ideal: 80)
 
             TableColumn(L10n.string("Outdated"), value: \.outdatedRank) { row in
                 outdatedCell(row)
             }
-            .width(min: 56, ideal: 72)
+            .width(min: 48, ideal: 72)
         }
         .onChange(of: selectedID, openSelected)
     }
@@ -463,6 +555,13 @@ struct LibraryView: View {
                     }
                     if let badge = row.deprecation.badge {
                         DeprecationBadge(kind: badge, reason: row.deprecation.activeReason)
+                    }
+                    if row.pinned {
+                        // Pinned badge (#90) — held back from brew upgrade.
+                        Image(systemName: "pin.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .help(L10n.pinnedBadgeHelp)
                     }
                 }
                 if !row.friendlyName.isEmpty {

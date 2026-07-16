@@ -88,17 +88,29 @@ struct VulnsEnrichTests {
     }
 
     @Test func parseAdvisoryIgnoresUnknownFieldsAndMaps() {
+        // Fixture matches the REAL `GET /advisories/{id}` shape from
+        // api.github.com: `references` is an array of plain STRINGS, and
+        // `vulnerabilities[]` carries extra keys we ignore.
         let json = """
         {"summary":"boom","description":"details","severity":"high",
-         "references":[{"url":"https://example.com/x"}],
-         "vulnerabilities":[{"first_patched_version":"1.0.0"}],
+         "references":["https://example.com/x","https://example.com/y"],
+         "vulnerabilities":[{"first_patched_version":"1.0.0","package":{"name":"p"},"vulnerable_version_range":"< 1.0.0"}],
          "new_field_2027":{"nested":true}}
         """
         let adv = VulnsEnrich.parseAdvisory(Data(json.utf8))
         #expect(adv?.summary == "boom")
         #expect(adv?.description == "details")
-        #expect(adv?.references == ["https://example.com/x"])
+        #expect(adv?.references == ["https://example.com/x", "https://example.com/y"])
         #expect(adv?.firstPatchedVersion == "1.0.0")
+    }
+
+    @Test func parseAdvisoryReferencesAcceptStringAndObjectShapes() {
+        // Tolerate BOTH the real string-array shape and the object-array
+        // (`[{url}]`) shape so neither variant silently drops references.
+        let strings = VulnsEnrich.parseAdvisory(Data(#"{"references":["https://a/1"]}"#.utf8))
+        #expect(strings?.references == ["https://a/1"])
+        let objects = VulnsEnrich.parseAdvisory(Data(#"{"references":[{"url":"https://b/2"}]}"#.utf8))
+        #expect(objects?.references == ["https://b/2"])
     }
 
     @Test func parseAdvisoryPicksFirstNonEmptyPatchedVersion() {

@@ -1,0 +1,33 @@
+{
+  "id": "agentic-web-dev",
+  "name": "Agentic Web Dev",
+  "tagline": "Terminal-first AI coding with opencode, Zed, and a real local server",
+  "description": "A terminal-first, AI-assisted web development environment. opencode is an open, model-agnostic coding agent — it works with Anthropic, OpenAI, Google, local Ollama, and dozens more — planning and editing across your whole project from the terminal. Zed is a Rust-native editor that opens instantly with built-in AI; Node and pnpm run and build your app, Git tracks changes, Caddy serves it locally over HTTPS, and OrbStack runs databases and services in fast containers. An agent does the heavy lifting while you keep a fast editor and a real local server.",
+  "category": "Development",
+  "icon": "agentic",
+  "packages": [
+    { "name": "opencode", "kind": "formula" },
+    { "name": "zed", "kind": "cask" },
+    { "name": "node", "kind": "formula" },
+    { "name": "pnpm", "kind": "formula" },
+    { "name": "git", "kind": "formula" },
+    { "name": "caddy", "kind": "formula" },
+    { "name": "orbstack", "kind": "cask" }
+  ],
+  "tap": "anomalyco/tap",
+  "requires": { "minRamGB": 8, "recommendedRamGB": 16, "minDiskGB": 8, "arch": "apple-silicon", "gpu": "none" },
+  "setup": [
+    { "kind": "note", "text": "opencode needs a model/provider configured before first use — point it at Anthropic, OpenAI, Google, a local Ollama server, or any other supported provider." },
+    { "kind": "command", "run": "opencode auth login", "label": "Configure an opencode provider (you run this)", "external": true },
+    { "kind": "note", "text": "Caddy and OrbStack manage their own services — start Caddy from the Services tab and launch OrbStack to run containers." }
+  ],
+  "caveats": "opencode requires a configured model/provider (API key or a local Ollama) — no provider is bundled. OrbStack is macOS-only and best on Apple Silicon.",
+  "links": [
+    { "label": "opencode", "url": "https://opencode.ai" },
+    { "label": "Zed", "url": "https://zed.dev" },
+    { "label": "Caddy", "url": "https://caddyserver.com" },
+    { "label": "OrbStack", "url": "https://orbstack.dev" }
+  ],
+  "maintainer": "brew-browser",
+  "addedIn": "0.7.0"
+}

@@ -1,0 +1,31 @@
+{
+  "id": "image-gen",
+  "name": "Image Generation",
+  "tagline": "Local Stable Diffusion / Flux with ComfyUI",
+  "description": "Generate images locally with Stable Diffusion, SDXL, and Flux — no cloud, no per-image cost. Draw Things is the fast, no-terminal, Apple-Silicon-native starting point; ComfyUI is the node-based workbench for complex, repeatable pipelines. Together they cover both 'type a prompt and go' and 'build a custom multi-stage workflow.' Models are large downloads you fetch yourself.",
+  "category": "AI",
+  "icon": "image",
+  "packages": [
+    { "name": "draw-things", "kind": "cask" },
+    { "name": "comfy", "kind": "cask" }
+  ],
+  "requires": { "minRamGB": 16, "recommendedRamGB": 24, "minDiskGB": 30, "arch": "apple-silicon", "gpu": "required" },
+  "capabilityNotes": {
+    "16": "SDXL comfortably; Flux fp8 with offloading",
+    "24": "Flux fp8 comfortably",
+    "48": "Flux fp16"
+  },
+  "setup": [
+    { "kind": "note", "text": "Start with Draw Things for a no-terminal on-ramp; use ComfyUI when you need node-based pipelines. Either way you download checkpoint models yourself — they are NOT installed by brew (SDXL ~7 GB, Flux ~24 GB)." },
+    { "kind": "command", "run": "open -a \"Draw Things\"", "label": "Launch Draw Things (you run this)", "external": true },
+    { "kind": "command", "run": "open -a ComfyUI", "label": "Launch ComfyUI (you run this)", "external": true }
+  ],
+  "caveats": "Installs the apps only — models (Stable Diffusion, SDXL, Flux) are large downloads you fetch and manage yourself.",
+  "links": [
+    { "label": "Draw Things", "url": "https://drawthings.ai" },
+    { "label": "ComfyUI (GitHub)", "url": "https://github.com/comfyanonymous/ComfyUI" },
+    { "label": "comfy.org", "url": "https://www.comfy.org" }
+  ],
+  "maintainer": "brew-browser",
+  "addedIn": "0.7.0"
+}

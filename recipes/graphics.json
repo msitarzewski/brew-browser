@@ -1,0 +1,21 @@
+{
+  "id": "graphics",
+  "name": "Graphics & Design",
+  "tagline": "Vector, raster, and digital painting — Inkscape, GIMP, Krita",
+  "description": "A complete open-source creative suite — vector, raster, and digital painting in three focused tools. Inkscape handles scalable vector art and SVG; GIMP 3.0 covers photo editing and compositing; Krita is a painter's canvas built for illustration and concept art. A capable, zero-cost alternative to the Adobe trio for design, illustration, and image work.",
+  "category": "Graphics",
+  "icon": "palette",
+  "packages": [
+    { "name": "inkscape", "kind": "cask" },
+    { "name": "gimp", "kind": "cask" },
+    { "name": "krita", "kind": "cask" }
+  ],
+  "caveats": "Three full desktop apps (~2–3 GB combined). Runs on any supported Mac.",
+  "links": [
+    { "label": "Inkscape", "url": "https://inkscape.org" },
+    { "label": "GIMP", "url": "https://www.gimp.org" },
+    { "label": "Krita", "url": "https://krita.org" }
+  ],
+  "maintainer": "brew-browser",
+  "addedIn": "0.7.0"
+}

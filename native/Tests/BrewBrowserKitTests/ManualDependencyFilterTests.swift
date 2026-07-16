@@ -118,6 +118,33 @@ struct InstalledPackageOnRequestTests {
         #expect(byName["docker-desktop"]?.installedOnRequest == true)
     }
 
+    @Test func installedInfoV2ReadsPinnedForFormulaeAndCasks() throws {
+        // `brew info --installed --json=v2` exposes a top-level `pinned` bool on
+        // both formulae and casks; parseInstalledInfoV2 must surface it so the
+        // Library badge + honest update count work (#90). Absent = false.
+        let raw = """
+        {
+          "formulae": [
+            { "name": "php@8.4", "pinned": true,
+              "installed": [ { "version": "8.4.1", "installed_on_request": true } ] },
+            { "name": "wget",
+              "installed": [ { "version": "1.25.0", "installed_on_request": true } ] }
+          ],
+          "casks": [
+            { "token": "google-chrome", "version": "1.0", "installed": "1.0", "pinned": true },
+            { "token": "rectangle", "version": "0.84", "installed": "0.84" }
+          ]
+        }
+        """
+        let byName = Dictionary(uniqueKeysWithValues:
+            try BrewService.parseInstalledInfoV2(raw).map { ($0.name, $0) })
+
+        #expect(byName["php@8.4"]?.pinned == true)
+        #expect(byName["wget"]?.pinned == false)        // absent → false
+        #expect(byName["google-chrome"]?.pinned == true) // casks pin too
+        #expect(byName["rectangle"]?.pinned == false)
+    }
+
     @MainActor
     @Test func tapQualifiedTokensMatchBareInstalledPackage() {
         let m = AppModel()
@@ -175,6 +202,30 @@ struct ManualDependencyFilterTests {
         let names = Set(m.libraryRows.map(\.name))
         // openssl@3 + legacy-keg: formulae not on request. Casks excluded.
         #expect(names == ["openssl@3", "legacy-keg"])
+    }
+
+    @Test func outdatedFilterMatchesTapQualifiedOutdatedName() {
+        // Regression: `brew outdated` reports tap formulae fully-qualified
+        // (`shivammathur/php/php@8.4`) while `brew info --installed` — the Library
+        // row source — reports the bare token (`php@8.4`). The outdated filter
+        // must match through bareToken, else tap-installed packages get dropped
+        // from the filter + outdated dot (the "Swift shows 8, Tauri shows 9" bug).
+        let m = AppModel()
+        m.installed = [
+            InstalledPackage(name: "php@8.4", version: "8.4.20", kind: .formula, installedOnRequest: true),
+            InstalledPackage(name: "wget", version: "1.24", kind: .formula, installedOnRequest: true),
+        ]
+        m.outdated = [
+            OutdatedPackage(name: "shivammathur/php/php@8.4", installedVersion: "8.4.20",
+                            currentVersion: "8.4.23", kind: .formula),
+        ]
+        m.libraryFilter = .outdated
+        #expect(m.libraryRows.contains { $0.name == "php@8.4" })  // tap-qualified matched the bare token
+        #expect(m.libraryFilterCount(.outdated) == 1)
+        // A bare outdated name still matches (no regression for non-tap formulae).
+        m.outdated = [OutdatedPackage(name: "wget", installedVersion: "1.24",
+                                      currentVersion: "1.25", kind: .formula)]
+        #expect(m.libraryRows.map(\.name) == ["wget"])
     }
 
     @Test func bothTruePackageShowsManualNotDependency() {

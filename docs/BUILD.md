@@ -75,7 +75,7 @@ If notarization fails, the wrapper prints the notary log URL. Read it; the failu
 ### Verify the signed `.dmg`
 
 ```sh
-DMG=src-tauri/target/release/bundle/dmg/brew-browser_0.6.0_aarch64.dmg
+DMG=src-tauri/target/release/bundle/dmg/brew-browser_0.7.0_aarch64.dmg
 
 # Code signature
 codesign -dv --verbose=4 "$DMG"
@@ -163,7 +163,7 @@ The manifest itself is a small JSON file served from `https://brew-browser.zerol
 
 2. **Generate the updater manifest** with the version you just built:
    ```sh
-   tools/release/publish-manifest.sh 0.6.0
+   tools/release/publish-manifest.sh 0.7.0
    ```
 
    The script:
@@ -177,16 +177,16 @@ The manifest itself is a small JSON file served from `https://brew-browser.zerol
 3. **Upload the release artifacts to the GitHub Release.** Copy/rename each `brew-browser.app.tar.gz` to the versioned form referenced by the manifest:
    ```sh
    cp src-tauri/target/release/bundle/macos/brew-browser.app.tar.gz \
-      /tmp/brew-browser_0.6.0_aarch64.app.tar.gz
+      /tmp/brew-browser_0.7.0_aarch64.app.tar.gz
    cp src-tauri/target/x86_64-apple-darwin/release/bundle/macos/brew-browser.app.tar.gz \
-      /tmp/brew-browser_0.6.0_x64.app.tar.gz
+      /tmp/brew-browser_0.7.0_x64.app.tar.gz
 
-   gh release create v0.6.0 \
-     src-tauri/target/release/bundle/dmg/brew-browser_0.6.0_aarch64.dmg \
-     src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/brew-browser_0.6.0_x64.dmg \
-     /tmp/brew-browser_0.6.0_aarch64.app.tar.gz \
-     /tmp/brew-browser_0.6.0_x64.app.tar.gz \
-     --notes-file docs/release-notes/0.6.0.md
+   gh release create v0.7.0 \
+     src-tauri/target/release/bundle/dmg/brew-browser_0.7.0_aarch64.dmg \
+     src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/brew-browser_0.7.0_x64.dmg \
+     /tmp/brew-browser_0.7.0_aarch64.app.tar.gz \
+     /tmp/brew-browser_0.7.0_x64.app.tar.gz \
+     --notes-file docs/release-notes/0.7.0.md
    ```
    Use real files with the final URL names; `gh release upload file#label` changes the asset label, not the URL filename, and the updater manifest needs the URL filename to match exactly.
 
@@ -208,18 +208,18 @@ Tauri's updater plugin expects this shape. The script generates it for you — b
 
 ```json
 {
-  "version": "0.6.0",
-  "notes": "See https://github.com/msitarzewski/brew-browser/releases/tag/v0.6.0",
+  "version": "0.7.0",
+  "notes": "See https://github.com/msitarzewski/brew-browser/releases/tag/v0.7.0",
   "pub_date": "2026-06-13T18:00:00Z",
   "platforms": {
        "darwin-aarch64": {
           "signature": "<minisign signature, single-line base64>",
-          "url": "https://github.com/msitarzewski/brew-browser/releases/download/v0.6.0/brew-browser_0.6.0_aarch64.app.tar.gz",
+          "url": "https://github.com/msitarzewski/brew-browser/releases/download/v0.7.0/brew-browser_0.7.0_aarch64.app.tar.gz",
           "sha256": "<hex digest of the .app.tar.gz>"
         },
        "darwin-x86_64": {
           "signature": "<minisign signature, single-line base64>",
-          "url": "https://github.com/msitarzewski/brew-browser/releases/download/v0.6.0/brew-browser_0.6.0_x64.app.tar.gz",
+          "url": "https://github.com/msitarzewski/brew-browser/releases/download/v0.7.0/brew-browser_0.7.0_x64.app.tar.gz",
           "sha256": "<hex digest of the Intel .app.tar.gz>"
         }
   }

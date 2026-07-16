@@ -212,7 +212,7 @@ struct UpdatesCard: View {
                     Button {
                         Task { await model.upgradeAll(greedy: LocalPrefs.shared.greedyUpgrade) }
                     } label: {
-                        Label(L10n.isRussian ? "Обновить всё (\(model.outdatedCount))" : "Upgrade all (\(model.outdatedCount))", systemImage: "arrow.up.circle")
+                        Label(L10n.upgradeAllButton(model.outdatedCount), systemImage: "arrow.up.circle")
                     }
                     .controlSize(.small)
                     .buttonStyle(.borderedProminent)

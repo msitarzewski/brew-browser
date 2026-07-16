@@ -177,6 +177,23 @@ pub struct Settings {
     /// no cookies. Paranoid mode overrides this regardless.
     #[serde(default)]
     pub live_enrichment_enabled: bool,
+
+    /// Opt-in *live* refresh of the curated **Bundles** recipe set. When
+    /// **false** (default), the app uses only the bundled `bundles.json` baked
+    /// in at build time — no network. When **true**, it fetches the latest
+    /// `bundles.json` from `brew-browser.zerologic.com/bundles/bundles.json`
+    /// (one static-file GET) and replaces the in-memory list on a non-empty
+    /// success. Any error — 404 (the endpoint may not exist yet), network,
+    /// parse, empty payload, or a newer-than-supported schema — falls back
+    /// silently to the bundled copy.
+    ///
+    /// Same first-party host + trust boundary as Live enrichment / Enhanced
+    /// Trending (`brew-browser.zerologic.com`), a new `…/bundles/*` path. No
+    /// package names are sent (unlike enrichment's per-token GETs) — it's a
+    /// single static file. Paranoid mode / Offline Mode overrides this
+    /// regardless. Shared settings key with the native shell (`liveBundlesEnabled`).
+    #[serde(default)]
+    pub live_bundles_enabled: bool,
 }
 
 /// Default factory for [`Settings::ai_features_enabled`] — separated
@@ -224,6 +241,10 @@ impl Default for Settings {
             // enrichment baseline and contacts brew-browser.zerologic.com/
             // enrichment/* only when the user opts in via Settings → Network.
             live_enrichment_enabled: false,
+            // Off by default per v0.7.0 plan: the six curated bundles ship
+            // baked in and always work offline; brew-browser.zerologic.com/
+            // bundles/* is contacted only when the user opts in.
+            live_bundles_enabled: false,
         }
     }
 }
@@ -647,6 +668,7 @@ mod tests {
             enhanced_trending_enabled: true,
             vulnerability_scanning_enabled: true,
             live_enrichment_enabled: true,
+            live_bundles_enabled: true,
         };
         let written = persist(tmp.path(), s.clone()).await.expect("persist");
         assert_eq!(written, s);
@@ -708,6 +730,7 @@ mod tests {
             enhanced_trending_enabled: false,
             vulnerability_scanning_enabled: false,
             live_enrichment_enabled: false,
+            live_bundles_enabled: false,
         };
         let written = persist(tmp.path(), s).await.expect("persist");
         assert_eq!(

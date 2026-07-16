@@ -1,0 +1,26 @@
+{
+  "id": "media",
+  "name": "Media Toolkit",
+  "tagline": "Transcode, download, and play — ffmpeg, yt-dlp, mpv",
+  "description": "A complete command-line media pipeline. FFmpeg transcodes and streams virtually any format, yt-dlp downloads audio and video from thousands of sites, and mpv plays it all with scriptable precision. HandBrake adds one-command, preset-based encoding (like 'Fast 1080p30') when you don't want to hand-write ffmpeg filter graphs. Lightweight and runs on any Mac or Linux box.",
+  "category": "Media",
+  "icon": "clapperboard",
+  "packages": [
+    { "name": "ffmpeg", "kind": "formula" },
+    { "name": "yt-dlp", "kind": "formula" },
+    { "name": "mpv", "kind": "formula" },
+    { "name": "handbrake", "kind": "formula" }
+  ],
+  "setup": [
+    { "kind": "command", "run": "ffmpeg -version", "label": "Verify ffmpeg (you run this)", "external": true }
+  ],
+  "caveats": "Command-line tools. Lightweight; runs on any supported Mac or Linux.",
+  "links": [
+    { "label": "FFmpeg", "url": "https://ffmpeg.org" },
+    { "label": "yt-dlp", "url": "https://github.com/yt-dlp/yt-dlp" },
+    { "label": "mpv", "url": "https://mpv.io" },
+    { "label": "HandBrake", "url": "https://handbrake.fr" }
+  ],
+  "maintainer": "brew-browser",
+  "addedIn": "0.7.0"
+}

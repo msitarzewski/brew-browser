@@ -1,0 +1,26 @@
+{
+  "id": "web-dev",
+  "name": "Web Dev Starter",
+  "tagline": "Node.js + pnpm — the modern JS toolchain",
+  "description": "Everything you need to clone a repo, install dependencies, and push your first commit — the modern JavaScript baseline. Node.js is the safe-default runtime and pnpm is the fast, disk-efficient package manager; Git and the GitHub CLI cover version control, pull requests, and Actions from the terminal. For an AI-assisted, agent-driven setup, see the Agentic Web Dev bundle.",
+  "category": "Development",
+  "icon": "code",
+  "packages": [
+    { "name": "node", "kind": "formula" },
+    { "name": "pnpm", "kind": "formula" },
+    { "name": "git", "kind": "formula" },
+    { "name": "gh", "kind": "formula" }
+  ],
+  "setup": [
+    { "kind": "command", "run": "node -v && pnpm -v && git -v && gh --version", "label": "Verify the toolchain (you run this)", "external": true }
+  ],
+  "caveats": "Installs the runtimes; project dependencies are per-project (pnpm install).",
+  "links": [
+    { "label": "Node.js", "url": "https://nodejs.org" },
+    { "label": "pnpm", "url": "https://pnpm.io" },
+    { "label": "Git", "url": "https://git-scm.com" },
+    { "label": "GitHub CLI", "url": "https://cli.github.com" }
+  ],
+  "maintainer": "brew-browser",
+  "addedIn": "0.7.0"
+}

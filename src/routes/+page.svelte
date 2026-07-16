@@ -9,8 +9,10 @@
   import Snapshots from "$lib/components/Snapshots.svelte";
   import Services from "$lib/components/Services.svelte";
   import ActivityHistory from "$lib/components/ActivityHistory.svelte";
+  import Bundles from "$lib/components/Bundles.svelte";
   import OnboardingView from "$lib/components/OnboardingView.svelte";
   import PackageDetail from "$lib/components/PackageDetail.svelte";
+  import BundleDetailPane from "$lib/components/BundleDetailPane.svelte";
   import ResizeHandle from "$lib/components/ResizeHandle.svelte";
   import ActivityDrawer from "$lib/components/ActivityDrawer.svelte";
   import CommandPalette from "$lib/components/CommandPalette.svelte";
@@ -24,7 +26,13 @@
   import PanelLeftOpen from "@lucide/svelte/icons/panel-left-open";
 
   import { ui } from "$lib/stores/ui.svelte";
-  import { DETAIL_PANE_MIN_WIDTH, DETAIL_PANE_DEFAULT_WIDTH, clampDetailPaneWidth } from "$lib/stores/ui.svelte";
+  import {
+    ACTIVITY_DRAWER_MIN_HEIGHT,
+    DETAIL_PANE_MIN_WIDTH,
+    DETAIL_PANE_DEFAULT_WIDTH,
+    clampActivityDrawerHeight,
+    clampDetailPaneWidth,
+  } from "$lib/stores/ui.svelte";
   import { env } from "$lib/stores/env.svelte";
   import { packages } from "$lib/stores/packages.svelte";
   import { brewfiles } from "$lib/stores/brewfiles.svelte";
@@ -80,8 +88,8 @@
       return;
     }
 
-    // Cmd+0..6: section nav (0 = dashboard / home)
-    if (meta && ["0","1","2","3","4","5","6"].includes(e.key)) {
+    // Cmd+0..7: section nav (0 = dashboard / home)
+    if (meta && ["0","1","2","3","4","5","6","7"].includes(e.key)) {
       e.preventDefault();
       const map: Record<string, SidebarSection> = {
         "0": "dashboard",
@@ -91,6 +99,7 @@
         "4": "snapshots",
         "5": "services",
         "6": "activity",
+        "7": "bundles",
       };
       ui.setSection(map[e.key]);
       return;
@@ -134,15 +143,23 @@
   // valid width gets clamped back into range if the user shrinks the window.
   let windowWidth = $state(typeof window === "undefined" ? 1100 : window.innerWidth);
   let detailPaneMax = $derived(Math.max(DETAIL_PANE_MIN_WIDTH, Math.floor(windowWidth * 0.6)));
+  let windowHeight = $state(typeof window === "undefined" ? 720 : window.innerHeight);
+  let drawerMax = $derived(Math.max(ACTIVITY_DRAWER_MIN_HEIGHT, Math.floor(windowHeight * 0.6)));
 
   onMount(() => {
     window.addEventListener("keydown", onKeydown);
+    windowWidth = window.innerWidth;
+    windowHeight = window.innerHeight;
     ui.loadDetailPaneWidthFromStorage();
+    ui.loadActivityDrawerHeightFromStorage();
     const onResize = () => {
       windowWidth = window.innerWidth;
+      windowHeight = window.innerHeight;
       // Re-clamp current width against the new window dimensions.
       const clamped = clampDetailPaneWidth(ui.detailPaneWidth);
       if (clamped !== ui.detailPaneWidth) ui.setDetailPaneWidth(clamped);
+      const clampedDrawerHeight = clampActivityDrawerHeight(ui.drawerHeight);
+      if (clampedDrawerHeight !== ui.drawerHeight) ui.setActivityDrawerHeight(clampedDrawerHeight);
     };
     window.addEventListener("resize", onResize);
     return () => {
@@ -214,16 +231,18 @@
               <Services />
             {:else if ui.section === "activity"}
               <ActivityHistory />
+            {:else if ui.section === "bundles"}
+              <Bundles />
             {/if}
           </div>
         {/key}
       </main>
       {#if ui.selectedPackage}
         <ResizeHandle
-          width={ui.detailPaneWidth}
+          size={ui.detailPaneWidth}
           min={DETAIL_PANE_MIN_WIDTH}
           max={detailPaneMax}
-          defaultWidth={DETAIL_PANE_DEFAULT_WIDTH}
+          defaultSize={DETAIL_PANE_DEFAULT_WIDTH}
           direction="left"
           label={t("Resize package detail panel", ui.locale)}
           onChange={(w) => (ui.detailPaneWidth = w)}
@@ -231,9 +250,25 @@
         />
         <PackageDetail />
       {/if}
+      {#if ui.selectedBundle}
+        <!-- Bundles Details pane — same ResizeHandle wiring as the package
+             branch above. The two panes are mutually exclusive by section
+             (setSection nulls both), so only one ever renders. -->
+        <ResizeHandle
+          size={ui.detailPaneWidth}
+          min={DETAIL_PANE_MIN_WIDTH}
+          max={detailPaneMax}
+          defaultSize={DETAIL_PANE_DEFAULT_WIDTH}
+          direction="left"
+          label="Resize bundle detail panel"
+          onChange={(w) => (ui.detailPaneWidth = w)}
+          onCommit={(w) => ui.setDetailPaneWidth(w)}
+        />
+        <BundleDetailPane />
+      {/if}
     {/if}
   </div>
-  <ActivityDrawer />
+  <ActivityDrawer maxHeight={drawerMax} />
   <CommandPalette />
   <Settings />
   <AboutModal />

@@ -20,6 +20,14 @@ struct InstalledPackage: Identifiable, Hashable, Sendable {
     /// `list --versions` constructors stay valid before tagging. Feature #3.
     var installedOnRequest: Bool = false
 
+    /// Whether brew has this package pinned (`brew pin`) — held back from
+    /// `brew upgrade` (including `--greedy`). Read from the top-level `pinned`
+    /// flag in `brew info --installed --json=v2` (both formulae and casks carry
+    /// it in current Homebrew). Drives the Library "Pinned" badge and keeps a
+    /// pinned package out of the honest "updates available" count (#90).
+    /// Defaults `false` so the lightweight nav constructors stay valid.
+    var pinned: Bool = false
+
     enum Kind: String, Sendable { case formula, cask }
 }
 
@@ -33,9 +41,10 @@ struct OutdatedPackage: Identifiable, Hashable, Sendable {
     /// formula vs cask — taken from the `brew outdated --json=v2` array the row
     /// came from, so the Dashboard pill + detail open use the right kind.
     let kind: InstalledPackage.Kind
-    /// `pinned` from `brew outdated --json=v2` (formulae only; casks can't be
-    /// pinned). Pinned formulae are excluded from the curated upgrade sheet
-    /// because brew refuses to upgrade them. Mirrors the Tauri `Package.pinned`.
+    /// `pinned` from `brew outdated --json=v2` (both formulae and casks in
+    /// current Homebrew). `brew outdated --json` still *lists* pinned packages
+    /// with `pinned: true`, so they're excluded from the curated upgrade sheet
+    /// and the honest update count (#90). Mirrors the Tauri `Package.pinned`.
     var pinned: Bool = false
 }
 
@@ -166,6 +175,35 @@ enum BrewArgs {
         if zap && kind == .cask { args.append("--zap") }
         if ignoreDependencies { args.append("--ignore-dependencies") }
         return args
+    }
+
+    /// `brew pin [--cask] <name>` / `brew unpin [--cask] <name>`. Pinning holds
+    /// a package back from `brew upgrade` (including `--greedy`) — the in-app
+    /// "stop nagging me about this one" hold for #90/#134. Current Homebrew
+    /// pins both formulae and casks, so the `--cask` flag disambiguates a name
+    /// that exists as both. `pinned == true` pins; `false` unpins.
+    static func setPinned(_ name: String, kind: InstalledPackage.Kind, pinned: Bool) -> [String] {
+        var args = [pinned ? "pin" : "unpin"]
+        if kind == .cask { args.append("--cask") }
+        args.append(name)
+        return args
+    }
+
+    /// Argv groups for a bundle "Install all" (M3). brew rejects mixing
+    /// `--formula` and `--cask` in one invocation ("Options --cask and
+    /// --formulae are mutually exclusive"), but takes many same-kind names at
+    /// once — so we emit at most two groups: `["install","--formula",f1,f2,…]`
+    /// then `["install","--cask",c1,c2,…]`. A group is omitted when it has no
+    /// members (formulae-only bundles → one group; empty input → no groups).
+    /// Each group is run as its own streaming Activity job by
+    /// `AppModel.installBundle(_:)`. Input order is preserved within each kind.
+    static func installBundle(_ packages: [BundlePackage]) -> [[String]] {
+        let formulae = packages.filter { $0.kind != "cask" }.map(\.name)
+        let casks    = packages.filter { $0.kind == "cask" }.map(\.name)
+        var groups: [[String]] = []
+        if !formulae.isEmpty { groups.append(["install", "--formula"] + formulae) }
+        if !casks.isEmpty    { groups.append(["install", "--cask"] + casks) }
+        return groups
     }
 }
 
@@ -423,7 +461,9 @@ struct BrewService: Sendable {
                 ?? ((o["versions"] as? [String: Any])?["stable"] as? String)
                 ?? "—"
             let onRequest = first?["installed_on_request"] as? Bool ?? false
-            return InstalledPackage(name: name, version: version, kind: .formula, installedOnRequest: onRequest)
+            let pinned = o["pinned"] as? Bool ?? false
+            return InstalledPackage(name: name, version: version, kind: .formula,
+                                    installedOnRequest: onRequest, pinned: pinned)
         }
 
         let casks = (root["casks"] as? [[String: Any]] ?? []).compactMap { o -> InstalledPackage? in
@@ -432,7 +472,9 @@ struct BrewService: Sendable {
             let version = installed
                 ?? o["version"] as? String
                 ?? "—"
-            return InstalledPackage(name: token, version: version, kind: .cask, installedOnRequest: true)
+            let pinned = o["pinned"] as? Bool ?? false
+            return InstalledPackage(name: token, version: version, kind: .cask,
+                                    installedOnRequest: true, pinned: pinned)
         }
 
         return (formulae + casks)
@@ -491,9 +533,6 @@ struct BrewService: Sendable {
             return p
         }
     }
-
-    /// Pinned formulae (held back from upgrade). Mirrors the "N pinned" chip.
-    func countPinned() async throws -> Int { try await lineCount(["list", "--pinned"]) }
 
     /// Count of running brew services (`brew services list`, status "started"/
     /// "scheduled"). Powers the Services sidebar badge. Best-effort: 0 on error.
@@ -783,7 +822,10 @@ extension BrewService {
             tap: o["tap"] as? String,
             caveats: o["caveats"] as? String,
             outdated: o["outdated"] as? Bool ?? false,
-            pinned: false,
+            // Casks pin too in current Homebrew — read the real flag rather
+            // than hardcoding false, so the detail Pin/Unpin button reflects
+            // actual state (#90).
+            pinned: o["pinned"] as? Bool ?? false,
             dependencies: [],
             buildDependencies: [],
             conflictsWith: [],
@@ -810,6 +852,13 @@ extension BrewService {
         if kind == .cask { args.append("--cask") }
         args.append(name)
         _ = try await runCapture(args)
+    }
+
+    /// `brew pin`/`unpin [--cask] <name>` — runs to completion, throws on
+    /// failure. Instant metadata flip (no streaming), so it goes through
+    /// `runCapture` like the other short write commands (#90).
+    func setPinned(_ name: String, kind: InstalledPackage.Kind, pinned: Bool) async throws {
+        _ = try await runCapture(BrewArgs.setPinned(name, kind: kind, pinned: pinned))
     }
 
     // MARK: - Homebrew analytics (Settings → Brew)

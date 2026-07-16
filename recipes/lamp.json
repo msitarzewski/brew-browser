@@ -1,0 +1,28 @@
+{
+  "id": "lamp",
+  "name": "LAMP Stack",
+  "tagline": "Apache, MySQL, and PHP — the classic web server stack",
+  "description": "The classic web development stack: Apache serves your site, MySQL stores your data, and PHP runs your application code. It's the backbone of WordPress, Drupal, Laravel, and countless server-rendered apps — install all three as background services and you have a full local web server in one step. Best for PHP developers and anyone running or learning traditional web apps.",
+  "category": "Development",
+  "icon": "server",
+  "packages": [
+    { "name": "httpd", "kind": "formula" },
+    { "name": "mysql", "kind": "formula" },
+    { "name": "php", "kind": "formula" }
+  ],
+  "requires": { "minRamGB": 4, "recommendedRamGB": 8, "minDiskGB": 5, "arch": "any", "gpu": "none" },
+  "setup": [
+    { "kind": "service", "service": "httpd", "label": "Start Apache (httpd)" },
+    { "kind": "service", "service": "mysql", "label": "Start MySQL" },
+    { "kind": "command", "run": "mysql_secure_installation", "label": "Secure your MySQL install (you run this)", "external": true },
+    { "kind": "note", "text": "Enable PHP in Apache: add the PHP module to httpd.conf (LoadModule php_module …) and set a PHP handler, then restart Apache. See the PHP + Apache docs below." }
+  ],
+  "caveats": "Apache and MySQL run as background services on your machine. PHP is wired into Apache via httpd.conf manually — follow the setup steps.",
+  "links": [
+    { "label": "Apache HTTP Server docs", "url": "https://httpd.apache.org/docs/" },
+    { "label": "PHP docs", "url": "https://www.php.net/docs.php" },
+    { "label": "MySQL docs", "url": "https://dev.mysql.com/doc/" }
+  ],
+  "maintainer": "brew-browser",
+  "addedIn": "0.7.0"
+}

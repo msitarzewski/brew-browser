@@ -5,18 +5,22 @@
 //! in `commands::*`.
 
 mod brew;
+mod bundles_live;
 mod catalog;
 mod commands;
 mod enrichment;
 mod error;
 mod github;
 mod state;
+mod system;
 mod trending;
 mod types;
 mod util;
 mod vulns;
 
+use bundles_live::bundles_live;
 use commands::*;
+use system::profile::system_profile;
 
 // =============================================================
 // Phase 15 — Updater minisign public key
@@ -181,6 +185,7 @@ pub fn run() {
             brew_doctor_stream,
             brew_cleanup,
             brew_autoremove,
+            brew_set_pinned,
             cancel_job,
             brewfile_dump,
             brewfile_install,
@@ -240,6 +245,10 @@ pub fn run() {
             vulns_scan_one,
             vulns_install_helper,
             vulns_invalidate,
+            system_profile,
+            bundles,
+            brew_install_bundle,
+            bundles_live,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

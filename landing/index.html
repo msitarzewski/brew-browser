@@ -69,7 +69,7 @@
     "operatingSystem": "macOS 13+",
     "url": "https://brew-browser.zerologic.com/",
     "downloadUrl": "https://github.com/msitarzewski/brew-browser/releases/latest",
-    "softwareVersion": "0.5.0",
+    "softwareVersion": "0.7.1",
     "license": "https://opensource.org/licenses/MIT",
     "author": {
       "@type": "Person",
@@ -107,18 +107,34 @@
 
     <section class="section section-shots">
       <figure class="hero-shot">
-        <img src="/screenshots/dashboard-tauri.png" alt="Brew Browser — Tauri build, Dashboard (dark): 331 installed packages, 31 updates available, composition pie, top-categories donut, exposure card, and storage usage." loading="lazy">
+        <img src="/screenshots/dashboard-tauri.png" alt="Brew Browser — Tauri build, Dashboard (dark): 347 installed packages, 19 updates available, composition pie, top-categories donut, exposure card, and storage usage." loading="lazy">
         <figcaption>Tauri build — macOS 13+ &amp; Linux</figcaption>
       </figure>
       <figure class="hero-shot">
-        <img src="/screenshots/dashboard-native.png" alt="Brew Browser — native Swift/SwiftUI build, Dashboard (dark): the same data in a fully native macOS 26 interface." loading="lazy">
+        <img src="/screenshots/dashboard-native.png" alt="Brew Browser — native Swift/SwiftUI build, Dashboard (dark): 347 installed packages, 16 updates available, the same data in a fully native macOS 26 interface." loading="lazy">
         <figcaption>Native build — Swift / SwiftUI, macOS 26</figcaption>
+      </figure>
+    </section>
+
+    <section class="section section-shots">
+      <figure class="hero-shot">
+        <img src="/screenshots/bundles-tauri.png" alt="Brew Browser — Tauri build, Bundles (dark): the LAMP Stack bundle open in the master list and Details pane, showing its packages, caveats, setup steps, and reference links." loading="lazy">
+        <figcaption>Bundles, Tauri build — macOS 13+ &amp; Linux</figcaption>
+      </figure>
+      <figure class="hero-shot">
+        <img src="/screenshots/bundles-native.png" alt="Brew Browser — native Swift/SwiftUI build, Bundles (dark): the Web Dev Starter bundle with per-package Install actions, in a fully native macOS 26 interface." loading="lazy">
+        <figcaption>Bundles, Native build — Swift / SwiftUI, macOS 26</figcaption>
       </figure>
     </section>
 
     <section class="section">
       <h2>What it does</h2>
       <div class="features">
+
+        <div class="feature">
+          <h3>Bundles</h3>
+          <p>Curated one-click package stacks — Local LLMs, Image Generation, Web Dev Starter, Local Databases, LAMP, LEMP, and more. Nine recipes at launch, every token verified against <code>brew info</code> with zero third-party taps. A zero-install system profile (RAM, GPU, disk) gates each stack to what your Mac can actually run; brew-native install steps stream live while external commands are copy-only. Recipes are validated JSON anyone can contribute against a published contract.</p>
+        </div>
 
         <div class="feature">
           <h3>Dashboard</h3>

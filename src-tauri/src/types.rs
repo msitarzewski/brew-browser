@@ -508,6 +508,115 @@ pub struct TrendingHistoryIndexEntry {
     pub sparkline: Vec<u64>,
 }
 
+// ---------- Bundles (0.7.0 curated recipes) ----------
+//
+// Mirrors `recipes/recipe.schema.json` and the generated `bundles.json`.
+// Every field carries `#[serde(default)]` so the decode is tolerant and
+// forward-compatible: a recipe authored against a newer schema (extra
+// fields, or omitting an optional one) still parses on an older binary —
+// unknown fields are ignored, missing ones fall back to their default.
+//
+// The TS mirror lives in `src/lib/types.ts`.
+
+/// Host requirements a bundle declares. `BundleReadiness`/`readiness()`
+/// (M1, client-side) gates install against the probed `SystemProfile`.
+/// Mirrors the TS `BundleRequires` added in M1.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct BundleRequires {
+    // Explicit renames: camelCase would yield `minRamGb`, but the contract
+    // (and the M1 TS type) keep the upper-case "GB".
+    #[serde(rename = "minRamGB")]
+    pub min_ram_gb: u32,
+    #[serde(rename = "recommendedRamGB")]
+    pub recommended_ram_gb: u32,
+    #[serde(rename = "minDiskGB")]
+    pub min_disk_gb: u32,
+    /// `"any" | "apple-silicon" | "intel" | "linux"`.
+    pub arch: String,
+    /// `"none" | "preferred" | "required"`.
+    pub gpu: String,
+}
+
+impl Default for BundleRequires {
+    fn default() -> Self {
+        BundleRequires {
+            min_ram_gb: 0,
+            recommended_ram_gb: 0,
+            min_disk_gb: 0,
+            arch: "any".to_string(),
+            gpu: "none".to_string(),
+        }
+    }
+}
+
+/// One package in a bundle. `kind` is `"formula" | "cask"` as a plain string
+/// (not the `PackageKind` enum) so an unexpected value in a live-refreshed
+/// recipe degrades gracefully instead of failing the whole decode.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct BundlePackage {
+    pub name: String,
+    pub kind: String,
+}
+
+/// A post-install setup step. The relevant fields depend on `kind`
+/// (`service`/`open`/`reveal`/`command`/`note`); all are optional so a step
+/// only carries what it needs.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct SetupStep {
+    pub kind: String,
+    pub service: Option<String>,
+    pub label: Option<String>,
+    pub url: Option<String>,
+    pub path: Option<String>,
+    pub run: Option<String>,
+    pub external: Option<bool>,
+    pub text: Option<String>,
+}
+
+/// An external reference link (docs, homepage, source).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct BundleLink {
+    pub label: String,
+    pub url: String,
+}
+
+/// A curated bundle recipe. See `recipes/recipe.schema.json` for the authoring
+/// contract; `capability_notes` maps a RAM-tier (integer-as-string key) to a
+/// human note the readiness gate surfaces.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Bundle {
+    pub id: String,
+    pub name: String,
+    pub tagline: String,
+    /// Longer intent paragraph shown under the tagline in the detail pane.
+    /// Optional; distinct from `tagline` (short) and `caveats` (warning).
+    pub description: Option<String>,
+    pub category: String,
+    pub icon: Option<String>,
+    pub packages: Vec<BundlePackage>,
+    pub tap: Option<String>,
+    pub requires: Option<BundleRequires>,
+    pub capability_notes: std::collections::HashMap<String, String>,
+    pub setup: Vec<SetupStep>,
+    pub caveats: Option<String>,
+    pub links: Vec<BundleLink>,
+    pub maintainer: Option<String>,
+    pub added_in: Option<String>,
+}
+
+/// Root shape of the bundled/generated `bundles.json`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct BundlesFile {
+    pub schema_version: u32,
+    pub bundles: Vec<Bundle>,
+}
+
 // ---------- Tests ----------
 
 #[cfg(test)]

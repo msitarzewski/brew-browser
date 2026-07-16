@@ -1,0 +1,571 @@
+{
+  "schemaVersion": 1,
+  "bundles": [
+    {
+      "id": "agentic-web-dev",
+      "name": "Agentic Web Dev",
+      "tagline": "Terminal-first AI coding with opencode, Zed, and a real local server",
+      "description": "A terminal-first, AI-assisted web development environment. opencode is an open, model-agnostic coding agent — it works with Anthropic, OpenAI, Google, local Ollama, and dozens more — planning and editing across your whole project from the terminal. Zed is a Rust-native editor that opens instantly with built-in AI; Node and pnpm run and build your app, Git tracks changes, Caddy serves it locally over HTTPS, and OrbStack runs databases and services in fast containers. An agent does the heavy lifting while you keep a fast editor and a real local server.",
+      "category": "Development",
+      "icon": "agentic",
+      "packages": [
+        {
+          "name": "opencode",
+          "kind": "formula"
+        },
+        {
+          "name": "zed",
+          "kind": "cask"
+        },
+        {
+          "name": "node",
+          "kind": "formula"
+        },
+        {
+          "name": "pnpm",
+          "kind": "formula"
+        },
+        {
+          "name": "git",
+          "kind": "formula"
+        },
+        {
+          "name": "caddy",
+          "kind": "formula"
+        },
+        {
+          "name": "orbstack",
+          "kind": "cask"
+        }
+      ],
+      "tap": "anomalyco/tap",
+      "requires": {
+        "minRamGB": 8,
+        "recommendedRamGB": 16,
+        "minDiskGB": 8,
+        "arch": "apple-silicon",
+        "gpu": "none"
+      },
+      "setup": [
+        {
+          "kind": "note",
+          "text": "opencode needs a model/provider configured before first use — point it at Anthropic, OpenAI, Google, a local Ollama server, or any other supported provider."
+        },
+        {
+          "kind": "command",
+          "run": "opencode auth login",
+          "label": "Configure an opencode provider (you run this)",
+          "external": true
+        },
+        {
+          "kind": "note",
+          "text": "Caddy and OrbStack manage their own services — start Caddy from the Services tab and launch OrbStack to run containers."
+        }
+      ],
+      "caveats": "opencode requires a configured model/provider (API key or a local Ollama) — no provider is bundled. OrbStack is macOS-only and best on Apple Silicon.",
+      "links": [
+        {
+          "label": "opencode",
+          "url": "https://opencode.ai"
+        },
+        {
+          "label": "Zed",
+          "url": "https://zed.dev"
+        },
+        {
+          "label": "Caddy",
+          "url": "https://caddyserver.com"
+        },
+        {
+          "label": "OrbStack",
+          "url": "https://orbstack.dev"
+        }
+      ],
+      "maintainer": "brew-browser",
+      "addedIn": "0.7.0"
+    },
+    {
+      "id": "databases",
+      "name": "Local Databases",
+      "tagline": "PostgreSQL + Redis, managed as services",
+      "description": "A local relational + cache stack managed as background services. PostgreSQL is the default production-grade SQL database; Redis handles caching, queues, and sessions. Bundled GUI clients — TablePlus (Mac-native polish) and DBeaver (free and cross-platform) — let you browse tables, run queries, and inspect keys without living in the terminal. Start and stop the services from the Services tab; data grows on disk over time.",
+      "category": "Data",
+      "icon": "database",
+      "packages": [
+        {
+          "name": "postgresql@16",
+          "kind": "formula"
+        },
+        {
+          "name": "redis",
+          "kind": "formula"
+        },
+        {
+          "name": "tableplus",
+          "kind": "cask"
+        },
+        {
+          "name": "dbeaver-community",
+          "kind": "cask"
+        }
+      ],
+      "requires": {
+        "minRamGB": 4,
+        "recommendedRamGB": 8,
+        "minDiskGB": 5,
+        "arch": "any",
+        "gpu": "none"
+      },
+      "setup": [
+        {
+          "kind": "service",
+          "service": "postgresql@16",
+          "label": "Start PostgreSQL"
+        },
+        {
+          "kind": "service",
+          "service": "redis",
+          "label": "Start Redis"
+        }
+      ],
+      "caveats": "Databases grow with your data. Manage start/stop from the Services tab.",
+      "links": [
+        {
+          "label": "PostgreSQL",
+          "url": "https://www.postgresql.org"
+        },
+        {
+          "label": "Redis",
+          "url": "https://redis.io"
+        },
+        {
+          "label": "TablePlus",
+          "url": "https://tableplus.com"
+        },
+        {
+          "label": "DBeaver",
+          "url": "https://dbeaver.io"
+        }
+      ],
+      "maintainer": "brew-browser",
+      "addedIn": "0.7.0"
+    },
+    {
+      "id": "graphics",
+      "name": "Graphics & Design",
+      "tagline": "Vector, raster, and digital painting — Inkscape, GIMP, Krita",
+      "description": "A complete open-source creative suite — vector, raster, and digital painting in three focused tools. Inkscape handles scalable vector art and SVG; GIMP 3.0 covers photo editing and compositing; Krita is a painter's canvas built for illustration and concept art. A capable, zero-cost alternative to the Adobe trio for design, illustration, and image work.",
+      "category": "Graphics",
+      "icon": "palette",
+      "packages": [
+        {
+          "name": "inkscape",
+          "kind": "cask"
+        },
+        {
+          "name": "gimp",
+          "kind": "cask"
+        },
+        {
+          "name": "krita",
+          "kind": "cask"
+        }
+      ],
+      "caveats": "Three full desktop apps (~2–3 GB combined). Runs on any supported Mac.",
+      "links": [
+        {
+          "label": "Inkscape",
+          "url": "https://inkscape.org"
+        },
+        {
+          "label": "GIMP",
+          "url": "https://www.gimp.org"
+        },
+        {
+          "label": "Krita",
+          "url": "https://krita.org"
+        }
+      ],
+      "maintainer": "brew-browser",
+      "addedIn": "0.7.0"
+    },
+    {
+      "id": "image-gen",
+      "name": "Image Generation",
+      "tagline": "Local Stable Diffusion / Flux with ComfyUI",
+      "description": "Generate images locally with Stable Diffusion, SDXL, and Flux — no cloud, no per-image cost. Draw Things is the fast, no-terminal, Apple-Silicon-native starting point; ComfyUI is the node-based workbench for complex, repeatable pipelines. Together they cover both 'type a prompt and go' and 'build a custom multi-stage workflow.' Models are large downloads you fetch yourself.",
+      "category": "AI",
+      "icon": "image",
+      "packages": [
+        {
+          "name": "draw-things",
+          "kind": "cask"
+        },
+        {
+          "name": "comfy",
+          "kind": "cask"
+        }
+      ],
+      "requires": {
+        "minRamGB": 16,
+        "recommendedRamGB": 24,
+        "minDiskGB": 30,
+        "arch": "apple-silicon",
+        "gpu": "required"
+      },
+      "capabilityNotes": {
+        "16": "SDXL comfortably; Flux fp8 with offloading",
+        "24": "Flux fp8 comfortably",
+        "48": "Flux fp16"
+      },
+      "setup": [
+        {
+          "kind": "note",
+          "text": "Start with Draw Things for a no-terminal on-ramp; use ComfyUI when you need node-based pipelines. Either way you download checkpoint models yourself — they are NOT installed by brew (SDXL ~7 GB, Flux ~24 GB)."
+        },
+        {
+          "kind": "command",
+          "run": "open -a \"Draw Things\"",
+          "label": "Launch Draw Things (you run this)",
+          "external": true
+        },
+        {
+          "kind": "command",
+          "run": "open -a ComfyUI",
+          "label": "Launch ComfyUI (you run this)",
+          "external": true
+        }
+      ],
+      "caveats": "Installs the apps only — models (Stable Diffusion, SDXL, Flux) are large downloads you fetch and manage yourself.",
+      "links": [
+        {
+          "label": "Draw Things",
+          "url": "https://drawthings.ai"
+        },
+        {
+          "label": "ComfyUI (GitHub)",
+          "url": "https://github.com/comfyanonymous/ComfyUI"
+        },
+        {
+          "label": "comfy.org",
+          "url": "https://www.comfy.org"
+        }
+      ],
+      "maintainer": "brew-browser",
+      "addedIn": "0.7.0"
+    },
+    {
+      "id": "lamp",
+      "name": "LAMP Stack",
+      "tagline": "Apache, MySQL, and PHP — the classic web server stack",
+      "description": "The classic web development stack: Apache serves your site, MySQL stores your data, and PHP runs your application code. It's the backbone of WordPress, Drupal, Laravel, and countless server-rendered apps — install all three as background services and you have a full local web server in one step. Best for PHP developers and anyone running or learning traditional web apps.",
+      "category": "Development",
+      "icon": "server",
+      "packages": [
+        {
+          "name": "httpd",
+          "kind": "formula"
+        },
+        {
+          "name": "mysql",
+          "kind": "formula"
+        },
+        {
+          "name": "php",
+          "kind": "formula"
+        }
+      ],
+      "requires": {
+        "minRamGB": 4,
+        "recommendedRamGB": 8,
+        "minDiskGB": 5,
+        "arch": "any",
+        "gpu": "none"
+      },
+      "setup": [
+        {
+          "kind": "service",
+          "service": "httpd",
+          "label": "Start Apache (httpd)"
+        },
+        {
+          "kind": "service",
+          "service": "mysql",
+          "label": "Start MySQL"
+        },
+        {
+          "kind": "command",
+          "run": "mysql_secure_installation",
+          "label": "Secure your MySQL install (you run this)",
+          "external": true
+        },
+        {
+          "kind": "note",
+          "text": "Enable PHP in Apache: add the PHP module to httpd.conf (LoadModule php_module …) and set a PHP handler, then restart Apache. See the PHP + Apache docs below."
+        }
+      ],
+      "caveats": "Apache and MySQL run as background services on your machine. PHP is wired into Apache via httpd.conf manually — follow the setup steps.",
+      "links": [
+        {
+          "label": "Apache HTTP Server docs",
+          "url": "https://httpd.apache.org/docs/"
+        },
+        {
+          "label": "PHP docs",
+          "url": "https://www.php.net/docs.php"
+        },
+        {
+          "label": "MySQL docs",
+          "url": "https://dev.mysql.com/doc/"
+        }
+      ],
+      "maintainer": "brew-browser",
+      "addedIn": "0.7.0"
+    },
+    {
+      "id": "lemp",
+      "name": "LEMP Stack",
+      "tagline": "Nginx, MariaDB, and PHP-FPM — a fast, modern web stack",
+      "description": "A modern take on the classic web stack: Nginx serves your site with high concurrency, MariaDB (a drop-in MySQL replacement) stores your data, and PHP-FPM runs your application code. It's the go-to setup for Laravel, WordPress, and high-traffic PHP apps that want Nginx's performance. Install all three as background services for a fast local web server in one step.",
+      "category": "Development",
+      "icon": "server",
+      "packages": [
+        {
+          "name": "nginx",
+          "kind": "formula"
+        },
+        {
+          "name": "mariadb",
+          "kind": "formula"
+        },
+        {
+          "name": "php",
+          "kind": "formula"
+        }
+      ],
+      "requires": {
+        "minRamGB": 4,
+        "recommendedRamGB": 8,
+        "minDiskGB": 5,
+        "arch": "any",
+        "gpu": "none"
+      },
+      "setup": [
+        {
+          "kind": "service",
+          "service": "nginx",
+          "label": "Start Nginx"
+        },
+        {
+          "kind": "service",
+          "service": "mariadb",
+          "label": "Start MariaDB"
+        },
+        {
+          "kind": "service",
+          "service": "php",
+          "label": "Start PHP-FPM"
+        },
+        {
+          "kind": "command",
+          "run": "mariadb-secure-installation",
+          "label": "Secure your MariaDB install (you run this)",
+          "external": true
+        },
+        {
+          "kind": "note",
+          "text": "Wire PHP-FPM into Nginx: add a fastcgi_pass (e.g. 127.0.0.1:9000) to your server block, then reload Nginx. See the Nginx + PHP-FPM docs below."
+        }
+      ],
+      "caveats": "Nginx, MariaDB, and PHP-FPM run as background services. PHP-FPM must be wired into your Nginx server block manually — follow the setup steps.",
+      "links": [
+        {
+          "label": "Nginx docs",
+          "url": "https://nginx.org/en/docs/"
+        },
+        {
+          "label": "PHP-FPM docs",
+          "url": "https://www.php.net/manual/en/install.fpm.php"
+        },
+        {
+          "label": "MariaDB docs",
+          "url": "https://mariadb.org/documentation/"
+        }
+      ],
+      "maintainer": "brew-browser",
+      "addedIn": "0.7.0"
+    },
+    {
+      "id": "local-llm",
+      "name": "Local LLMs",
+      "tagline": "Run models locally with Ollama + a web UI",
+      "description": "Run open-weight models entirely on your own machine — private, offline-capable, no API bills. Ollama pulls and serves models with one command and exposes an OpenAI-compatible API on localhost:11434; Open WebUI adds a polished browser chat UI on top. Best for developers and privacy-conscious users who want ChatGPT-style workflows without sending data to the cloud.",
+      "category": "AI",
+      "icon": "brain",
+      "packages": [
+        {
+          "name": "ollama",
+          "kind": "formula"
+        },
+        {
+          "name": "open-webui",
+          "kind": "cask"
+        }
+      ],
+      "requires": {
+        "minRamGB": 8,
+        "recommendedRamGB": 16,
+        "minDiskGB": 12,
+        "arch": "any",
+        "gpu": "preferred"
+      },
+      "capabilityNotes": {
+        "8": "Small (~7–8B Q4) models only; larger will swap",
+        "16": "13–14B models comfortably",
+        "24": "26–32B class (Qwen, Gemma)",
+        "48": "70B models"
+      },
+      "setup": [
+        {
+          "kind": "service",
+          "service": "ollama",
+          "label": "Start the Ollama server"
+        },
+        {
+          "kind": "command",
+          "run": "ollama pull llama3.2",
+          "label": "Pull a starter model (you run this)",
+          "external": true
+        },
+        {
+          "kind": "open",
+          "url": "http://localhost:8080",
+          "label": "Open Open WebUI"
+        }
+      ],
+      "caveats": "Installs the tools; you still download models yourself (several GB each). Apple Silicon unified memory counts as VRAM — more RAM = bigger models.",
+      "links": [
+        {
+          "label": "Ollama docs",
+          "url": "https://docs.ollama.com"
+        },
+        {
+          "label": "Open WebUI",
+          "url": "https://openwebui.com"
+        }
+      ],
+      "maintainer": "brew-browser",
+      "addedIn": "0.7.0"
+    },
+    {
+      "id": "media",
+      "name": "Media Toolkit",
+      "tagline": "Transcode, download, and play — ffmpeg, yt-dlp, mpv",
+      "description": "A complete command-line media pipeline. FFmpeg transcodes and streams virtually any format, yt-dlp downloads audio and video from thousands of sites, and mpv plays it all with scriptable precision. HandBrake adds one-command, preset-based encoding (like 'Fast 1080p30') when you don't want to hand-write ffmpeg filter graphs. Lightweight and runs on any Mac or Linux box.",
+      "category": "Media",
+      "icon": "clapperboard",
+      "packages": [
+        {
+          "name": "ffmpeg",
+          "kind": "formula"
+        },
+        {
+          "name": "yt-dlp",
+          "kind": "formula"
+        },
+        {
+          "name": "mpv",
+          "kind": "formula"
+        },
+        {
+          "name": "handbrake",
+          "kind": "formula"
+        }
+      ],
+      "setup": [
+        {
+          "kind": "command",
+          "run": "ffmpeg -version",
+          "label": "Verify ffmpeg (you run this)",
+          "external": true
+        }
+      ],
+      "caveats": "Command-line tools. Lightweight; runs on any supported Mac or Linux.",
+      "links": [
+        {
+          "label": "FFmpeg",
+          "url": "https://ffmpeg.org"
+        },
+        {
+          "label": "yt-dlp",
+          "url": "https://github.com/yt-dlp/yt-dlp"
+        },
+        {
+          "label": "mpv",
+          "url": "https://mpv.io"
+        },
+        {
+          "label": "HandBrake",
+          "url": "https://handbrake.fr"
+        }
+      ],
+      "maintainer": "brew-browser",
+      "addedIn": "0.7.0"
+    },
+    {
+      "id": "web-dev",
+      "name": "Web Dev Starter",
+      "tagline": "Node.js + pnpm — the modern JS toolchain",
+      "description": "Everything you need to clone a repo, install dependencies, and push your first commit — the modern JavaScript baseline. Node.js is the safe-default runtime and pnpm is the fast, disk-efficient package manager; Git and the GitHub CLI cover version control, pull requests, and Actions from the terminal. For an AI-assisted, agent-driven setup, see the Agentic Web Dev bundle.",
+      "category": "Development",
+      "icon": "code",
+      "packages": [
+        {
+          "name": "node",
+          "kind": "formula"
+        },
+        {
+          "name": "pnpm",
+          "kind": "formula"
+        },
+        {
+          "name": "git",
+          "kind": "formula"
+        },
+        {
+          "name": "gh",
+          "kind": "formula"
+        }
+      ],
+      "setup": [
+        {
+          "kind": "command",
+          "run": "node -v && pnpm -v && git -v && gh --version",
+          "label": "Verify the toolchain (you run this)",
+          "external": true
+        }
+      ],
+      "caveats": "Installs the runtimes; project dependencies are per-project (pnpm install).",
+      "links": [
+        {
+          "label": "Node.js",
+          "url": "https://nodejs.org"
+        },
+        {
+          "label": "pnpm",
+          "url": "https://pnpm.io"
+        },
+        {
+          "label": "Git",
+          "url": "https://git-scm.com"
+        },
+        {
+          "label": "GitHub CLI",
+          "url": "https://cli.github.com"
+        }
+      ],
+      "maintainer": "brew-browser",
+      "addedIn": "0.7.0"
+    }
+  ]
+}

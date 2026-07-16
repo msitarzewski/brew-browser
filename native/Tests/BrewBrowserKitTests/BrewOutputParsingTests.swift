@@ -314,6 +314,59 @@ struct BrewArgsTests {
         #expect(BrewArgs.uninstall("foo", kind: .formula, zap: true, ignoreDependencies: true)
             == ["uninstall", "foo", "--ignore-dependencies"])
     }
+
+    @Test func pinFormulaAndCask() {
+        #expect(BrewArgs.setPinned("wget", kind: .formula, pinned: true) == ["pin", "wget"])
+        // Casks pin too in current Homebrew — the actual #90/#134 case.
+        #expect(BrewArgs.setPinned("google-chrome", kind: .cask, pinned: true)
+            == ["pin", "--cask", "google-chrome"])
+    }
+
+    @Test func unpinUsesUnpinVerb() {
+        #expect(BrewArgs.setPinned("google-chrome", kind: .cask, pinned: false)
+            == ["unpin", "--cask", "google-chrome"])
+    }
+
+    // MARK: - installBundle (M3 "Install all" arg groups)
+
+    private func pkg(_ name: String, _ kind: String) -> BundlePackage {
+        BundlePackage(name: name, kind: kind)
+    }
+
+    @Test func installBundleSplitsFormulaAndCaskGroups() {
+        // brew rejects `--formula … --cask …` in one invocation, so the builder
+        // emits two per-kind groups: formulae first (input order), then casks.
+        let groups = BrewArgs.installBundle([pkg("ollama", "formula"), pkg("open-webui", "cask")])
+        #expect(groups == [
+            ["install", "--formula", "ollama"],
+            ["install", "--cask", "open-webui"],
+        ])
+    }
+
+    @Test func installBundleFormulaeOnlyIsOneGroup() {
+        let groups = BrewArgs.installBundle([
+            pkg("ffmpeg", "formula"), pkg("yt-dlp", "formula"), pkg("mpv", "formula"),
+        ])
+        #expect(groups == [["install", "--formula", "ffmpeg", "yt-dlp", "mpv"]])
+    }
+
+    @Test func installBundleCasksOnlyIsOneGroup() {
+        let groups = BrewArgs.installBundle([
+            pkg("inkscape", "cask"), pkg("gimp", "cask"), pkg("krita", "cask"),
+        ])
+        #expect(groups == [["install", "--cask", "inkscape", "gimp", "krita"]])
+    }
+
+    @Test func installBundleEmptyYieldsNoGroups() {
+        #expect(BrewArgs.installBundle([]).isEmpty)
+    }
+
+    @Test func installBundleUnknownKindTreatedAsFormula() {
+        // brew's default is a formula; an unexpected kind must not silently drop
+        // the package from the install set.
+        let groups = BrewArgs.installBundle([pkg("node", "unknown")])
+        #expect(groups == [["install", "--formula", "node"]])
+    }
 }
 
 @Suite("BrewRecovery")

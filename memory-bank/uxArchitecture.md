@@ -233,8 +233,7 @@ Not a modal. Not an inline expanding pane. A **persistent bottom drawer** that o
 │  🍺  /opt/homebrew/Cellar/wget/1.21.4: 89 files, 4.5MB               │
 └──────────────────────────────────────────────────────────────────────┘
 ```
-
-- **Default height:** 280px (≈ 30% of 720 default window). User-draggable handle.
+- **Sizing:** default height is 280 px (≈ 30% of the 720-px default window). User-draggable handle to resize. The expanded drawer has a 252-px minimum (200-pt console plus drawer chrome) and a maximum of 60% of the current window height. The current height persists across sessions using localStorage on Tauri builds or UserDefaults on SwiftUI builds.
 - **Header strip:** current op name, elapsed time, collapse `⌃` and dismiss `✕`. When collapsed, only the strip remains (~32px tall).
 - **Console body:** monospace, system mono (SF Mono), 12px. Each event line includes microsecond-relative timestamp on hover. Auto-scroll with smart pause when user scrolls up.
 - **History tabs:** when more than one op has run this session, drawer header shows tabs: `wget` (active) · `git (succeeded)` · `node (failed)`. Closing a completed-op tab removes it. The full history is also browsable in the **Activity** sidebar section.

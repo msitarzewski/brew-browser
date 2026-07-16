@@ -373,6 +373,24 @@ impl AppState {
         }
     }
 
+    /// v0.7.0 — composed gate for the opt-in live **Bundles** refresh (fresh
+    /// `bundles.json` from `brew-browser.zerologic.com/bundles/bundles.json`).
+    /// Mirrors [`Self::require_live_enrichment`]: master paranoid/offline switch
+    /// first, then the per-feature `live_bundles_enabled` toggle. Used by
+    /// `bundles_live` before any network call.
+    ///
+    /// Fail-closed on `Corrupt` is handled by the inner `require_network` call.
+    pub async fn require_live_bundles(&self) -> Result<(), BrewError> {
+        self.require_network("live_bundles").await?;
+        let guard = self.settings.read().await;
+        match &*guard {
+            SettingsLoadState::Loaded(s) if s.live_bundles_enabled => Ok(()),
+            _ => Err(BrewError::FeatureDisabled {
+                feature: "live_bundles".to_string(),
+            }),
+        }
+    }
+
     /// v0.5.0 — composed gate for the vulnerability-scanning surface
     /// (`brew vulns` subprocess + OSV roundtrip + optional GHSA enrich).
     /// Composes the master paranoid switch with the per-feature
