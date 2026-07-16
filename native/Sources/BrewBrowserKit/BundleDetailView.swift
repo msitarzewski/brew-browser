@@ -105,7 +105,7 @@ struct BundleDetailView: View {
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: readiness.verdict.symbol)
                     .foregroundStyle(readiness.verdict.tone)
-                Text(readiness.reason)
+                Text(L10n.readinessReason(readiness.reason))
                     .font(.callout)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)
@@ -127,7 +127,7 @@ struct BundleDetailView: View {
             }
             .padding(.top, 2)
         } label: {
-            Label("Packages", systemImage: "shippingbox")
+            Label(L10n.string("bundles.header.packages"), systemImage: "shippingbox")
         }
     }
 
@@ -145,7 +145,7 @@ struct BundleDetailView: View {
                 Image(systemName: installed ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(installed ? .green : .secondary)
                 Text(pkg.name).font(.callout)
-                Text(pkg.kind)
+                Text(packageKindLabel(pkg.kind))
                     .font(.caption).foregroundStyle(.secondary)
                     .padding(.horizontal, 6).padding(.vertical, 2)
                     .background(.quaternary, in: .capsule)
@@ -159,7 +159,7 @@ struct BundleDetailView: View {
             .contentShape(.rect)
             .frame(maxWidth: .infinity, alignment: .leading)
             .onTapGesture { toggle(key) }
-            .help(isOpen ? "Hide description" : "Show description")
+            .help(isOpen ? L10n.string("bundles.hideDescription") : L10n.string("bundles.showDescription"))
 
             if isOpen {
                 descriptionArea(for: pkg, key: key)
@@ -178,21 +178,21 @@ struct BundleDetailView: View {
     /// library) and reverts to this button on failure.
     @ViewBuilder private func packageStatus(_ pkg: BundlePackage, key: String, installed: Bool) -> some View {
         if installed {
-            Text("Installed").font(.caption).foregroundStyle(.secondary)
+            Text(L10n.string("bundles.state.installed")).font(.caption).foregroundStyle(.secondary)
         } else if installing.contains(key) {
             HStack(spacing: 4) {
                 ProgressView().controlSize(.small)
-                Text("Installing…").font(.caption).foregroundStyle(.secondary)
+                Text(L10n.string("action.installing")).font(.caption).foregroundStyle(.secondary)
             }
         } else {
             Button {
                 launchPackageInstall(pkg, key: key)
             } label: {
-                Label("Install", systemImage: "arrow.down.circle").font(.caption)
+                Label(L10n.string("action.install"), systemImage: "arrow.down.circle").font(.caption)
             }
             .buttonStyle(.borderless)
             .controlSize(.small)
-            .help("Install \(pkg.name)")
+            .help(String(format: L10n.string("bundles.package.installHelp.format"), pkg.name))
         }
     }
 
@@ -210,7 +210,7 @@ struct BundleDetailView: View {
         } else {
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
-                Text("Loading…").font(.caption).foregroundStyle(.secondary)
+                Text(L10n.string("bundles.loadingDescription")).font(.caption).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .task { await loadDescription(pkg, key: key) }
@@ -227,7 +227,7 @@ struct BundleDetailView: View {
                 .textSelection(.enabled)
                 .padding(.top, 2)
         } label: {
-            Label("Caveats", systemImage: "exclamationmark.bubble")
+            Label(L10n.string("bundles.caveats"), systemImage: "exclamationmark.bubble")
                 .foregroundStyle(.orange)
         }
     }
@@ -241,6 +241,16 @@ struct BundleDetailView: View {
     private func setupSection(_ steps: [SetupStep]) -> some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
+                Text(
+                    L10n.string("bundles.setupHint.before")
+                    + " "
+                    + L10n.string("bundles.setupHint.youRunThis")
+                    + " "
+                    + L10n.string("bundles.setupHint.after")
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
                 ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
                     SetupStepRow(model: model, step: step, number: index + 1)
                     if index < steps.count - 1 { Divider() }
@@ -249,7 +259,7 @@ struct BundleDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 2)
         } label: {
-            Label("Setup", systemImage: "checklist")
+            Label(L10n.string("bundles.setup"), systemImage: "checklist")
         }
     }
 
@@ -270,7 +280,7 @@ struct BundleDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 2)
         } label: {
-            Label("Links", systemImage: "link")
+            Label(L10n.string("bundles.links"), systemImage: "link")
         }
     }
 
@@ -291,24 +301,28 @@ struct BundleDetailView: View {
             .buttonStyle(.borderedProminent)
             .disabled(pendingCount == 0)
             .confirmationDialog(
-                "Your machine may not run this well — install anyway?",
+                L10n.string("bundles.installAnyway.native.title"),
                 isPresented: $confirmBlockedInstall,
                 titleVisibility: .visible
             ) {
-                Button("Install anyway", role: .destructive) { launchInstall() }
-                Button("Cancel", role: .cancel) {}
+                Button(L10n.string("bundles.installAnywayConfirm"), role: .destructive) { launchInstall() }
+                Button(L10n.string("action.cancel"), role: .cancel) {}
             } message: {
-                Text(readiness.reason)
+                Text(
+                    L10n.readinessReason(readiness.reason)
+                    + "\n\n"
+                    + String(format: L10n.string("bundles.installAnywayBody.format"), bundle.name)
+                )
             }
         }
         .padding(16)
     }
 
     private var installLabel: String {
-        if pendingCount == 0 { return "All installed" }
+        if pendingCount == 0 { return L10n.string("bundles.allInstalled") }
         return pendingCount == bundle.packages.count
-            ? "Install all"
-            : "Install \(pendingCount) missing"
+            ? L10n.string("bundles.installAll")
+            : String(format: L10n.string("bundles.installMissing.format"), pendingCount)
     }
 
     // MARK: - Actions
@@ -320,6 +334,10 @@ struct BundleDetailView: View {
 
     /// Expansion/cache key — mirrors the installed-check keying (`name`+`kind`).
     private func rowKey(_ pkg: BundlePackage) -> String { pkg.name + pkg.kind }
+
+    private func packageKindLabel(_ kind: String) -> String {
+        kind == "cask" ? L10n.string("package.kind.cask") : L10n.string("package.kind.formula")
+    }
 
     private func toggle(_ key: String) {
         if expanded.contains(key) { expanded.remove(key) } else { expanded.insert(key) }
@@ -333,7 +351,7 @@ struct BundleDetailView: View {
         guard descriptions[key] == nil else { return }
         let kind = InstalledPackage.Kind(rawValue: pkg.kind) ?? .formula
         let resolved = await model.packageDescription(name: pkg.name, kind: kind)
-        descriptions[key] = (resolved?.isEmpty == false) ? resolved! : "No description available"
+        descriptions[key] = (resolved?.isEmpty == false) ? resolved! : L10n.string("bundles.noDescription")
     }
 
     /// Kick off the streaming install. The Activity drawer (auto-opened by
@@ -401,19 +419,21 @@ struct SetupStepRow: View {
             && model.installedPackageMatching(token: service, kind: .formula) != nil
         return HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(step.label ?? "Start \(service)").font(.callout)
+                Text(step.label ?? (service.isEmpty ? L10n.string("action.start") : String(format: L10n.string("bundles.step.startServiceNamed.format"), service))).font(.callout)
                 if !installed {
-                    Text("Install this bundle first to start \(service.isEmpty ? "the service" : service).")
+                    Text(service.isEmpty
+                         ? L10n.string("bundles.step.installFirst.native.generic")
+                         : String(format: L10n.string("bundles.step.installFirst.native.format"), service))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 8)
-            Button("Start") {
+            Button(L10n.string("action.start")) {
                 Task { await model.performServiceAction(.start, name: service) }
             }
             .disabled(!installed)
             .help(installed ? "brew services start \(service)"
-                            : "The service's package isn't installed yet.")
+                            : L10n.string("bundles.step.serviceNotInstalled"))
         }
     }
 
@@ -422,9 +442,9 @@ struct SetupStepRow: View {
     private var openRow: some View {
         let url = validHttpURL(step.url)
         return HStack(alignment: .top, spacing: 8) {
-            Text(step.label ?? "Open \(step.url ?? "")").font(.callout)
+            Text(step.label ?? String(format: L10n.string("bundles.action.open.format"), step.url ?? "")).font(.callout)
             Spacer(minLength: 8)
-            Button("Open") { if let url { NSWorkspace.shared.open(url) } }
+            Button(L10n.string("bundles.action.open")) { if let url { NSWorkspace.shared.open(url) } }
                 .disabled(url == nil)
                 .help(step.url ?? "")
         }
@@ -435,9 +455,9 @@ struct SetupStepRow: View {
     private var revealRow: some View {
         let path = step.path ?? ""
         return HStack(alignment: .top, spacing: 8) {
-            Text(step.label ?? "Reveal \(path)").font(.callout)
+            Text(step.label ?? String(format: L10n.string("bundles.action.reveal.format"), path)).font(.callout)
             Spacer(minLength: 8)
-            Button("Reveal") {
+            Button(L10n.string("bundles.action.reveal")) {
                 NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
             }
             .disabled(path.isEmpty)
@@ -454,15 +474,15 @@ struct SetupStepRow: View {
                 if let label = step.label { Text(label).font(.callout) }
                 Spacer(minLength: 8)
                 // A copy affordance only — deliberately NOT a run/execute button.
-                Label("you run this", systemImage: "hand.raised")
+                Label(L10n.string("bundles.setupHint.youRunThis"), systemImage: "hand.raised")
                     .font(.caption).foregroundStyle(.secondary)
                 Button {
                     let pb = NSPasteboard.general
                     pb.clearContents()
                     pb.setString(run, forType: .string)
-                    model.pushToast(.success, "Copied")
+                    model.pushToast(.success, L10n.string("bundles.toast.copied"))
                 } label: {
-                    Label("Copy", systemImage: "doc.on.doc")
+                    Label(L10n.string("bundles.action.copy"), systemImage: "doc.on.doc")
                 }
                 .disabled(run.isEmpty)
             }

@@ -72,7 +72,9 @@ enum DeprecationBadgeKind: String, Sendable {
     case disabled
 
     /// Short label for the row badge + detail notice header.
-    var label: String { self == .disabled ? "Disabled" : "Deprecated" }
+    var label: String {
+        return self == .disabled ? "Disabled" : "Deprecated"
+    }
 }
 
 /// Collapse the formula/cask replacement variants into one token: prefer the

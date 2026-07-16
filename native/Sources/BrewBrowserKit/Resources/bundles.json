@@ -38,6 +38,7 @@
           "kind": "cask"
         }
       ],
+      "tap": "anomalyco/tap",
       "requires": {
         "minRamGB": 8,
         "recommendedRamGB": 16,

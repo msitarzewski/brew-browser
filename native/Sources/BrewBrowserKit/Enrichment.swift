@@ -2,8 +2,11 @@ import Foundation
 
 /// Loads the bundled `enrichment.json` (Homebrew token → LLM-derived
 /// enrichment record) and exposes a per-package lookup — the same offline
-/// data the Tauri app bakes in via `tools/enrich/enrich.py`. There is no
-/// runtime LLM request; everything ships in the bundle.
+/// data the Tauri app bakes in via `tools/enrich/enrich.py`. Locale overlays
+/// such as `enrichment.ru.json` are partial files keyed by the same tokens;
+/// they replace user-facing prose and add locale search terms while keeping
+/// stable package IDs and English fallbacks. There is no runtime LLM request;
+/// everything ships in the bundle.
 ///
 /// Mirrors the `Categories.swift` loading pattern: `Bundle.module` resource
 /// URL → `Data` → `JSONSerialization`, decoded defensively so missing or
@@ -24,6 +27,8 @@ struct EnrichmentEntry: Sendable, Hashable {
     let similar: [String]
     /// Tech-stack tags (capped at 12). Lowercase, hyphenated, `[a-z0-9-]` only.
     let tags: [String]
+    /// Locale-specific search aliases. Not shown as tags.
+    let searchTerms: [String]
 }
 
 struct EnrichmentCatalog: Sendable {
@@ -39,12 +44,14 @@ struct EnrichmentCatalog: Sendable {
     private static let maxSimilarCount = 50
     private static let maxTagsCount = 12
     private static let maxTagLen = 30
+    private static let maxSearchTermLen = 60
+    private static let maxSearchTermsCount = 16
 
     /// Decode the bundled JSON. Returns `nil` if the resource is missing or
     /// malformed (callers then just render no enriched data). Per-field caps
     /// are re-applied here so a swapped bundle can't smuggle oversized fields,
     /// matching the Rust loader's defense-in-depth posture.
-    static func loadBundled() -> EnrichmentCatalog? {
+    static func loadBundled(locale: String? = nil) -> EnrichmentCatalog? {
         guard let url = Bundle.module.url(forResource: "enrichment", withExtension: "json"),
               let data = try? Data(contentsOf: url),
               let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -61,6 +68,7 @@ struct EnrichmentCatalog: Sendable {
             guard let obj = value as? [String: Any] else { continue }
             entries[name] = parseEntry(obj)
         }
+        applyLocaleOverlay(normalizeLocale(locale), to: &entries)
         return EnrichmentCatalog(entries: entries)
     }
 
@@ -94,7 +102,8 @@ struct EnrichmentCatalog: Sendable {
             summary: summary,
             useCases: Array(useCases),
             similar: similar,
-            tags: tags
+            tags: tags,
+            searchTerms: parseSearchTerms(obj)
         )
     }
 
@@ -139,7 +148,40 @@ struct EnrichmentCatalog: Sendable {
             summary: summary,
             useCases: Array(useCases),
             similar: similar,
-            tags: tags
+            tags: tags,
+            searchTerms: parseSearchTerms(obj)
+        )
+    }
+
+    private static func normalizeLocale(_ locale: String?) -> String {
+        guard let locale else { return "en" }
+        let lc = locale.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return lc == "ru" || lc.hasPrefix("ru-") || lc.hasPrefix("ru_") ? "ru" : "en"
+    }
+
+    private static func applyLocaleOverlay(_ locale: String, to entries: inout [String: EnrichmentEntry]) {
+        guard locale == "ru",
+              let url = Bundle.module.url(forResource: "enrichment.ru", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              normalizeLocale(root["locale"] as? String) == locale,
+              let rawEntries = root["entries"] as? [String: Any]
+        else { return }
+
+        for (name, value) in rawEntries {
+            guard let obj = value as? [String: Any] else { continue }
+            let patch = parseEntry(obj)
+            entries[name] = patch.localized(over: entries[name])
+        }
+    }
+
+    private static func parseSearchTerms(_ obj: [String: Any]) -> [String] {
+        let raw = (obj["search_terms"] as? [String]) ?? (obj["searchTerms"] as? [String]) ?? []
+        return Array(
+            raw
+                .prefix(maxSearchTermsCount)
+                .map { truncate($0, maxSearchTermLen) }
+                .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         )
     }
 
@@ -171,7 +213,7 @@ struct EnrichmentCatalog: Sendable {
     }
 }
 
-private extension EnrichmentEntry {
+extension EnrichmentEntry {
     /// True when the record carries no usable data — used to treat a present
     /// but empty record the same as an absent one.
     var isEmpty: Bool {
@@ -180,5 +222,20 @@ private extension EnrichmentEntry {
             && useCases.isEmpty
             && similar.isEmpty
             && tags.isEmpty
+            && searchTerms.isEmpty
+    }
+
+    func localized(over base: EnrichmentEntry?) -> EnrichmentEntry {
+        EnrichmentEntry(
+            friendlyName: friendlyName.flatMap { $0.isEmpty ? nil : $0 } ?? base?.friendlyName,
+            summary: summary.flatMap { $0.isEmpty ? nil : $0 } ?? base?.summary,
+            useCases: useCases.isEmpty ? (base?.useCases ?? []) : useCases,
+            // Stable fields stay sourced from the base bundle. Locale overlays
+            // may carry prose/search aliases, but never translated package-token
+            // suggestions or technical tag labels.
+            similar: base?.similar ?? [],
+            tags: base?.tags ?? [],
+            searchTerms: searchTerms.isEmpty ? (base?.searchTerms ?? []) : searchTerms
+        )
     }
 }

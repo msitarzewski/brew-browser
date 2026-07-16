@@ -2,6 +2,8 @@
   import type { Snippet } from "svelte";
   import { onMount } from "svelte";
   import X from "@lucide/svelte/icons/x";
+  import { t } from "$lib/i18n/messages";
+  import { ui } from "$lib/stores/ui.svelte";
 
   interface Props {
     open: boolean;
@@ -110,7 +112,7 @@
       <header>
         <h1 id="modal-title">{title}</h1>
         {#if dismissible}
-          <button class="close" aria-label="Close" onclick={() => onClose?.()}>
+          <button class="close" aria-label={t("Close", ui.locale)} onclick={() => onClose?.()}>
             <X size={16} />
           </button>
         {/if}

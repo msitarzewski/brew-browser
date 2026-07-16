@@ -27,8 +27,10 @@
   import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
 
   import { settings } from "$lib/stores/settings.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
   import { github } from "$lib/stores/github.svelte";
   import { keyringName } from "$lib/util/platform";
+  import { t } from "$lib/i18n/messages";
 
   onMount(() => {
     void github.loadStatus();
@@ -66,32 +68,30 @@
         disabled={toggleDisabled}
       />
       <span class="toggle-track" aria-hidden="true"></span>
-      <span class="toggle-label">Show GitHub stats on package pages</span>
-    </label>
-    <p class="hint">
-      Show repo stars, forks, and last release for any package whose
-      homepage is a GitHub URL. brew-browser fetches public repo metadata
-      from <code>api.github.com</code>.
-    </p>
-  </div>
+      <span class="toggle-label">{t("Show GitHub stats on package pages", ui.locale)}</span>
+	    </label>
+	    <p class="hint">
+	      {t("settings.github.statsHint.beforeHost", ui.locale)}<code>api.github.com</code>{t("settings.github.statsHint.afterHost", ui.locale)}
+	    </p>
+	  </div>
 
   <!-- Sign-in block -->
   <div class="field signin">
     {#if github.status === null}
-      <p class="hint">Loading sign-in status…</p>
+      <p class="hint">{t("Loading sign-in status…", ui.locale)}</p>
     {:else if github.status.signedIn}
       <div class="signed-in">
         <div class="user">
-          <ShieldCheck size={18} />
-          <div>
-            <div class="username">Signed in as @{github.status.username ?? "github user"}</div>
-            {#if github.status.scopes.length > 0}
-              <div class="scopes">Scopes: {github.status.scopes.join(", ")}</div>
-            {/if}
-          </div>
+	          <ShieldCheck size={18} />
+	          <div>
+	            <div class="username">{t("settings.github.signedInAs", ui.locale)} @{github.status.username ?? t("settings.github.githubUserFallback", ui.locale)}</div>
+	            {#if github.status.scopes.length > 0}
+	              <div class="scopes">{t("settings.github.scopesLabel", ui.locale)}: {github.status.scopes.join(", ")}</div>
+	            {/if}
+	          </div>
         </div>
         <button type="button" class="btn-secondary" onclick={onSignOut} disabled={github.statusLoading}>
-          <LogOut size={14} /> Sign out
+          <LogOut size={14} /> {t("Sign out", ui.locale)}
         </button>
       </div>
     {:else}
@@ -101,43 +101,38 @@
         onclick={onSignIn}
         disabled={github.statusLoading || github.signinState.kind !== "idle"}
       >
-        <LogIn size={14} /> Sign in with GitHub
-      </button>
-      <p class="hint">
-        Opens GitHub's standard "Authorize app" flow in your browser. No
-        password is ever entered into brew-browser. This is required to Star,
-        Watch, and file issues on GitHub with brew-browser.
-      </p>
-    {/if}
-  </div>
+        <LogIn size={14} /> {t("Sign in with GitHub", ui.locale)}
+	      </button>
+	      <p class="hint">
+	        {t("settings.github.signInHint", ui.locale)}
+	      </p>
+	    {/if}
+	  </div>
 
   <!-- Privacy note -->
-  <aside class="privacy">
-    <div class="privacy-head">
-      <GitFork size={16} />
-      <strong>What sign-in is used for</strong>
-    </div>
-    <p class="privacy-body">
-      brew-browser stores your token in the {keyringName}. The token is
-      <strong>never</strong> sent over IPC to the renderer,
-      <strong>never</strong> written to disk, and <strong>never</strong>
-      logged. Only the derived <code>{`{ signedIn, username, scopes }`}</code>
-      view crosses the IPC boundary.
-    </p>
-    <p class="privacy-body">
-      Sign-in is optional. The minimum scopes requested are
-      <code>read:user</code> (to display your username) and
-      <code>public_repo</code> (to enable starring + issue filing in a
-      future update). No private-repo access, no email read, no admin.
-    </p>
-  </aside>
+	  <aside class="privacy">
+	    <div class="privacy-head">
+	      <GitFork size={16} />
+	      <strong>{t("settings.github.signInPurpose", ui.locale)}</strong>
+	    </div>
+	    <p class="privacy-body">
+	      {t("settings.github.privacy.beforeStruct", ui.locale, { keyringName })}
+	      <code>{`{ signedIn, username, scopes }`}</code>{t("settings.github.privacy.afterStruct", ui.locale)}
+	    </p>
+	    <p class="privacy-body">
+	      {t("settings.github.scopes.beforeReadUser", ui.locale)}
+	      <code>read:user</code>{t("settings.github.scopes.afterReadUser", ui.locale)}
+	      <code>public_repo</code>{t("settings.github.scopes.afterPublicRepo", ui.locale)}
+	      <code>notifications</code>{t("settings.github.scopes.afterNotifications", ui.locale)}
+	    </p>
+	  </aside>
 
-  {#if settings.corruptOnDisk}
-    <div class="callout warn" role="alert">
-      <TriangleAlert size={16} />
-      <span>Settings file unreadable — visit the Network section to reset.</span>
-    </div>
-  {/if}
+	  {#if settings.corruptOnDisk}
+	    <div class="callout warn" role="alert">
+	      <TriangleAlert size={16} />
+	      <span>{t("settings.github.corruptSettings", ui.locale)}</span>
+	    </div>
+	  {/if}
 </div>
 
 <style>
@@ -147,11 +142,6 @@
     font-weight: var(--fw-semibold);
     color: var(--color-text-primary);
     margin-bottom: var(--space-2);
-  }
-  .lead {
-    font-size: var(--text-body);
-    color: var(--color-text-secondary);
-    line-height: var(--lh-normal);
   }
   .field {
     display: flex;
@@ -277,16 +267,6 @@
     gap: 6px;
     color: var(--color-text-primary);
     margin-bottom: var(--space-2);
-  }
-  .privacy ul {
-    margin: 0 0 var(--space-2) 0;
-    padding-left: var(--space-5);
-    color: var(--color-text-secondary);
-    font-size: var(--text-body-sm);
-    line-height: var(--lh-snug);
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
   }
   .privacy-body {
     color: var(--color-text-secondary);

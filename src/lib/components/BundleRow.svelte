@@ -18,6 +18,8 @@
 
   import ReadinessPill from "./ReadinessPill.svelte";
   import { bundles } from "$lib/stores/bundles.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { formatBundlePackageSummary } from "$lib/i18n/messages";
   import type { Bundle } from "$lib/types";
 
   interface Props {
@@ -42,14 +44,11 @@
   };
   const Icon = $derived((bundle.icon && ICONS[bundle.icon]) || Package);
 
-  /** "2 formulae · 1 cask" style summary for the packages cell. */
+  /** "2 formulae · 1 cask" / "2 формулы · 1 cask-пакет" package summary. */
   const kindSummary = $derived.by<string>(() => {
     const f = bundle.packages.filter((p) => p.kind === "formula").length;
     const c = bundle.packages.filter((p) => p.kind === "cask").length;
-    const parts: string[] = [];
-    if (f) parts.push(`${f} ${f === 1 ? "formula" : "formulae"}`);
-    if (c) parts.push(`${c} ${c === 1 ? "cask" : "casks"}`);
-    return parts.join(" · ") || "no packages";
+    return formatBundlePackageSummary(f, c, ui.locale);
   });
 
   // Capability readiness against the probed SystemProfile (M1). Derived once

@@ -9,6 +9,8 @@
 
 import { bundles as fetchBundles, bundlesLive, systemProfile } from "$lib/api";
 import { settings } from "$lib/stores/settings.svelte";
+import { ui } from "$lib/stores/ui.svelte";
+import { t } from "$lib/i18n/messages";
 import type { Bundle, Readiness, SystemProfile } from "$lib/types";
 import { readiness } from "$lib/util/readiness";
 import { shouldReplaceWithLive } from "$lib/util/liveBundles";
@@ -25,6 +27,7 @@ class BundlesStore {
   loading: boolean = $state(false);
   error: string | null = $state(null);
   loaded: boolean = $state(false);
+  locale: string | null = $state(null);
 
   private loadPromise: Promise<void> | null = null;
 
@@ -34,19 +37,21 @@ class BundlesStore {
    * `force` to refetch). Never throws — a load failure lands in `error`.
    */
   async load(force = false): Promise<void> {
-    if (this.loaded && !force) return;
+    const locale = ui.locale;
+    if (this.loaded && this.locale === locale && !force) return;
     if (this.loadPromise) return this.loadPromise;
 
     this.loading = true;
     this.error = null;
     const p = (async () => {
       try {
-        const [list, profile] = await Promise.all([fetchBundles(), systemProfile()]);
+        const [list, profile] = await Promise.all([fetchBundles(locale), systemProfile()]);
         this.list = list;
         this.profile = this.applyRamOverride(profile);
         this.loaded = true;
+        this.locale = locale;
       } catch (e) {
-        this.error = `Failed to load bundles: ${String(e)}`;
+        this.error = `${t("bundles.loadFailed", ui.locale)}: ${String(e)}`;
       } finally {
         this.loading = false;
         this.loadPromise = null;
@@ -80,7 +85,7 @@ class BundlesStore {
   async refreshLive(): Promise<boolean> {
     if (!this.liveAllowed) return false;
     try {
-      const live = await bundlesLive();
+      const live = await bundlesLive(ui.locale);
       if (shouldReplaceWithLive(live)) {
         this.list = live;
         return true;

@@ -19,9 +19,9 @@ public struct BundlesView: View {
         Group {
             if model.bundles.isEmpty {
                 ContentUnavailableView(
-                    "No bundles",
+                    L10n.string("bundles.empty.native.title"),
                     systemImage: "square.stack.3d.up",
-                    description: Text("Curated package sets will appear here.")
+                    description: Text(L10n.string("bundles.empty.native.body"))
                 )
             } else {
                 table
@@ -39,7 +39,7 @@ public struct BundlesView: View {
     // order), selection bound to the shared inspector via `openSelected`.
     private var table: some View {
         Table(model.bundles, selection: $selectedID) {
-            TableColumn("Name") { bundle in
+            TableColumn(L10n.string("table.name")) { bundle in
                 HStack(spacing: 8) {
                     Image(systemName: bundleSymbol(bundle.icon))
                         .font(.title3)
@@ -53,12 +53,12 @@ public struct BundlesView: View {
                 }
             }.width(min: 220, ideal: 300)
 
-            TableColumn("Packages") { bundle in
+            TableColumn(L10n.string("bundles.header.packages")) { bundle in
                 Text(packageSummary(bundle))
                     .font(.callout).foregroundStyle(.secondary).lineLimit(1)
             }.width(min: 110, ideal: 150)
 
-            TableColumn("Readiness") { bundle in
+            TableColumn(L10n.string("bundles.header.readiness")) { bundle in
                 ReadinessPill(readiness: model.readiness(for: bundle))
             }.width(min: 120, ideal: 150)
         }
@@ -84,7 +84,7 @@ struct ReadinessPill: View {
             .foregroundStyle(readiness.verdict.tone)
             .padding(.horizontal, 8).padding(.vertical, 3)
             .background(readiness.verdict.tone.opacity(0.15), in: .capsule)
-            .help(readiness.reason)
+            .help(L10n.readinessReason(readiness.reason))
     }
 }
 
@@ -92,9 +92,9 @@ extension ReadinessVerdict {
     /// User-facing pill label. Never a hard block — "Not recommended" is advisory.
     var pillLabel: String {
         switch self {
-        case .ready:    return "Ready"
-        case .marginal: return "Marginal"
-        case .blocked:  return "Not recommended"
+        case .ready:    return L10n.string("readiness.ready")
+        case .marginal: return L10n.string("readiness.marginal")
+        case .blocked:  return L10n.string("readiness.blocked")
         }
     }
 
@@ -138,8 +138,5 @@ func bundleSymbol(_ icon: String?) -> String {
 func packageSummary(_ bundle: BrewBundle) -> String {
     let formulae = bundle.packages.filter { $0.kind != "cask" }.count
     let casks    = bundle.packages.filter { $0.kind == "cask" }.count
-    var parts: [String] = []
-    if formulae > 0 { parts.append("\(formulae) formula\(formulae == 1 ? "" : "e")") }
-    if casks > 0    { parts.append("\(casks) cask\(casks == 1 ? "" : "s")") }
-    return parts.joined(separator: " · ")
+    return L10n.bundlePackageSummary(formulae: formulae, casks: casks)
 }

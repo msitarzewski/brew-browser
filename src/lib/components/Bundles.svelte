@@ -14,6 +14,7 @@
   import EmptyState from "./EmptyState.svelte";
   import { bundles } from "$lib/stores/bundles.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { t } from "$lib/i18n/messages";
 
   // Load bundles + profile on first mount. Idempotent.
   $effect(() => {
@@ -21,33 +22,33 @@
   });
 </script>
 
-<section class="bundles" aria-label="Bundles">
+<section class="bundles" aria-label={t("bundles.list", ui.locale)}>
   <div class="list-wrap">
     {#if bundles.loading && bundles.list.length === 0}
-      <LoadingState rows={6} label="Loading bundles…" />
+      <LoadingState rows={6} label={t("bundles.loading", ui.locale)} />
     {:else if bundles.error}
-      <EmptyState title="Couldn't load bundles" body={bundles.error}>
+      <EmptyState title={t("bundles.loadFailed", ui.locale)} body={bundles.error}>
         {#snippet icon()}<Package size={48} />{/snippet}
         {#snippet cta()}
-          <Button variant="secondary" onclick={() => bundles.load(true)}>Retry</Button>
+          <Button variant="secondary" onclick={() => bundles.load(true)}>{t("Retry", ui.locale)}</Button>
         {/snippet}
       </EmptyState>
     {:else if bundles.list.length === 0}
       <EmptyState
-        title="No bundles available."
-        body="Curated sets of tools that work together — installed in one click, with a readiness check for your machine."
+        title={t("bundles.emptyTitle", ui.locale)}
+        body={t("bundles.emptyBody", ui.locale)}
       >
         {#snippet icon()}<Package size={48} />{/snippet}
       </EmptyState>
     {:else}
       <div class="list-header" role="row">
         <span></span>
-        <span class="header-label">Name</span>
-        <span class="header-label">Tagline</span>
-        <span class="header-label">Packages</span>
-        <span class="header-label">Readiness</span>
+        <span class="header-label">{t("bundles.header.name", ui.locale)}</span>
+        <span class="header-label">{t("bundles.header.tagline", ui.locale)}</span>
+        <span class="header-label">{t("bundles.header.packages", ui.locale)}</span>
+        <span class="header-label">{t("bundles.header.readiness", ui.locale)}</span>
       </div>
-      <div class="list" role="list" aria-label="Bundles">
+      <div class="list" role="list" aria-label={t("bundles.list", ui.locale)}>
         {#each bundles.list as b (b.id)}
           <BundleRow
             bundle={b}

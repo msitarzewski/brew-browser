@@ -28,14 +28,14 @@ struct ServicesView: View {
     private var headerBar: some View {
         HStack(spacing: 10) {
             if !model.services.isEmpty {
-                Text("\(runningCount) running · \(model.services.count) total")
+                Text(L10n.servicesSummary(running: runningCount, total: model.services.count))
                     .font(.callout).foregroundStyle(.secondary)
             }
             Spacer()
             Button { Task { await model.loadServices() } } label: {
                 // Spinner replaces the arrow while refreshing (matches Trending).
                 Label {
-                    Text("Refresh")
+                    Text(L10n.string("action.refresh"))
                 } icon: {
                     if model.servicesLoading {
                         ProgressView().controlSize(.small)
@@ -56,21 +56,21 @@ struct ServicesView: View {
     @ViewBuilder
     private var content: some View {
         if model.servicesLoading && model.services.isEmpty {
-            ProgressView("Loading brew services…")
+            ProgressView(L10n.string("services.loading"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let err = model.servicesError, model.services.isEmpty {
             ContentUnavailableView {
-                Label("Couldn't load services", systemImage: "gearshape.2")
+                Label(L10n.string("services.loadFailed"), systemImage: "gearshape.2")
             } description: {
                 Text(err)
             } actions: {
-                Button("Retry") { Task { await model.loadServices() } }
+                Button(L10n.string("action.retry")) { Task { await model.loadServices() } }
             }
         } else if model.services.isEmpty {
             ContentUnavailableView {
-                Label("No background services", systemImage: "gearshape.2")
+                Label(L10n.string("services.empty.title"), systemImage: "gearshape.2")
             } description: {
-                Text("Formulae like postgresql, redis, or nginx register background services you can start and stop here.")
+                Text(L10n.string("services.empty.body"))
             }
         } else {
             servicesTable
@@ -79,15 +79,15 @@ struct ServicesView: View {
 
     private var servicesTable: some View {
         Table(model.sortedServices) {
-            TableColumn("Name") { svc in nameCell(svc) }
+            TableColumn(L10n.string("table.name")) { svc in nameCell(svc) }
                 .width(min: 140, ideal: 240)
-            TableColumn("Status") { svc in ServiceStatusPill(status: svc.status) }
+            TableColumn(L10n.string("table.status")) { svc in ServiceStatusPill(status: svc.status) }
                 .width(min: 92, ideal: 112)
-            TableColumn("User") { svc in
+            TableColumn(L10n.string("table.user")) { svc in
                 Text(svc.user ?? "—").foregroundStyle(.secondary).lineLimit(1)
             }
             .width(min: 80, ideal: 130)
-            TableColumn("Actions") { svc in actionCell(svc) }
+            TableColumn(L10n.string("table.actions")) { svc in actionCell(svc) }
                 .width(min: 108, ideal: 124)
         }
     }
@@ -121,12 +121,12 @@ struct ServicesView: View {
             HStack(spacing: 8) {
                 Button { act(.start, svc) } label: { Image(systemName: "play.fill") }
                     .disabled(svc.status == .started)
-                    .help(svc.status == .started ? "Already running" : "Start service")
+                    .help(svc.status == .started ? L10n.string("services.alreadyRunning") : L10n.string("services.start"))
                 Button { act(.stop, svc) } label: { Image(systemName: "stop.fill") }
                     .disabled(svc.status == .stopped || svc.status == .notLoaded)
-                    .help(svc.status == .stopped || svc.status == .notLoaded ? "Not running" : "Stop service")
+                    .help(svc.status == .stopped || svc.status == .notLoaded ? L10n.string("services.notRunning") : L10n.string("services.stop"))
                 Button { act(.restart, svc) } label: { Image(systemName: "arrow.clockwise") }
-                    .help("Restart service")
+                    .help(L10n.string("services.restart"))
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.secondary)
@@ -154,12 +154,12 @@ struct ServiceStatusPill: View {
 
     private var label: String {
         switch status {
-        case .started: return "running"
-        case .stopped: return "stopped"
-        case .notLoaded: return "not loaded"
-        case .error: return "error"
-        case .scheduled: return "scheduled"
-        case .unknown: return "unknown"
+        case .started: return L10n.string("services.status.running")
+        case .stopped: return L10n.string("services.status.stopped")
+        case .notLoaded: return L10n.string("services.status.notLoaded")
+        case .error: return L10n.string("services.status.error")
+        case .scheduled: return L10n.string("services.status.scheduled")
+        case .unknown: return L10n.string("services.status.unknown")
         }
     }
 

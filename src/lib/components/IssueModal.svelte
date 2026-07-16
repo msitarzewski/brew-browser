@@ -32,6 +32,8 @@
 
   import { github } from "$lib/stores/github.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { t } from "$lib/i18n/messages";
   import { brewErrorMessage, isBrewError } from "$lib/types";
 
   interface Props {
@@ -139,12 +141,12 @@
       await github.createIssue(homepage, formTitle.trim(), formBody, labels);
       // Success — toast + close. The store has already opened the
       // result URL via safeOpenUrl.
-      toast.success("Issue filed");
+      toast.success(ui.locale === "ru" ? "Проблема отправлена" : "Issue filed");
       onClose();
     } catch (e) {
       // Keep the modal open so the user can retry. Surface the typed
       // error message; fall back to String(e) for unexpected shapes.
-      inlineError = isBrewError(e) ? brewErrorMessage(e) : String(e);
+      inlineError = isBrewError(e) ? brewErrorMessage(e, ui.locale) : String(e);
     } finally {
       submitting = false;
     }
@@ -163,13 +165,13 @@
     <form class="modal" onsubmit={handleSubmit}>
       <header>
         <div class="hd-left">
-          <h2 id="issue-modal-title">File an issue</h2>
-          <p class="repo">on <code>{repo.owner}/{repo.repo}</code></p>
+          <h2 id="issue-modal-title">{t("File an issue", ui.locale)}</h2>
+          <p class="repo">{ui.locale === "ru" ? "в" : "on"} <code>{repo.owner}/{repo.repo}</code></p>
         </div>
         <button
           type="button"
           class="close"
-          aria-label="Close"
+          aria-label={t("Close", ui.locale)}
           onclick={handleClose}
           disabled={submitting}
         >
@@ -180,7 +182,7 @@
       <div class="body">
         <label class="field">
           <span class="field-head">
-            <span class="field-label">Title</span>
+            <span class="field-label">{t("Title", ui.locale)}</span>
             <span class="counter" class:over={titleCount > TITLE_CAP}>
               {titleCount} / {TITLE_CAP}
             </span>
@@ -199,7 +201,7 @@
 
         <label class="field">
           <span class="field-head">
-            <span class="field-label">Body (Markdown)</span>
+            <span class="field-label">{t("Body (Markdown)", ui.locale)}</span>
             <span class="counter" class:over={bodyInvalid}>
               {fmtBytes(bodyByteCount)} / {fmtBytes(BODY_CAP)}
             </span>
@@ -216,7 +218,7 @@
 
         {#if labels.length > 0}
           <div class="labels-row">
-            <span class="field-label">Labels</span>
+            <span class="field-label">{t("Labels", ui.locale)}</span>
             <div class="chips">
               {#each labels as label (label)}
                 <span class="chip">{label}</span>
@@ -240,15 +242,15 @@
           onclick={handleClose}
           disabled={submitting}
         >
-          Cancel
+          {t("Cancel", ui.locale)}
         </button>
         <button type="submit" class="btn-primary" disabled={!canSubmit}>
           {#if submitting}
             <Loader size={14} class="spin" />
-            Filing…
+            {ui.locale === "ru" ? "Отправляем…" : "Filing…"}
           {:else}
             <Send size={14} />
-            File issue
+            {t("File issue", ui.locale)}
           {/if}
         </button>
       </footer>

@@ -213,17 +213,55 @@ mod weight {
     pub const TAG: u32 = 100;
 }
 
+fn localized_category_labels(label: &str, locale: &str) -> Vec<String> {
+    let mut labels = vec![label.to_string()];
+    if locale != "ru" {
+        return labels;
+    }
+    let ru = match label {
+        "AI & ML" => Some("ИИ и ML"),
+        "Browsers" => Some("Браузеры"),
+        "Cloud & DevOps" => Some("Облако и DevOps"),
+        "Communication" => Some("Коммуникации"),
+        "Data" => Some("Данные"),
+        "Developer Tools" => Some("Инструменты разработчика"),
+        "Editors & IDEs" => Some("Редакторы и IDE"),
+        "Education" => Some("Образование"),
+        "Games & Entertainment" => Some("Игры и развлечения"),
+        "Graphics & Design" => Some("Графика и дизайн"),
+        "Music" => Some("Музыка"),
+        "Office & Docs" => Some("Офис и документы"),
+        "Productivity" => Some("Продуктивность"),
+        "Security" => Some("Безопасность"),
+        "System Utilities" => Some("Системные утилиты"),
+        "Terminal" => Some("Терминал"),
+        "Video & Audio" => Some("Видео и аудио"),
+        "Writing" => Some("Работа с текстом"),
+        "Uncategorized" => Some("Без категории"),
+        "Other" => Some("Другое"),
+        _ => None,
+    };
+    if let Some(ru) = ru {
+        if ru != label {
+            labels.push(ru.to_string());
+        }
+    }
+    labels
+}
+
 #[tauri::command]
 pub async fn local_search(
     query: String,
+    locale: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<SearchResults, BrewError> {
     validate_search_query(&query)?;
+    let locale = crate::enrichment::normalize_locale(locale.as_deref());
 
     // Parse terms: split on whitespace, lowercase, dedupe-by-set, drop empty.
     let mut terms: Vec<String> = query
         .split_whitespace()
-        .map(|t| t.to_ascii_lowercase())
+        .map(|t| t.to_lowercase())
         .filter(|t| !t.is_empty())
         .collect();
     terms.sort();
@@ -244,10 +282,13 @@ pub async fn local_search(
         let guard = state.catalog.read().await;
         std::sync::Arc::clone(&*guard)
     };
-    let enrichment = match crate::commands::enrichment::enrichment_data(state.clone()).await {
-        Ok(arc) => Some(arc),
-        Err(_) => None, // best-effort; if enrichment fails we just lose AI fields
-    };
+    let enrichment =
+        match crate::commands::enrichment::enrichment_data(Some(locale.to_string()), state.clone())
+            .await
+        {
+            Ok(arc) => Some(arc),
+            Err(_) => None, // best-effort; if enrichment fails we just lose AI fields
+        };
     let categories = match crate::commands::categories::categories_data(state.clone()).await {
         Ok(arc) => Some(arc),
         Err(_) => None,
@@ -257,24 +298,34 @@ pub async fn local_search(
 
     // Build a token → Vec<category_label> map once so per-row scoring is
     // a cheap lookup instead of an O(categories) scan per token.
-    let mut formula_labels: std::collections::HashMap<&str, Vec<&str>> =
+    let mut formula_labels: std::collections::HashMap<&str, Vec<String>> =
         std::collections::HashMap::new();
-    let mut cask_labels: std::collections::HashMap<&str, Vec<&str>> =
+    let mut cask_labels: std::collections::HashMap<&str, Vec<String>> =
         std::collections::HashMap::new();
     if let Some(cat) = categories.as_deref() {
         for (token, slugs) in cat.formulae.iter() {
-            let labels: Vec<&str> = slugs
+            let labels: Vec<String> = slugs
                 .iter()
-                .filter_map(|s| cat.categories.get(s).map(|m| m.label.as_str()))
+                .filter_map(|s| {
+                    cat.categories
+                        .get(s)
+                        .map(|m| localized_category_labels(&m.label, locale))
+                })
+                .flatten()
                 .collect();
             if !labels.is_empty() {
                 formula_labels.insert(token.as_str(), labels);
             }
         }
         for (token, slugs) in cat.casks.iter() {
-            let labels: Vec<&str> = slugs
+            let labels: Vec<String> = slugs
                 .iter()
-                .filter_map(|s| cat.categories.get(s).map(|m| m.label.as_str()))
+                .filter_map(|s| {
+                    cat.categories
+                        .get(s)
+                        .map(|m| localized_category_labels(&m.label, locale))
+                })
+                .flatten()
                 .collect();
             if !labels.is_empty() {
                 cask_labels.insert(token.as_str(), labels);
@@ -288,21 +339,26 @@ pub async fn local_search(
     // preferred over upstream desc) so the frontend can show it without
     // a second IPC round-trip.
     let score_pkg =
-        |name: &str, desc: Option<&str>, labels: &[&str]| -> Option<(u32, Option<String>)> {
+        |name: &str, desc: Option<&str>, labels: &[String]| -> Option<(u32, Option<String>)> {
             // AI summary + friendly name from enrichment, if available.
             let entry = enrichment.as_deref().and_then(|e| e.entries.get(name));
             let friendly = entry.and_then(|e| e.friendly_name.as_deref());
             let summary = entry.and_then(|e| e.summary.as_deref());
+            let search_terms: Vec<&str> = entry
+                .map(|e| e.search_terms.iter().map(|s| s.as_str()).collect())
+                .unwrap_or_default();
             let tags: Vec<&str> = entry
                 .map(|e| e.tags.iter().map(|s| s.as_str()).collect())
                 .unwrap_or_default();
 
-            let name_lc = name.to_ascii_lowercase();
-            let desc_lc = desc.map(|s| s.to_ascii_lowercase());
-            let friendly_lc = friendly.map(|s| s.to_ascii_lowercase());
-            let summary_lc = summary.map(|s| s.to_ascii_lowercase());
-            let labels_lc: Vec<String> = labels.iter().map(|s| s.to_ascii_lowercase()).collect();
-            let tags_lc: Vec<String> = tags.iter().map(|s| s.to_ascii_lowercase()).collect();
+            let name_lc = name.to_lowercase();
+            let desc_lc = desc.map(|s| s.to_lowercase());
+            let friendly_lc = friendly.map(|s| s.to_lowercase());
+            let summary_lc = summary.map(|s| s.to_lowercase());
+            let labels_lc: Vec<String> = labels.iter().map(|s| s.to_lowercase()).collect();
+            let search_terms_lc: Vec<String> =
+                search_terms.iter().map(|s| s.to_lowercase()).collect();
+            let tags_lc: Vec<String> = tags.iter().map(|s| s.to_lowercase()).collect();
 
             let mut total: u32 = 0;
             for term in &terms {
@@ -332,6 +388,14 @@ pub async fn local_search(
                 if let Some(sl) = &summary_lc {
                     if sl.contains(term) {
                         best = best.max(weight::SUMMARY);
+                    }
+                }
+                // locale search aliases — roughly summary-strength, but
+                // intentionally separate from visible tags.
+                for alias in &search_terms_lc {
+                    if alias.contains(term) {
+                        best = best.max(weight::SUMMARY);
+                        break;
                     }
                 }
                 // desc substring.
@@ -480,7 +544,7 @@ fn _force_link_validate_package_name() {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_brew_search_no_match, validate_search_query};
+    use super::{is_brew_search_no_match, localized_category_labels, validate_search_query};
     use crate::error::BrewError;
 
     // ---------- is_brew_search_no_match ----------
@@ -608,5 +672,17 @@ mod tests {
     #[test]
     fn allows_internal_dash_after_letter() {
         validate_search_query("a-b").expect("internal dash is fine");
+    }
+
+    #[test]
+    fn localized_category_labels_keep_english_fallback() {
+        assert_eq!(
+            localized_category_labels("Security", "ru"),
+            vec!["Security".to_string(), "Безопасность".to_string()]
+        );
+        assert_eq!(
+            localized_category_labels("Security", "en"),
+            vec!["Security".to_string()]
+        );
     }
 }

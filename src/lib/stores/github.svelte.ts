@@ -28,6 +28,8 @@ import {
   githubUnwatch,
   githubWatch,
 } from "$lib/api";
+import { t } from "$lib/i18n/messages";
+import { ui } from "$lib/stores/ui.svelte";
 import { safeOpenUrl } from "$lib/util/url";
 import { toast } from "./toast.svelte";
 import {
@@ -226,7 +228,7 @@ class GithubStore {
     } catch (e) {
       this._setSignin("signIn-startError", {
         kind: "error",
-        message: isBrewError(e) ? brewErrorMessage(e) : String(e),
+        message: isBrewError(e) ? brewErrorMessage(e, ui.locale) : String(e),
       });
       return;
     }
@@ -266,7 +268,7 @@ class GithubStore {
       } catch (e) {
         this._setSignin("poll-error", {
           kind: "error",
-          message: isBrewError(e) ? brewErrorMessage(e) : String(e),
+          message: isBrewError(e) ? brewErrorMessage(e, ui.locale) : String(e),
         });
         return;
       }
@@ -283,7 +285,7 @@ class GithubStore {
         // reactivity scheduler (see issue #1 root cause; this app
         // exhibited 300+ effect re-runs per single signinState write).
         // The toast belongs at the call site of the transition.
-        toast.success(username ? `Signed in as @${username}` : "Signed in to GitHub");
+        toast.success(username ? t("github.signedInAsToast", ui.locale, { username }) : t("github.signedInToast", ui.locale));
         // Auto-close the modal 1.5s after success so the user reads
         // the "Signed in as …" panel before it dismisses.
         setTimeout(() => this.cancelSignin(), 1500);
@@ -291,13 +293,13 @@ class GithubStore {
       }
       if (result.kind === "denied") {
         this._setSignin("poll-denied", { kind: "denied" });
-        toast.error("GitHub sign-in denied");
+        toast.error(t("github.signInDenied", ui.locale));
         setTimeout(() => this.cancelSignin(), 2000);
         return;
       }
       if (result.kind === "expired") {
         this._setSignin("poll-expired", { kind: "expired" });
-        toast.error("Sign-in code expired", "Try again.");
+        toast.error(t("github.signInExpired", ui.locale), t("github.signInExpiredBody", ui.locale));
         setTimeout(() => this.cancelSignin(), 2000);
         return;
       }

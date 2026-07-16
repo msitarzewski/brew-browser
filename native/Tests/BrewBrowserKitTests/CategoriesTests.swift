@@ -231,3 +231,46 @@ struct CategorySubgroupTests {
         #expect(try catalog().subgroups(in: "does-not-exist").isEmpty)
     }
 }
+
+@Suite("EnrichmentLocaleOverlay")
+struct EnrichmentLocaleOverlayTests {
+    @Test func russianOverlayAppliesToSeedPackage() throws {
+        let catalog = try #require(EnrichmentCatalog.loadBundled(locale: "ru-RU"))
+        let entry = try #require(catalog.entry(for: "wget"))
+        #expect(entry.summary?.contains("загруз") == true)
+        #expect(entry.searchTerms.contains("скачать"))
+        // Stable package-token suggestions remain identifiers, not translations.
+        #expect(entry.similar.allSatisfy { !$0.contains(" ") })
+    }
+
+    @Test func englishBundleDoesNotUseRussianOverlay() throws {
+        let catalog = try #require(EnrichmentCatalog.loadBundled(locale: "en"))
+        let entry = try #require(catalog.entry(for: "wget"))
+        #expect(entry.summary?.contains("загруз") != true)
+        #expect(!entry.searchTerms.contains("скачать"))
+    }
+
+    @Test func localizedMergeIgnoresOverlayStableFields() {
+        let base = EnrichmentEntry(
+            friendlyName: "Wget",
+            summary: "Download files.",
+            useCases: ["Mirror a site"],
+            similar: ["curl"],
+            tags: ["network"],
+            searchTerms: ["download"]
+        )
+        let patch = EnrichmentEntry(
+            friendlyName: nil,
+            summary: "Загружает файлы.",
+            useCases: [],
+            similar: ["локализованный токен"],
+            tags: ["локализованный тег"],
+            searchTerms: ["скачать"]
+        )
+        let merged = patch.localized(over: base)
+        #expect(merged.summary == "Загружает файлы.")
+        #expect(merged.similar == ["curl"])
+        #expect(merged.tags == ["network"])
+        #expect(merged.searchTerms == ["скачать"])
+    }
+}

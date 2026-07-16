@@ -9,6 +9,7 @@
   import EmptyState from "./EmptyState.svelte";
   import { activity } from "$lib/stores/activity.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { t } from "$lib/i18n/messages";
 
   function open(jobId: string) {
     activity.setActive(jobId);
@@ -27,7 +28,7 @@
     const totalSec = Math.floor(ms / 1000);
     const m = Math.floor(totalSec / 60);
     const s = totalSec % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
+    return ui.locale === "ru" && m === 0 ? `${s} с` : `${m}:${s.toString().padStart(2, "0")}`;
   }
 </script>
 
@@ -40,7 +41,7 @@
       <span class="action-wrap" data-tauri-drag-region="false">
         <Button size="sm" variant="ghost" onclick={() => activity.clearCompleted()}>
           {#snippet icon()}<Trash2 size={14} />{/snippet}
-          Clear completed
+          {t("Clear completed", ui.locale)}
         </Button>
       </span>
     </header>
@@ -49,8 +50,8 @@
   <div class="list-wrap">
     {#if activity.jobs.length === 0}
       <EmptyState
-        title="Nothing's run yet."
-        body="brew commands kicked off from here will show up in this list."
+        title={t("Nothing's run yet.", ui.locale)}
+        body={t("brew commands kicked off from here will show up in this list.", ui.locale)}
       >
         {#snippet icon()}<ActivityIcon size={48} />{/snippet}
       </EmptyState>
@@ -71,8 +72,8 @@
             </button>
             <button
               class="del"
-              title="Remove from history"
-              aria-label="Remove {j.label} from history"
+              title={ui.locale === "ru" ? "Убрать из истории" : "Remove from history"}
+              aria-label={ui.locale === "ru" ? `Убрать ${j.label} из истории` : `Remove ${j.label} from history`}
               onclick={() => remove(j)}
             >
               <Trash2 size={14} />

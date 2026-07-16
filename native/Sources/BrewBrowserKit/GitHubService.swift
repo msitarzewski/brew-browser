@@ -139,13 +139,93 @@ public struct DeviceFlowStart: Sendable, Hashable {
 ///                              path in `github.rs:180-182`
 ///   - `http(_)`             ⟵ `BrewError::HttpStatus { status }`
 ///   - `network(_)`          ⟵ `BrewError::Network { message }`
-public enum GithubError: Error, Sendable, Equatable {
+public enum GithubError: Error, LocalizedError, Sendable, Equatable {
     case authRequired
     case scopeRequired(String)
     case rateLimited(resetAt: String?)
     case notAGithubURL
     case http(Int)
     case network(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .authRequired:
+            return L10n.isRussian
+                ? "Для этого действия нужно войти в GitHub."
+                : "GitHub sign-in is required for this action."
+        case .scopeRequired(let scope):
+            return L10n.isRussian
+                ? "GitHub-токену не хватает разрешения \(scope). Войдите в GitHub ещё раз."
+                : "GitHub token is missing the \(scope) scope. Sign in again."
+        case .rateLimited(let resetAt):
+            if L10n.isRussian {
+                if let resetAt { return "GitHub ограничил частоту запросов. Повторите после \(resetAt)." }
+                return "GitHub ограничил частоту запросов. Повторите позже."
+            }
+            if let resetAt { return "GitHub rate limit reached. Try again after \(resetAt)." }
+            return "GitHub rate limit reached. Try again later."
+        case .notAGithubURL:
+            return L10n.isRussian
+                ? "Это не ссылка GitHub вида github.com/<owner>/<repo>."
+                : "This is not a GitHub URL in the form github.com/<owner>/<repo>."
+        case .http(let status):
+            return L10n.isRussian
+                ? "GitHub вернул HTTP \(status)."
+                : "GitHub returned HTTP \(status)."
+        case .network(let message):
+            if L10n.isRussian {
+                switch message {
+                case "access denied":
+                    return "Авторизация GitHub отклонена."
+                case "device code expired":
+                    return "Код входа GitHub истёк. Начните вход заново."
+                case "malformed device/code response":
+                    return "GitHub вернул некорректный ответ для device flow."
+                case "device flow returned neither access_token nor error":
+                    return "GitHub не вернул ни токен доступа, ни ошибку device flow."
+                case "malformed repo response":
+                    return "GitHub вернул некорректные данные репозитория."
+                case "create_issue returned no number/html_url":
+                    return "GitHub создал issue, но не вернул номер или ссылку."
+                case "/user returned empty login":
+                    return "GitHub не вернул имя пользователя."
+                case "issue title must not be empty":
+                    return "Заголовок issue не может быть пустым."
+                default:
+                    if message.hasPrefix("github device flow error: ") {
+                        let raw = String(message.dropFirst("github device flow error: ".count))
+                        return "GitHub вернул ошибку device flow: \(raw)."
+                    }
+                    if message.hasPrefix("bad url: ") {
+                        let url = String(message.dropFirst("bad url: ".count))
+                        return "Некорректный URL GitHub: \(url)."
+                    }
+                    if message.hasPrefix("non-HTTP response from ") {
+                        let url = String(message.dropFirst("non-HTTP response from ".count))
+                        return "GitHub вернул не-HTTP ответ от \(url)."
+                    }
+                    if message.hasPrefix("issue title exceeds ") {
+                        return "Заголовок issue слишком длинный."
+                    }
+                    if message.hasPrefix("issue body exceeds ") {
+                        return "Текст issue слишком длинный."
+                    }
+                    if message.hasPrefix("too many labels") {
+                        return "Слишком много меток issue."
+                    }
+                    if message.hasPrefix("label length must be ") {
+                        return "Недопустимая длина метки issue."
+                    }
+                    if message.hasPrefix("label contains invalid character: ") {
+                        let label = String(message.dropFirst("label contains invalid character: ".count))
+                        return "Метка issue содержит недопустимый символ: \(label)."
+                    }
+                    return "Ошибка GitHub: \(message)"
+                }
+            }
+            return message
+        }
+    }
 }
 
 // MARK: - GitHubService

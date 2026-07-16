@@ -26,6 +26,7 @@
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
 
   import { settings } from "$lib/stores/settings.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
   import { isLinux } from "$lib/util/platform";
   import SettingsSectionUpdates from "$lib/components/SettingsSectionUpdates.svelte";
   import SettingsSectionTrendingHistory from "$lib/components/SettingsSectionTrendingHistory.svelte";
@@ -36,6 +37,7 @@
     CaskIconMode,
     CatalogAutoRefresh,
   } from "$lib/types";
+  import { t } from "$lib/i18n/messages";
 
   /** Tooltip + accessible-description copy for the Offline Mode toggle
       (Phase 15 plan §11 item 13). Centralised in one constant so the
@@ -47,6 +49,12 @@
     "All UI that depends on the network shows a 'disabled by Offline Mode' " +
     "notice. brew itself still runs normally — its network access is the " +
     "user's call at the terminal.";
+
+  let offlineModeDescription = $derived(ui.locale === "ru"
+    ? "Блокирует все исходящие сетевые обращения: обновление каталога, загрузку трендов, статистику GitHub, вход через GitHub, " +
+      `${isLinux ? "" : "проверку homepage для иконок cask-пакетов, "}проверку обновлений. ` +
+      "Весь UI, зависящий от сети, показывает, что действие отключено офлайн-режимом. Сам brew продолжает работать как обычно: его сетевой доступ остаётся вашим явным действием."
+    : OFFLINE_MODE_DESCRIPTION);
 
   /** Inclusive bounds — kept in sync with `Settings::CATALOG_STALE_DAYS_*`
       in src-tauri/src/commands/settings.rs. */
@@ -76,6 +84,17 @@
 
   function pickIconMode(v: CaskIconMode) {
     void settings.save({ caskIconMode: v });
+  }
+
+  function autoRefreshLabel(v: CatalogAutoRefresh, sentence = false): string {
+    if (ui.locale === "ru") {
+      if (v === "off") return sentence ? "вручную" : "Выкл.";
+      if (v === "weekly") return sentence ? "еженедельно" : "Еженедельно";
+      return sentence ? "ежедневно" : "Ежедневно";
+    }
+    if (v === "off") return sentence ? "manual" : "Off";
+    if (v === "weekly") return sentence ? "weekly" : "Weekly";
+    return sentence ? "daily" : "Daily";
   }
 
   function onStaleDaysChange(e: Event) {
@@ -109,7 +128,9 @@
     return [
       {
         label: "formulae.brew.sh/api/analytics",
-        desc: "Trending tab — fetches Homebrew's published install counts.",
+        desc: ui.locale === "ru"
+          ? "Вкладка «Тренды» — загружает опубликованные Homebrew счётчики установок."
+          : "Trending tab — fetches Homebrew's published install counts.",
         allowed: !paranoid,
       },
       {
@@ -117,9 +138,13 @@
         label: isLinux
           ? "formulae.brew.sh/api/formula.json"
           : "formulae.brew.sh/api/{formula,cask}.json",
-        desc: `Catalog refresh — ${s.catalogAutoRefresh === "off"
-          ? "manual only"
-          : `scheduled (${s.catalogAutoRefresh})`}.`,
+        desc: ui.locale === "ru"
+          ? `Обновление каталога — ${s.catalogAutoRefresh === "off"
+              ? "только вручную"
+              : `по расписанию (${autoRefreshLabel(s.catalogAutoRefresh, true)})`}.`
+          : `Catalog refresh — ${s.catalogAutoRefresh === "off"
+              ? "manual only"
+              : `scheduled (${autoRefreshLabel(s.catalogAutoRefresh, true)})`}.`,
         allowed: !paranoid,
       },
       // Linux: no casks → no cask icon cascade; the entry would describe
@@ -127,31 +152,45 @@
       ...(isLinux
         ? []
         : [{
-            label: "Cask homepage probes",
-            desc: `Uninstalled-cask icon cascade — ${
-              s.caskIconMode === "off" ? "disabled" :
-              s.caskIconMode === "installed-only" ? "installed apps only" :
-              "all casks with a homepage"
-            }.`,
+            label: ui.locale === "ru" ? "Проверка homepage cask-пакетов" : "Cask homepage probes",
+            desc: ui.locale === "ru"
+              ? `Цепочка поиска иконок для неустановленных cask-пакетов — ${
+                  s.caskIconMode === "off" ? "отключена" :
+                  s.caskIconMode === "installed-only" ? "только установленные приложения" :
+                  "все cask-пакеты с homepage"
+                }.`
+              : `Uninstalled-cask icon cascade — ${
+                  s.caskIconMode === "off" ? "disabled" :
+                  s.caskIconMode === "installed-only" ? "installed apps only" :
+                  "all casks with a homepage"
+                }.`,
             allowed: !paranoid && s.caskIconMode !== "off",
           }]),
       {
         label: "brew-browser.zerologic.com/trending-history",
-        desc: s.enhancedTrendingEnabled
-          ? "Enhanced trending history — per-package historical install trends for sparklines + charts."
-          : "Enhanced trending history — opt-in, currently disabled.",
+        desc: ui.locale === "ru"
+          ? (s.enhancedTrendingEnabled
+              ? "Расширенная история трендов — исторические установки по пакетам для мини-графиков и графиков."
+              : "Расширенная история трендов — опционально, сейчас отключена.")
+          : (s.enhancedTrendingEnabled
+              ? "Enhanced trending history — per-package historical install trends for sparklines + charts."
+              : "Enhanced trending history — opt-in, currently disabled."),
         allowed: !paranoid && s.enhancedTrendingEnabled,
       },
       {
         label: "brew",
-        desc: "Install/uninstall/upgrade — brew itself fetches bottles. Not gated by Offline Mode (you initiated the action).",
+        desc: ui.locale === "ru"
+          ? "brew install, brew uninstall и brew upgrade — brew сам загружает bottles. Офлайн-режим это не блокирует, потому что команду запускаете вы."
+          : "Install/uninstall/upgrade — brew itself fetches bottles. Not gated by Offline Mode (you initiated the action).",
         allowed: true,
       },
       {
-        label: "Default browser",
+        label: ui.locale === "ru" ? "Браузер по умолчанию" : "Default browser",
         // tauri-plugin-opener delegates to the `open` crate: open(1) on
         // macOS, xdg-open (first in its fallback chain) on Linux.
-        desc: `Opening external links hands off to ${isLinux ? "xdg-open" : "macOS open(1)"}. Not a network call from us.`,
+        desc: ui.locale === "ru"
+          ? `Открытие внешних ссылок передаётся в ${isLinux ? "xdg-open" : "macOS open(1)"}. Это не сетевой запрос от brew-browser.`
+          : `Opening external links hands off to ${isLinux ? "xdg-open" : "macOS open(1)"}. Not a network call from us.`,
         allowed: true,
       },
     ];
@@ -159,20 +198,24 @@
 </script>
 
 <div class="section">
-  <h2>Network</h2>
+  <h2>{t("Network", ui.locale)}</h2>
 
   {#if settings.loading && !settings.data}
-    <p class="lead">Loading settings…</p>
+    <p class="lead">{t("Loading settings…", ui.locale)}</p>
   {:else if settings.corruptOnDisk}
     <div class="callout corrupt" role="alert">
       <div class="callout-head">
         <AlertTriangle size={18} />
-        <strong>Settings file is unreadable.</strong>
+        <strong>{ui.locale === "ru" ? "Файл настроек не читается." : "Settings file is unreadable."}</strong>
       </div>
       <p class="callout-body">
-        Your <code>settings.json</code> couldn't be parsed. Until it's
-        repaired, all outbound network calls are blocked as a safety
-        measure. Resetting will overwrite the file with defaults.
+        {ui.locale === "ru"
+          ? "Не удалось разобрать "
+          : "Your "}
+        <code>settings.json</code>
+        {ui.locale === "ru"
+          ? ". Пока файл не исправлен, все исходящие сетевые запросы заблокированы для безопасности. Сброс перезапишет файл значениями по умолчанию."
+          : " couldn't be parsed. Until it's repaired, all outbound network calls are blocked as a safety measure. Resetting will overwrite the file with defaults."}
       </p>
       {#if settings.error}
         <p class="callout-error">{settings.error}</p>
@@ -183,7 +226,7 @@
         onclick={handleReset}
         disabled={settings.loading}
       >
-        <RefreshCw size={14} /> Reset to defaults
+        <RefreshCw size={14} /> {t("Reset to defaults", ui.locale)}
       </button>
     </div>
   {:else if settings.data}
@@ -192,7 +235,7 @@
          the Settings DTO, `paranoid_mode` in settings.json) stays
          unchanged to avoid migration churn — only the UX moves. -->
     <div class="field">
-      <label class="toggle" title={OFFLINE_MODE_DESCRIPTION}>
+      <label class="toggle" title={offlineModeDescription}>
         <input
           type="checkbox"
           checked={settings.data.paranoidMode}
@@ -201,17 +244,16 @@
           aria-describedby="offline-mode-hint"
         />
         <span class="toggle-track" aria-hidden="true"></span>
-        <span class="toggle-label">Offline Mode</span>
+        <span class="toggle-label">{t("Offline Mode", ui.locale)}</span>
       </label>
-      <p class="hint" id="offline-mode-hint">{OFFLINE_MODE_DESCRIPTION}</p>
+      <p class="hint" id="offline-mode-hint">{offlineModeDescription}</p>
       {#if settings.data.paranoidMode}
         <div class="callout warn" role="status">
           <AlertTriangle size={16} />
           {#if isLinux}
-            <span>Offline Mode is on — Trending and Catalog refresh are blocked.</span>
+            <span>{ui.locale === "ru" ? "Офлайн-режим включён — тренды и обновление каталога заблокированы." : "Offline Mode is on — Trending and Catalog refresh are blocked."}</span>
           {:else}
-            <span>Offline Mode is on — Trending, Catalog refresh, and
-              Cask icon probes are blocked.</span>
+            <span>{ui.locale === "ru" ? "Офлайн-режим включён — тренды, обновление каталога и проверки иконок cask-пакетов заблокированы." : "Offline Mode is on — Trending, Catalog refresh, and Cask icon probes are blocked."}</span>
           {/if}
         </div>
       {/if}
@@ -219,8 +261,8 @@
 
     <!-- Catalog auto-refresh -->
     <div class="field">
-      <span class="field-label">Catalog auto-refresh</span>
-      <div class="radio-row" role="radiogroup" aria-label="Catalog auto-refresh">
+      <span class="field-label">{ui.locale === "ru" ? "Автообновление каталога" : "Catalog auto-refresh"}</span>
+      <div class="radio-row" role="radiogroup" aria-label={ui.locale === "ru" ? "Автообновление каталога" : "Catalog auto-refresh"}>
         {#each (["off", "weekly", "daily"] as const) as opt (opt)}
           <button
             type="button"
@@ -231,17 +273,16 @@
             disabled={settings.loading}
             onclick={() => pickAutoRefresh(opt)}
           >
-            {opt[0].toUpperCase() + opt.slice(1)}
+            {autoRefreshLabel(opt)}
           </button>
         {/each}
       </div>
-      <p class="hint">Off keeps the current Phase 12a behaviour
-        (manual refresh from the Dashboard).</p>
+      <p class="hint">{ui.locale === "ru" ? "Выкл. сохраняет текущее поведение: ручное обновление из Сводки." : "Off keeps the current Phase 12a behaviour (manual refresh from the Dashboard)."}</p>
     </div>
 
     <!-- Stale banner threshold -->
     <div class="field">
-      <label for="stale-days">Catalog stale-banner threshold</label>
+      <label for="stale-days">{ui.locale === "ru" ? "Порог предупреждения об устаревшем каталоге" : "Catalog stale-banner threshold"}</label>
       <div class="number-row">
         <input
           id="stale-days"
@@ -254,19 +295,19 @@
           onchange={onStaleDaysChange}
           disabled={settings.loading}
         />
-        <span class="unit">days</span>
+        <span class="unit">{ui.locale === "ru" ? "дн." : "days"}</span>
       </div>
-      <p class="hint">Show a "Catalog is N days old" banner when the
-        active catalog is at least this many days behind. Range
-        {CATALOG_STALE_MIN}–{CATALOG_STALE_MAX}.</p>
+      <p class="hint">{ui.locale === "ru"
+        ? `Показывать предупреждение «Каталог устарел на N дней», когда активный каталог отстаёт минимум на столько дней. Диапазон ${CATALOG_STALE_MIN}–${CATALOG_STALE_MAX}.`
+        : `Show a "Catalog is N days old" banner when the active catalog is at least this many days behind. Range ${CATALOG_STALE_MIN}–${CATALOG_STALE_MAX}.`}</p>
     </div>
 
     <!-- Cask icon mode. Linux: casks don't exist there, so the whole
          control (and the icon cascade it configures) is hidden. -->
     {#if !isLinux}
     <div class="field">
-      <span class="field-label">Cask icon fetching</span>
-      <div class="radio-row" role="radiogroup" aria-label="Cask icon fetching">
+      <span class="field-label">{ui.locale === "ru" ? "Загрузка иконок cask-пакетов" : "Cask icon fetching"}</span>
+      <div class="radio-row" role="radiogroup" aria-label={ui.locale === "ru" ? "Загрузка иконок cask-пакетов" : "Cask icon fetching"}>
         {#each (["off", "installed-only", "all"] as const) as opt (opt)}
           <button
             type="button"
@@ -277,19 +318,17 @@
             disabled={settings.loading}
             onclick={() => pickIconMode(opt)}
           >
-            {opt === "off" ? "Off" : opt === "installed-only" ? "Installed only" : "All"}
+            {ui.locale === "ru" ? (opt === "off" ? "Выкл." : opt === "installed-only" ? "Только установленные" : "Все") : opt === "off" ? "Off" : opt === "installed-only" ? "Installed only" : "All"}
           </button>
         {/each}
       </div>
-      <p class="hint">All matches the current Phase 8 behaviour. Installed-only
-        skips the homepage cascade for uninstalled casks. Off disables icon
-        extraction entirely.</p>
+      <p class="hint">{ui.locale === "ru" ? "«Все» соответствует текущему поведению. «Только установленные» пропускает homepage-поиск для неустановленных cask-пакетов. «Выкл.» полностью отключает извлечение иконок." : "All matches the current Phase 8 behaviour. Installed-only skips the homepage cascade for uninstalled casks. Off disables icon extraction entirely."}</p>
     </div>
     {/if}
 
     <!-- Trending TTL -->
     <div class="field">
-      <label for="trending-ttl">Trending cache TTL</label>
+      <label for="trending-ttl">{ui.locale === "ru" ? "Время жизни кэша трендов" : "Trending cache TTL"}</label>
       <div class="number-row">
         <input
           id="trending-ttl"
@@ -302,20 +341,21 @@
           onchange={onTtlChange}
           disabled={settings.loading}
         />
-        <span class="unit">minutes</span>
+        <span class="unit">{ui.locale === "ru" ? "мин" : "minutes"}</span>
       </div>
-      <p class="hint">How long to keep a fetched Trending report before
-        re-hitting formulae.brew.sh. Range {TRENDING_TTL_MIN}–{TRENDING_TTL_MAX}.</p>
+      <p class="hint">{ui.locale === "ru"
+        ? `Как долго хранить загруженный отчёт трендов перед повторным обращением к formulae.brew.sh. Диапазон ${TRENDING_TTL_MIN}–${TRENDING_TTL_MAX}.`
+        : `How long to keep a fetched Trending report before re-hitting formulae.brew.sh. Range ${TRENDING_TTL_MIN}–${TRENDING_TTL_MAX}.`}</p>
     </div>
 
     <!-- Disclosure list -->
     <div class="field disclosure">
-      <span class="field-label">Outbound paths (read-only)</span>
+      <span class="field-label">{ui.locale === "ru" ? "Исходящие обращения (только чтение)" : "Outbound paths (read-only)"}</span>
       <ol class="paths">
         {#each pathStatuses as p, i (p.label)}
           <li>
             <span class="num">{i + 1}.</span>
-            <span class="status" aria-label={p.allowed ? "allowed" : "blocked"}>
+            <span class="status" aria-label={p.allowed ? (ui.locale === "ru" ? "разрешено" : "allowed") : (ui.locale === "ru" ? "заблокировано" : "blocked")}>
               {#if p.allowed}
                 <CheckCircle size={14} class="ok" />
               {:else}
@@ -329,8 +369,9 @@
           </li>
         {/each}
       </ol>
-      <p class="hint">Mirrors the README "Open by default" disclosure.
-        Reflects your current settings.</p>
+      <p class="hint">{ui.locale === "ru"
+        ? "Повторяет раздел README «Open by default» и отражает текущие настройки."
+        : "Mirrors the README \"Open by default\" disclosure. Reflects your current settings."}</p>
     </div>
 
     {#if settings.error}

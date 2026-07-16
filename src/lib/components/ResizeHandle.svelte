@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { t } from "$lib/i18n/messages";
+  import { ui } from "$lib/stores/ui.svelte";
+
   /**
    * ResizeHandle — drag handle for resizing a sibling pane.
    *
@@ -52,8 +55,10 @@
     direction = "left",
     onChange,
     onCommit,
-    label = "Resize panel",
+    label = "",
   }: Props = $props();
+
+  const resolvedLabel = $derived(label || t("resize.panel", ui.locale));
 
   // Drag state — `dragging` is reactive (`class:dragging` styles the hairline);
   // the rest are imperative-only (set in pointerdown, read in pointermove).
@@ -142,7 +147,7 @@
   class:dragging
   role="separator"
   aria-orientation={orientation}
-  aria-label={label}
+  aria-label={resolvedLabel}
   aria-valuemin={min}
   aria-valuemax={max ?? undefined}
   aria-valuenow={Math.round(size)}
@@ -153,7 +158,7 @@
   onpointercancel={endDrag}
   onkeydown={onKeyDown}
   ondblclick={onDblClick}
-  title="Drag to resize · double-click to reset"
+  title={t("resize.dragHint", ui.locale)}
 ></div>
 
 <style>

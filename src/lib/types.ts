@@ -446,6 +446,10 @@ export interface EnrichmentEntry {
   /** Tech-stack tags (lowercase, hyphenated). 3-8 expected. Empty when
       Tier B hasn't been run. */
   tags: string[];
+  /** Locale-specific search aliases. Not rendered as tags; used so
+      translated package summaries can be searched without renaming
+      Homebrew tokens or upstream metadata. */
+  searchTerms?: string[];
 }
 
 /**
@@ -974,7 +978,44 @@ export function isBrewError(e: unknown): e is BrewErrorPayload {
 }
 
 /** Human-readable message for a BrewError. */
-export function brewErrorMessage(e: BrewErrorPayload): string {
+export function brewErrorMessage(e: BrewErrorPayload, locale: "en" | "ru" = "en"): string {
+  if (locale === "ru") {
+    switch (e.code) {
+      case "brew_not_found":      return "Homebrew не найден в PATH.";
+      case "brew_exit_non_zero":  return e.friendlyMessage ?? `brew завершился с кодом ${e.exitCode}: ${e.stderrExcerpt}`;
+      case "json_parse":          return `Не удалось разобрать вывод brew: ${e.message}`;
+      case "io":                  return `Ошибка ввода-вывода: ${e.message}`;
+      case "network":             return `Сетевая ошибка: ${e.message}`;
+      case "http_status":         return `HTTP ${e.status} от ${e.url}`;
+      case "invalid_argument":    return `Недопустимый аргумент: ${e.message}`;
+      case "job_not_found":       return `Задача ${e.jobId} не найдена.`;
+      case "canceled":            return "Операция отменена.";
+      case "brewfile_not_found":  return `Brewfile «${e.id}» не найден.`;
+      case "internal":            return `Внутренняя ошибка: ${e.message}`;
+      case "paranoid_mode_blocked":
+        return `Офлайн-режим включён — функция «${e.feature}» заблокирована. Отключите его в разделе «Настройки → Сеть».`;
+      case "feature_disabled":
+        return `Функция «${e.feature}» отключена. Включите её в разделе «Настройки → Сеть».`;
+      case "github_rate_limited": {
+        const reset = e.resetAt > 0 ? new Date(e.resetAt * 1000).toLocaleTimeString("ru-RU") : "скоро";
+        return `Достигнут лимит запросов GitHub API. Лимит сбросится в ${reset}. Войдите в GitHub, чтобы снять ограничение.`;
+      }
+      case "keychain_unavailable":
+        return `${keyringNameCapitalized} недоступен: ${e.message}`;
+      case "auth_required":
+        return "Войдите в GitHub, чтобы использовать эту функцию.";
+      case "scope_required":
+        return `Требуется разрешение GitHub «${e.scope}». Войдите ещё раз, чтобы выдать его.`;
+      case "hash_mismatch":
+        return `Обновление отменено: хэш загруженного файла не совпал с манифестом (ожидалось ${e.expected.slice(0, 12)}…, получено ${e.actual.slice(0, 12)}…).`;
+      case "signature_verification_failed":
+        return `Обновление отменено: подпись не прошла проверку (${e.message}).`;
+      case "downgrade_rejected":
+        return `Обновление отклонено: ${e.target} не новее установленной версии (${e.current}).`;
+      case "vulns_not_installed":
+        return `Подкоманда brew vulns не установлена. Нажмите «Установить brew-vulns» или выполните \`${e.installCommand}\`, чтобы включить проверку.`;
+    }
+  }
   switch (e.code) {
     case "brew_not_found":      return "Homebrew not found on PATH.";
     case "brew_exit_non_zero":  return e.friendlyMessage ?? `brew exited ${e.exitCode}: ${e.stderrExcerpt}`;

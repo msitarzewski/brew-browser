@@ -19,7 +19,8 @@ use std::time::Duration;
 
 use tauri::State;
 
-use crate::commands::bundles::parse_bundles;
+use crate::commands::bundles::{localized_bundles_with_overlay, parse_bundles};
+use crate::enrichment::normalize_locale;
 use crate::error::BrewError;
 use crate::state::AppState;
 use crate::types::Bundle;
@@ -46,10 +47,24 @@ pub const SUPPORTED_SCHEMA_VERSION: u64 = 1;
 /// result is non-empty. Every failure mode is an `Err` the store swallows,
 /// keeping the bundled copy.
 #[tauri::command]
-pub async fn bundles_live(state: State<'_, AppState>) -> Result<Vec<Bundle>, BrewError> {
+pub async fn bundles_live(
+    locale: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<Bundle>, BrewError> {
     state.require_live_bundles().await?;
     let body = fetch_bundles_text().await?;
-    parse_live_payload(&body)
+    let bundles = parse_live_payload(&body)?;
+    let normalized = normalize_locale(locale.as_deref());
+    if normalized == "en" {
+        return Ok(bundles);
+    }
+    match fetch_bundles_locale_text(normalized).await {
+        Ok(overlay) => Ok(localized_bundles_with_overlay(bundles, normalized, &overlay)),
+        Err(e) => {
+            tracing::warn!("live bundles locale overlay '{normalized}' unavailable: {e}");
+            Ok(bundles)
+        }
+    }
 }
 
 /// Parse a host-served `bundles.json` body with the M5 fail-soft rules:
@@ -89,16 +104,25 @@ pub fn parse_live_payload(json: &str) -> Result<Vec<Bundle>, BrewError> {
 /// the body as text rather than decoding into a fixed type.
 async fn fetch_bundles_text() -> Result<String, BrewError> {
     let url = format!("{BASE}/bundles.json");
+    fetch_text(&url).await
+}
+
+async fn fetch_bundles_locale_text(locale: &str) -> Result<String, BrewError> {
+    let url = format!("{BASE}/bundles.{locale}.json");
+    fetch_text(&url).await
+}
+
+async fn fetch_text(url: &str) -> Result<String, BrewError> {
     let client = build_client()?;
-    let resp = client.get(&url).send().await.map_err(|e| {
+    let resp = client.get(url).send().await.map_err(|e| {
         if let Some(status) = e.status() {
             BrewError::HttpStatus {
-                url: url.clone(),
+                url: url.to_string(),
                 status: status.as_u16(),
             }
         } else {
             BrewError::Network {
-                url: url.clone(),
+                url: url.to_string(),
                 message: e.to_string(),
             }
         }
@@ -107,13 +131,13 @@ async fn fetch_bundles_text() -> Result<String, BrewError> {
     let status = resp.status();
     if !status.is_success() {
         return Err(BrewError::HttpStatus {
-            url,
+            url: url.to_string(),
             status: status.as_u16(),
         });
     }
 
     resp.text().await.map_err(|e| BrewError::Network {
-        url,
+        url: url.to_string(),
         message: format!("reading response body failed: {e}"),
     })
 }

@@ -6,6 +6,8 @@
   import { openTerminalInstall } from "$lib/api";
   import { env } from "$lib/stores/env.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { t } from "$lib/i18n/messages";
   import { isMac } from "$lib/util/platform";
 
   /**
@@ -23,8 +25,8 @@
   // Same clipboard pattern as DeviceFlowModal.copyCode().
   function copyCommand() {
     void navigator.clipboard.writeText(INSTALL_COMMAND).then(
-      () => toast.success("Install command copied to clipboard"),
-      () => toast.error("Couldn't copy command"),
+      () => toast.success(t("onboarding.installCopied", ui.locale)),
+      () => toast.error(t("onboarding.copyFailed", ui.locale)),
     );
   }
 
@@ -38,10 +40,10 @@
       void navigator.clipboard.writeText(INSTALL_COMMAND).then(
         () =>
           toast.info(
-            "Couldn't open Terminal",
-            "The install command was copied instead — paste it into any terminal.",
+            t("onboarding.openTerminalFailed", ui.locale),
+            t("onboarding.commandCopiedFallback", ui.locale),
           ),
-        () => toast.error("Couldn't open Terminal or copy the command"),
+        () => toast.error(t("onboarding.openTerminalOrCopyFailed", ui.locale)),
       );
     } finally {
       openingTerminal = false;
@@ -49,12 +51,10 @@
   }
 </script>
 
-<div class="onboarding" role="region" aria-label="Homebrew setup">
+<div class="onboarding" role="region" aria-label={t("onboarding.aria", ui.locale)}>
   <EmptyState
-    title="Let's get Homebrew set up"
-    body={isMac
-      ? "brew-browser is a friendly face for Homebrew, the package manager for your Mac. Install it once and your library appears here automatically — no relaunch needed."
-      : "brew-browser is a friendly face for Homebrew, which runs on Linux too. Install it once and your library appears here automatically — no relaunch needed."}
+    title={t("onboarding.title", ui.locale)}
+    body={isMac ? t("onboarding.body.mac", ui.locale) : t("onboarding.body.linux", ui.locale)}
   >
     {#snippet icon()}<Terminal size={48} />{/snippet}
     {#snippet cta()}
@@ -62,26 +62,26 @@
         <ol>
           {#if env.status?.cltFound === false}
             <li>
-              Install the Xcode Command Line Tools first: run
-              <code class="inline">xcode-select --install</code> in Terminal and follow the prompts.
+              {t("onboarding.clt.before", ui.locale)}
+              <code class="inline">xcode-select --install</code> {t("onboarding.clt.after", ui.locale)}
             </li>
           {/if}
           {#if !isMac}
             <li>
-              Install Homebrew's build dependencies first — on Debian/Ubuntu:
+              {t("onboarding.linuxDeps.before", ui.locale)}
               <code class="inline">sudo apt-get install build-essential procps curl file git</code>
-              (other distros: see the "Homebrew on Linux" page at docs.brew.sh).
+              ({t("onboarding.linuxDeps.after", ui.locale)})
             </li>
           {/if}
           <li>
-            Install Homebrew by running this in {isMac ? "Terminal" : "your terminal"}:
+            {ui.locale === "ru" ? `Установите Homebrew, выполнив эту команду ${isMac ? "в Терминале" : "в вашем терминале"}:` : `Install Homebrew by running this in ${isMac ? "Terminal" : "your terminal"}:`}
             <div class="cmd"><code>{INSTALL_COMMAND}</code></div>
           </li>
         </ol>
         <div class="actions">
-          <Button variant="primary" onclick={copyCommand} ariaLabel="Copy install command">
+          <Button variant="primary" onclick={copyCommand} ariaLabel={ui.locale === "ru" ? "Скопировать команду установки" : "Copy install command"}>
             {#snippet icon()}<Copy size={14} />{/snippet}
-            Copy command
+            {ui.locale === "ru" ? "Скопировать команду" : "Copy command"}
           </Button>
           {#if isMac}
             <!-- macOS-only: `open_terminal_install` drives Terminal.app via
@@ -92,15 +92,15 @@
               variant="secondary"
               loading={openingTerminal}
               onclick={openTerminal}
-              title="Opens Terminal with the install command pre-typed"
+              title={ui.locale === "ru" ? "Открыть Терминал с уже введённой командой установки" : "Opens Terminal with the install command pre-typed"}
             >
-              Open Terminal
+              {t("Open Terminal", ui.locale)}
             </Button>
           {/if}
         </div>
         <p class="waiting" role="status">
           <span class="dot" aria-hidden="true"></span>
-          Waiting for Homebrew… the app refreshes itself the moment the install finishes.
+          {ui.locale === "ru" ? "Ожидаем Homebrew… приложение обновится само, как только установка завершится." : "Waiting for Homebrew… the app refreshes itself the moment the install finishes."}
         </p>
       </div>
     {/snippet}

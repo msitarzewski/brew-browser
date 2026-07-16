@@ -26,25 +26,25 @@ struct SnapshotsView: View {
         .task { await model.loadSnapshots() }
         .sheet(isPresented: $showNewSheet) { newSheet }
         .confirmationDialog(
-            toRestore.map { "Restore from “\($0.label)”?" } ?? "",
+            toRestore.map { L10n.isRussian ? "Восстановить из снимка «\($0.label)»?" : "Restore from “\($0.label)”?" } ?? "",
             isPresented: restoreBinding, titleVisibility: .visible, presenting: toRestore
         ) { snap in
-            Button("Restore") { toRestore = nil; Task { await model.restoreSnapshot(snap) } }
-            Button("Cancel", role: .cancel) { toRestore = nil }
+            Button(L10n.string("Restore")) { toRestore = nil; Task { await model.restoreSnapshot(snap) } }
+            Button(L10n.string("Cancel"), role: .cancel) { toRestore = nil }
         } message: { _ in
-            Text("This installs packages from the snapshot. Existing packages are skipped.")
+            Text(L10n.string("This installs packages from the snapshot. Existing packages are skipped."))
         }
         .confirmationDialog(
-            toDelete.map { "Delete snapshot “\($0.label)”?" } ?? "",
+            toDelete.map { L10n.isRussian ? "Удалить снимок «\($0.label)»?" : "Delete snapshot “\($0.label)”?" } ?? "",
             isPresented: deleteBinding, titleVisibility: .visible, presenting: toDelete
         ) { snap in
-            Button("Delete", role: .destructive) { toDelete = nil; Task { await model.deleteSnapshot(snap) } }
-            Button("Cancel", role: .cancel) { toDelete = nil }
+            Button(L10n.string("Delete"), role: .destructive) { toDelete = nil; Task { await model.deleteSnapshot(snap) } }
+            Button(L10n.string("Cancel"), role: .cancel) { toDelete = nil }
         } message: { _ in
-            Text("The Brewfile will be removed from disk. This cannot be undone.")
+            Text(L10n.string("The Brewfile will be removed from disk. This cannot be undone."))
         }
-        .alert("Snapshot error", isPresented: errorBinding, presenting: errorMessage) { _ in
-            Button("OK", role: .cancel) { errorMessage = nil }
+        .alert(L10n.string("Snapshot error"), isPresented: errorBinding, presenting: errorMessage) { _ in
+            Button(L10n.string("OK"), role: .cancel) { errorMessage = nil }
         } message: { msg in Text(msg) }
     }
 
@@ -53,10 +53,10 @@ struct SnapshotsView: View {
         HStack(spacing: 10) {
             Spacer()
             Button { importSnapshot() } label: {
-                Label("Import…", systemImage: "square.and.arrow.down")
+                Label(L10n.string("Import…"), systemImage: "square.and.arrow.down")
             }
             Button { newLabel = defaultLabel(); showNewSheet = true } label: {
-                Label("New Snapshot", systemImage: "plus")
+                Label(L10n.string("New Snapshot"), systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
         }
@@ -67,13 +67,13 @@ struct SnapshotsView: View {
     @ViewBuilder
     private var content: some View {
         if model.snapshotsLoading && model.snapshots.isEmpty {
-            ProgressView("Loading snapshots…")
+            ProgressView(L10n.string("Loading snapshots…"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if model.snapshots.isEmpty {
             ContentUnavailableView {
-                Label("No snapshots yet", systemImage: "archivebox")
+                Label(L10n.string("No snapshots yet"), systemImage: "archivebox")
             } description: {
-                Text("Save your current setup so you can restore it on another Mac. Snapshots live in ~/Library/Application Support/brew-browser/brewfiles/ — findable outside the app too.")
+                Text(L10n.string("Save your current setup so you can restore it on another Mac. Snapshots live in ~/Library/Application Support/brew-browser/brewfiles/ — findable outside the app too."))
             }
         } else {
             ScrollView {
@@ -97,15 +97,15 @@ struct SnapshotsView: View {
                     Spacer(minLength: 12)
                     HStack(spacing: 8) {
                         Button { toRestore = snap } label: {
-                            Label("Restore", systemImage: "arrow.counterclockwise")
+                            Label(L10n.string("Restore"), systemImage: "arrow.counterclockwise")
                         }
                         .buttonStyle(.borderedProminent).controlSize(.small)
                         Button { exportSnapshot(snap) } label: {
-                            Label("Export…", systemImage: "square.and.arrow.up")
+                            Label(L10n.string("Export…"), systemImage: "square.and.arrow.up")
                         }
                         .controlSize(.small)
                         Button(role: .destructive) { toDelete = snap } label: {
-                            Label("Delete", systemImage: "trash")
+                            Label(L10n.string("Delete"), systemImage: "trash")
                         }
                         .controlSize(.small)
                     }
@@ -121,29 +121,34 @@ struct SnapshotsView: View {
     private func metaLine(_ snap: Snapshot) -> String {
         var parts = [
             snap.createdAt.formatted(date: .abbreviated, time: .shortened),
-            "\(snap.counts.formulae) formulae",
-            "\(snap.counts.casks) casks",
+            L10n.formulaeCount(snap.counts.formulae),
+            L10n.casksCount(snap.counts.casks),
         ]
-        if snap.counts.masApps > 0 { parts.append("\(snap.counts.masApps) MAS apps") }
+        if snap.counts.masApps > 0 {
+            let n = snap.counts.masApps
+            parts.append(L10n.isRussian
+                         ? "\(n) \(L10n.ruPlural(n, one: "приложение MAS", few: "приложения MAS", many: "приложений MAS"))"
+                         : "\(n) MAS apps")
+        }
         return parts.joined(separator: " · ")
     }
 
     // New-snapshot sheet.
     private var newSheet: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("New Snapshot").font(.headline)
+            Text(L10n.string("New Snapshot")).font(.headline)
             VStack(alignment: .leading, spacing: 6) {
-                Text("Name").font(.caption).foregroundStyle(.secondary)
-                TextField("snapshot-name", text: $newLabel)
+                Text(L10n.string("Name")).font(.caption).foregroundStyle(.secondary)
+                TextField(L10n.isRussian ? "Имя снимка" : "snapshot-name", text: $newLabel)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit(create)
             }
-            Text("Stored in ~/Library/Application Support/brew-browser/brewfiles/")
+            Text(L10n.string("Stored in ~/Library/Application Support/brew-browser/brewfiles/"))
                 .font(.caption).foregroundStyle(.secondary)
             HStack {
                 Spacer()
-                Button("Cancel") { showNewSheet = false }.keyboardShortcut(.cancelAction)
-                Button("Create", action: create)
+                Button(L10n.string("Cancel")) { showNewSheet = false }.keyboardShortcut(.cancelAction)
+                Button(L10n.string("Create"), action: create)
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
                     .disabled(newLabel.trimmingCharacters(in: .whitespaces).isEmpty)

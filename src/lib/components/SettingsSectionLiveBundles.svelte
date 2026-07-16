@@ -20,6 +20,8 @@
 
   import { settings } from "$lib/stores/settings.svelte";
   import { bundles } from "$lib/stores/bundles.svelte";
+  import { t } from "$lib/i18n/messages";
+  import { ui } from "$lib/stores/ui.svelte";
 
   let offline = $derived(settings.effective.paranoidMode);
   let on = $derived(settings.effective.liveBundlesEnabled);
@@ -35,11 +37,11 @@
 <div class="section">
   <h2>
     <Boxes size={18} aria-hidden="true" />
-    Refresh bundles from the project host
+    {t("settings.liveBundles.title", ui.locale)}
   </h2>
 
   <div class="field">
-    <label class="toggle" title={offline ? "Disabled by Offline Mode" : undefined}>
+    <label class="toggle" title={offline ? t("Disabled by Offline Mode", ui.locale) : undefined}>
       <input
         type="checkbox"
         checked={on}
@@ -48,23 +50,17 @@
         aria-describedby="live-bundles-hint"
       />
       <span class="toggle-track" aria-hidden="true"></span>
-      <span class="toggle-label">Fetch the latest bundle recipes</span>
+      <span class="toggle-label">{t("settings.liveBundles.toggle", ui.locale)}</span>
     </label>
 
     <p class="hint" id="live-bundles-hint">
-      brew-browser ships with a built-in set of curated bundles that always work
-      offline. When on, it fetches the latest recipe set from
-      <code>brew-browser.zerologic.com/bundles/bundles.json</code>: a single
-      static-file download, no package names sent, no IP logged at the server,
-      no cookies. Same first-party host as Live enrichment — a distinct trust
-      boundary from the always-on Homebrew paths. On any error (or an
-      unsupported newer format) the bundled copy is kept.
+      {t("settings.liveBundles.hint.beforeHost", ui.locale)}
+      <code>brew-browser.zerologic.com/bundles/bundles.json</code>{t("settings.liveBundles.hint.afterHost", ui.locale)}
     </p>
 
     {#if offline}
       <p class="hint hint-warn">
-        Offline Mode is on — this toggle is locked off. Turn Offline Mode off
-        above to enable live updates.
+        {t("settings.liveBundles.offline", ui.locale)}
       </p>
     {/if}
   </div>

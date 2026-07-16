@@ -6,6 +6,8 @@
    * block — "Not recommended" still allows install behind a confirm (M3).
    */
   import Pill from "./Pill.svelte";
+  import { formatReadinessLabel, formatReadinessReason } from "$lib/i18n/messages";
+  import { ui } from "$lib/stores/ui.svelte";
   import type { ReadinessVerdict } from "$lib/types";
 
   interface Props {
@@ -15,9 +17,10 @@
   let { verdict, reason }: Props = $props();
 
   const TONE = { ready: "success", marginal: "warning", blocked: "danger" } as const;
-  const LABEL = { ready: "Ready", marginal: "Marginal", blocked: "Not recommended" } as const;
+  const label = $derived(formatReadinessLabel(verdict, ui.locale));
+  const title = $derived(formatReadinessReason(reason, ui.locale));
 </script>
 
-<span title={reason}>
-  <Pill tone={TONE[verdict]}>{LABEL[verdict]}</Pill>
+<span title={title}>
+  <Pill tone={TONE[verdict]}>{label}</Pill>
 </span>

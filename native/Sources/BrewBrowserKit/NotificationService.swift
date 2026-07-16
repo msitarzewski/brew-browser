@@ -36,8 +36,10 @@ enum NotificationService {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             guard settings.authorizationStatus == .authorized else { return }
             let content = UNMutableNotificationContent()
-            content.title = succeeded ? "Homebrew task finished" : "Homebrew task failed"
-            content.body = label
+            content.title = succeeded
+                ? (L10n.isRussian ? "Задача Homebrew завершена" : "Homebrew task finished")
+                : (L10n.isRussian ? "Задача Homebrew завершилась ошибкой" : "Homebrew task failed")
+            content.body = L10n.activityNotificationBody(label: label, succeeded: succeeded)
             if !succeeded { content.sound = .default }
             let request = UNNotificationRequest(
                 identifier: UUID().uuidString, content: content, trigger: nil

@@ -13,18 +13,25 @@
 
   import { ui, VIBRANCY_MATERIALS, type VibrancyMaterial } from "$lib/stores/ui.svelte";
   import { settings } from "$lib/stores/settings.svelte";
+  import { t, type LocalePreference, type MessageKey } from "$lib/i18n/messages";
   import type { SidebarSection, ThemePreference } from "$lib/types";
 
   /** Sections the user can pick as their default landing page. Mirrors the
       sidebar nav order, plus Dashboard which lives in the brand button. */
-  const SECTIONS: { value: SidebarSection; label: string }[] = [
-    { value: "dashboard", label: "Dashboard" },
-    { value: "library", label: "Library" },
-    { value: "discover", label: "Discover" },
-    { value: "trending", label: "Trending" },
-    { value: "snapshots", label: "Snapshots" },
-    { value: "services", label: "Services" },
-    { value: "activity", label: "Activity" },
+  const SECTIONS: { value: SidebarSection; labelKey: MessageKey }[] = [
+    { value: "dashboard", labelKey: "nav.dashboard" },
+    { value: "library", labelKey: "nav.library" },
+    { value: "discover", labelKey: "nav.discover" },
+    { value: "trending", labelKey: "nav.trending" },
+    { value: "snapshots", labelKey: "nav.snapshots" },
+    { value: "services", labelKey: "nav.services" },
+    { value: "activity", labelKey: "nav.activity" },
+  ];
+
+  const LANGUAGES: { value: LocalePreference; labelKey: MessageKey }[] = [
+    { value: "system", labelKey: "language.system" },
+    { value: "en", labelKey: "language.english" },
+    { value: "ru", labelKey: "language.russian" },
   ];
 
   function onSectionChange(e: Event) {
@@ -34,6 +41,11 @@
   function onVibrancyChange(e: Event) {
     const value = (e.currentTarget as HTMLSelectElement).value as VibrancyMaterial;
     ui.setVibrancyMaterial(value);
+  }
+  function onLanguageChange(e: Event) {
+    const value = (e.currentTarget as HTMLSelectElement).value as LocalePreference;
+    ui.setLocalePreference(value);
+    window.location.reload();
   }
   function pickTheme(t: ThemePreference) { ui.setTheme(t); }
 
@@ -47,11 +59,11 @@
 </script>
 
 <div class="section">
-  <h2>Appearance</h2>
+  <h2>{t("Appearance", ui.locale)}</h2>
 
   <div class="field">
-    <label for="theme-group">Theme</label>
-    <div id="theme-group" class="radio-row" role="radiogroup" aria-label="Theme">
+    <label for="theme-group">{t("Theme", ui.locale)}</label>
+    <div id="theme-group" class="radio-row" role="radiogroup" aria-label={t("Theme", ui.locale)}>
       <button
         type="button"
         class="radio-btn"
@@ -60,7 +72,7 @@
         aria-checked={ui.theme === "light"}
         onclick={() => pickTheme("light")}
       >
-        <Sun size={14} /> Light
+        <Sun size={14} /> {t("theme.light", ui.locale)}
       </button>
       <button
         type="button"
@@ -70,7 +82,7 @@
         aria-checked={ui.theme === "dark"}
         onclick={() => pickTheme("dark")}
       >
-        <Moon size={14} /> Dark
+        <Moon size={14} /> {t("theme.dark", ui.locale)}
       </button>
       <button
         type="button"
@@ -80,14 +92,29 @@
         aria-checked={ui.theme === "system"}
         onclick={() => pickTheme("system")}
       >
-        <Monitor size={14} /> System
+        <Monitor size={14} /> {t("theme.system", ui.locale)}
       </button>
     </div>
-    <p class="hint">Follows the macOS theme when set to System.</p>
+    <p class="hint">{t("Follows the macOS theme when set to System.", ui.locale)}</p>
   </div>
 
   <div class="field">
-    <label for="default-section">Default landing</label>
+    <label for="language">{t("language.label", ui.locale)}</label>
+    <select
+      id="language"
+      class="select"
+      value={ui.localePreference}
+      onchange={onLanguageChange}
+    >
+      {#each LANGUAGES as opt (opt.value)}
+        <option value={opt.value}>{t(opt.labelKey, ui.locale)}</option>
+      {/each}
+    </select>
+    <p class="hint">{t("language.hint.reload", ui.locale)}</p>
+  </div>
+
+  <div class="field">
+    <label for="default-section">{t("Default landing", ui.locale)}</label>
     <select
       id="default-section"
       class="select"
@@ -95,14 +122,14 @@
       onchange={onSectionChange}
     >
       {#each SECTIONS as opt (opt.value)}
-        <option value={opt.value}>{opt.label}</option>
+        <option value={opt.value}>{t(opt.labelKey, ui.locale)}</option>
       {/each}
     </select>
-    <p class="hint">Which section opens when you launch brew-browser.</p>
+    <p class="hint">{t("Which section opens when you launch brew-browser.", ui.locale)}</p>
   </div>
 
   <div class="field">
-    <label for="vibrancy-material">Window vibrancy</label>
+    <label for="vibrancy-material">{t("Window vibrancy", ui.locale)}</label>
     <select
       id="vibrancy-material"
       class="select"
@@ -113,13 +140,12 @@
         <option value={m}>{m}</option>
       {/each}
     </select>
-    <p class="hint">Requires app restart to take effect. The default
-      (HudWindow) matches the rest of macOS.</p>
+    <p class="hint">{t("Requires app restart to take effect. The default (HudWindow) matches the rest of macOS.", ui.locale)}</p>
   </div>
 
   <div class="field ai-features">
     <div class="ai-row">
-      <label for="ai-features-toggle">AI features</label>
+      <label for="ai-features-toggle">{t("AI features", ui.locale)}</label>
       <input
         id="ai-features-toggle"
         type="checkbox"
@@ -130,16 +156,12 @@
       />
     </div>
     <p class="hint">
-      When on, brew-browser shows extra metadata generated at build time
-      by AI: friendly names, expanded descriptions, use cases, similar
-      package suggestions, and category tags.
-      <strong>Zero LLM calls are made from your machine</strong> — all
-      enrichment is baked into the app binary.
+      {t("When on, brew-browser shows extra metadata generated at build time by AI: friendly names, expanded descriptions, use cases, similar package suggestions, and category tags.", ui.locale)}
+      <strong>{t("Zero LLM calls are made from your machine", ui.locale)}</strong>
+      {t("— all enrichment is baked into the app binary.", ui.locale)}
     </p>
     <p class="hint">
-      When off, only Homebrew's native metadata appears. Categories
-      (sidebar tile grid, donut chart, chip filters) are also hidden
-      because they're AI-generated.
+      {t("When off, only Homebrew's native metadata appears. Categories (sidebar tile grid, donut chart, chip filters) are also hidden because they're AI-generated.", ui.locale)}
     </p>
   </div>
 </div>

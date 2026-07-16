@@ -37,6 +37,113 @@ The Rust backend `include_bytes!`s the gzip stream and parses it once
 at startup (`src-tauri/src/enrichment/mod.rs`). There is no runtime
 file dependency on this script after the build.
 
+## Localized enrichment overlays
+
+The base enrichment bundle remains English and canonical. Localized UI
+builds can add a small **partial overlay** per locale instead of
+rewriting the whole 15k-package corpus. The current Russian seed overlay
+ships as:
+
+| Shell | File |
+|-------|------|
+| Tauri/Rust | `src-tauri/data/enrichment.ru.json.gz` |
+| native SwiftUI | `native/Sources/BrewBrowserKit/Resources/enrichment.ru.json` |
+
+Both files use the same JSON schema; the Tauri copy is gzipped because
+Rust embeds it next to the base bundle.
+
+```json
+{
+  "locale": "ru",
+  "version": "2026-07-08-ru-seed",
+  "generated_at": "2026-07-08T00:00:00Z",
+  "base_version": "2026-05-24T11:53:38Z",
+  "entries": {
+    "wget": {
+      "friendly_name": "Wget",
+      "summary": "Консольная утилита для загрузки файлов по HTTP, HTTPS и FTP.",
+      "use_cases": ["Скачивать файлы из shell-скриптов"],
+      "search_terms": ["скачать", "загрузка файлов", "зеркалирование"]
+    }
+  }
+}
+```
+
+Overlay rules:
+
+- Keep Homebrew tokens, formula/cask names, package IDs, CLI flags,
+  URLs, API names, and product names stable.
+- Translate only user-facing prose: `friendly_name`, `summary`, and
+  `use_cases`.
+- Put extra natural-language search vocabulary in `search_terms`; these
+  are indexed but never rendered as tags.
+- Do not localize `similar`: it is a list of Homebrew package tokens.
+- Do not localize `tags` in the overlay. Tags remain compact technical
+  labels; localized discovery vocabulary belongs in `search_terms`.
+- Omitted fields fall back to the base English entry. Omitted tokens are
+  simply not localized yet.
+
+To add a language to the app:
+
+1. Add the UI locale first: create the TypeScript dictionary under
+   `src/lib/i18n/`, register it in `src/lib/i18n/messages.ts`, expose it
+   in the language selector, and add matching native `Localizable`
+   resources under both SwiftPM targets.
+2. Route the native locale through `native/Sources/BrewBrowserKit/Localization.swift`
+   so SwiftUI and Tauri resolve the same locale bucket.
+3. Add optional package-prose overlays only after the UI locale is
+   selectable and covered by parity checks.
+
+To add a package-prose overlay for that language:
+
+1. Create the readable Swift resource
+   `native/Sources/BrewBrowserKit/Resources/enrichment.<locale>.json`.
+2. Generate the matching Tauri gzip from that source of truth:
+
+   ```sh
+   python3 - <<'PY'
+   import gzip
+   from pathlib import Path
+   locale = "ru"
+   src = Path(f"native/Sources/BrewBrowserKit/Resources/enrichment.{locale}.json")
+   dst = Path(f"src-tauri/data/enrichment.{locale}.json.gz")
+   dst.write_bytes(gzip.compress(src.read_bytes(), compresslevel=9, mtime=0))
+   PY
+   ```
+
+3. Verify both copies are semantically identical:
+
+   ```sh
+   python3 - <<'PY'
+   import gzip, json
+   from pathlib import Path
+   locale = "ru"
+   swift = json.loads(Path(f"native/Sources/BrewBrowserKit/Resources/enrichment.{locale}.json").read_text())
+   tauri = json.loads(gzip.decompress(Path(f"src-tauri/data/enrichment.{locale}.json.gz").read_bytes()))
+   assert swift == tauri
+   PY
+   ```
+
+4. Add the locale bucket to `normalize_locale` /
+   `localized_overlay_bytes` in `src-tauri/src/enrichment/mod.rs`.
+5. Add the SwiftPM resource in `native/Package.swift` and route it from
+   `EnrichmentCatalog.applyLocaleOverlay`.
+6. Add localized category search aliases in
+   `src-tauri/src/commands/search.rs` and `L10n.display` if the locale
+   translates category labels.
+7. Extend the live-enrichment merge policy in both shells if the new
+   locale has translated package prose. Today the app preserves localized
+   prose over live English entries for the Russian bucket; future buckets
+   must be added deliberately in `src/lib/stores/enrichment.svelte.ts`
+   and `AppModel.preferredEnrichment`.
+8. Run `npm run check`, `npm test`,
+   `cargo test --manifest-path src-tauri/Cargo.toml`, and
+   `cd native && swift build && swift test`.
+
+The app indexes both localized overlay fields and English fallback
+fields, so users can search for `браузер` and `browser` without losing
+exact package-token matches.
+
 ## When to run
 
 After `tools/catalog/fetch.py` has refreshed the catalog (the catalog

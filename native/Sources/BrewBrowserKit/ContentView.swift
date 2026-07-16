@@ -131,7 +131,7 @@ public struct ContentView: View {
     private var navigationContent: some View {
         NavigationSplitView {
             List(Section.allCases, selection: $model.selection) { section in
-                Label(section.rawValue, systemImage: section.symbol)
+                Label(section.localizedTitle, systemImage: section.symbol)
                     .badge(model.badge(for: section) ?? 0)  // stock count badge; 0 hides it
                     .tag(section)
             }
@@ -171,7 +171,7 @@ public struct ContentView: View {
                 // the window then grabs as a resize, hiding the inspector).
                 // Pairs with .windowResizability(.contentMinSize) on the scene.
                 .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
-                .navigationTitle(model.selection.rawValue)
+                .navigationTitle(model.selection.localizedTitle)
                 .toolbar {
                     ToolbarItemGroup(placement: .primaryAction) {
                         // "Update available" pill (Bundle C) — mirrors the Tauri
@@ -183,10 +183,10 @@ public struct ContentView: View {
                             Button {
                                 updater.checkForUpdates()
                             } label: {
-                                Label("Update available", systemImage: "arrow.up.circle.fill")
+                                Label(L10n.string("updates.available"), systemImage: "arrow.up.circle.fill")
                                     .foregroundStyle(.orange)
                             }
-                            .help("A newer version of brew-browser is available — click to update")
+                            .help(L10n.string("updates.available.help"))
                         }
 
                         Button {
@@ -196,7 +196,7 @@ public struct ContentView: View {
                             // toolbar button shows active feedback, not just a
                             // disabled grey-out.
                             Label {
-                                Text("Refresh")
+                                Text(L10n.string("action.refresh"))
                             } icon: {
                                 if model.isLoading {
                                     ProgressView().controlSize(.small)
@@ -216,7 +216,7 @@ public struct ContentView: View {
                             Image(systemName: "heart.fill")
                                 .foregroundStyle(.pink)
                         }
-                        .help("Support brew-browser via GitHub Sponsors")
+                        .help(L10n.string("chrome.donate.help"))
 
                         // GitHub connection chip — only when signed in. Green when
                         // the public_repo scope is present (star/watch/issue work),
@@ -231,13 +231,13 @@ public struct ContentView: View {
                                     .foregroundStyle(model.githubScopeComplete ? Color.green : Color.orange)
                             }
                             .help(model.githubScopeComplete
-                                ? "GitHub: connected as @\(model.githubStatus?.username ?? "user")"
-                                : "GitHub: signed in — scope incomplete; open Settings to fix")
+                                ? String(format: L10n.string("github.connectedAs.format"), model.githubStatus?.username ?? "user")
+                                : L10n.string("github.scopeIncomplete"))
                         }
 
                         // Stock SettingsLink opens the native Settings scene.
                         SettingsLink {
-                            Label("Settings", systemImage: "gearshape")
+                            Label(L10n.string("settings.title"), systemImage: "gearshape")
                         }
                     }
                 }
@@ -246,7 +246,7 @@ public struct ContentView: View {
                 // doesn't drift over the inspector (and the inspector's boundary
                 // divider falls cleanly at the panel edge, not through the
                 // toolbar between our icons and the field).
-                .searchable(text: $model.globalQuery, placement: .toolbar, prompt: "Search packages")
+                .searchable(text: $model.globalQuery, placement: .toolbar, prompt: Text(L10n.string("search.packages")))
                 .searchSuggestions {
                     ForEach(model.suggestions) { pkg in
                         HStack(spacing: 8) {
@@ -341,11 +341,11 @@ struct LibraryView: View {
     var body: some View {
         Group {
             if model.isLoading && model.installed.isEmpty {
-                ProgressView("Reading your Homebrew install…")
+                ProgressView(L10n.string("Reading your Homebrew install…"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let err = model.loadError {
                 ContentUnavailableView(
-                    "Couldn't load packages",
+                    L10n.string("Couldn't load packages"),
                     systemImage: "exclamationmark.triangle",
                     description: Text(err)
                 )
@@ -384,11 +384,11 @@ struct LibraryView: View {
     // Segmented type filter with per-filter counts. Stock control, no overrides.
     // Centered in the bar — the macOS view-switcher convention (Finder/Preview).
     private var filterBar: some View {
-        Picker("Filter", selection: $model.libraryFilter) {
+        Picker(L10n.string("Filter"), selection: $model.libraryFilter) {
             ForEach(model.availableLibraryFilters) { f in
                 // Counts moved to the bottom status bar (`libraryCountBar`) —
                 // the tabs stay clean labels.
-                Text(f.rawValue).tag(f)
+                Text(f.localizedTitle).tag(f)
             }
         }
         .pickerStyle(.segmented)
@@ -409,12 +409,13 @@ struct LibraryView: View {
     private var libraryCountBar: some View {
         let f = model.libraryFilter
         let shown = model.sortedLibraryRows.count
-        let noun = f == .all ? (shown == 1 ? "package" : "packages") : f.rawValue.lowercased()
-        var parts = ["\(shown) \(noun)"]
-        if f != .outdated { parts.append("\(model.libraryFilterCount(.outdated)) outdated") }
-        if f != .pinned   { parts.append("\(model.pinnedCount) pinned") }
         return HStack(spacing: 0) {
-            Text(parts.joined(separator: " · "))
+            Text(L10n.libraryCountBar(
+                shown: shown,
+                filter: f,
+                outdated: model.libraryFilterCount(.outdated),
+                pinned: model.pinnedCount
+            ))
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -432,7 +433,7 @@ struct LibraryView: View {
                 model.clearLibraryCategory()
             } label: {
                 HStack(spacing: 4) {
-                    Text(label)
+                    Text(L10n.display(label))
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
                 }
@@ -442,7 +443,7 @@ struct LibraryView: View {
                 .background(Color.secondary.opacity(0.12), in: .capsule)
             }
             .buttonStyle(.plain)
-            .help("Clear category filter")
+            .help(L10n.isRussian ? "Сбросить фильтр категорий" : "Clear category filter")
             Spacer()
         }
         .padding(.horizontal, 12)
@@ -454,9 +455,9 @@ struct LibraryView: View {
         if model.sortedLibraryRows.isEmpty {
             if model.globalQuery.isEmpty {
                 ContentUnavailableView(
-                    "No packages",
+                    L10n.string("No packages"),
                     systemImage: "shippingbox",
-                    description: Text("Nothing matches the \(model.libraryFilter.rawValue.lowercased()) filter.")
+                    description: Text(L10n.libraryFilterEmpty(model.libraryFilter))
                 )
             } else {
                 ContentUnavailableView.search(text: model.globalQuery)
@@ -484,27 +485,27 @@ struct LibraryView: View {
         // drive the comfortable wide-window layout; the mins only bite when the
         // pane is squeezed, and now they let it scale rather than clip.
         Table(model.sortedLibraryRows, selection: $selectedID, sortOrder: $model.librarySort) {
-            TableColumn("Name", value: \.name) { row in
+            TableColumn(L10n.string("Name"), value: \.name) { row in
                 nameCell(row)
             }
             .width(min: 120, ideal: 200)
 
-            TableColumn("Description", value: \.summary) { row in
+            TableColumn(L10n.string("Description"), value: \.summary) { row in
                 Text(row.summary).foregroundStyle(.secondary).lineLimit(1)
             }
             .width(min: 88, ideal: 320)
 
-            TableColumn("Version", value: \.version) { row in
+            TableColumn(L10n.string("Version"), value: \.version) { row in
                 Text(row.version).foregroundStyle(.secondary).monospacedDigit()
             }
             .width(min: 72, ideal: 120)
 
-            TableColumn("Type", value: \.kind.rawValue) { row in
+            TableColumn(L10n.string("Type"), value: \.kind.rawValue) { row in
                 KindPill(kind: row.kind)
             }
             .width(min: 60, ideal: 80)
 
-            TableColumn("Outdated", value: \.outdatedRank) { row in
+            TableColumn(L10n.string("Outdated"), value: \.outdatedRank) { row in
                 outdatedCell(row)
             }
             .width(min: 48, ideal: 72)
@@ -514,22 +515,22 @@ struct LibraryView: View {
 
     private var tableNoDescription: some View {
         Table(model.sortedLibraryRows, selection: $selectedID, sortOrder: $model.librarySort) {
-            TableColumn("Name", value: \.name) { row in
+            TableColumn(L10n.string("Name"), value: \.name) { row in
                 nameCell(row)
             }
             .width(min: 140, ideal: 240)
 
-            TableColumn("Version", value: \.version) { row in
+            TableColumn(L10n.string("Version"), value: \.version) { row in
                 Text(row.version).foregroundStyle(.secondary).monospacedDigit()
             }
             .width(min: 80, ideal: 120)
 
-            TableColumn("Type", value: \.kind.rawValue) { row in
+            TableColumn(L10n.string("Type"), value: \.kind.rawValue) { row in
                 KindPill(kind: row.kind)
             }
             .width(min: 64, ideal: 80)
 
-            TableColumn("Outdated", value: \.outdatedRank) { row in
+            TableColumn(L10n.string("Outdated"), value: \.outdatedRank) { row in
                 outdatedCell(row)
             }
             .width(min: 56, ideal: 72)
@@ -560,7 +561,7 @@ struct LibraryView: View {
                         Image(systemName: "pin.fill")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                            .help("Pinned — held back from brew upgrade")
+                            .help(L10n.pinnedBadgeHelp)
                     }
                 }
                 if !row.friendlyName.isEmpty {
@@ -575,7 +576,7 @@ struct LibraryView: View {
         if row.isOutdated {
             Image(systemName: "arrow.up.circle.fill")
                 .foregroundStyle(.orange)
-                .help("Update available")
+                .help(L10n.string("Update available"))
         }
     }
 
@@ -663,7 +664,7 @@ struct VulnFooterRow: View {
                     Image(systemName: "circle.fill")
                         .font(.system(size: 8))
                         .foregroundStyle(.red)
-                    Text("\(model.vulnerableCount) vulnerable package\(model.vulnerableCount == 1 ? "" : "s")")
+                    Text(L10n.vulnerablePackages(model.vulnerableCount))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -674,7 +675,7 @@ struct VulnFooterRow: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .help("\(model.vulnerableCount) installed package\(model.vulnerableCount == 1 ? " has" : "s have") known vulnerabilities. Click to view them in Library.")
+            .help(L10n.vulnerablePackagesHelp(model.vulnerableCount))
         }
     }
 }

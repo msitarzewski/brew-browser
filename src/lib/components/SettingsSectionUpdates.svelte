@@ -38,8 +38,10 @@
   import RotateCw from "@lucide/svelte/icons/rotate-cw";
 
   import { settings } from "$lib/stores/settings.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
   import { updater } from "$lib/stores/updater.svelte";
   import { safeOpenUrl } from "$lib/util/url";
+  import { t } from "$lib/i18n/messages";
 
   /** Offline Mode gates both the manual button and the Install action.
       Tracked as a single derived for tidy template gating. */
@@ -88,44 +90,55 @@
       sensitive; falls back to "—" when never checked. */
   let lastCheckedLabel = $derived.by(() => {
     if (updater.lastChecked === null) return "—";
-    return new Date(updater.lastChecked).toLocaleString();
+    return new Date(updater.lastChecked).toLocaleString(ui.locale === "ru" ? "ru-RU" : undefined);
   });
 </script>
 
 <div class="section">
-  <h2>Updates</h2>
+  <h2>{t("Updates", ui.locale)}</h2>
 
   <!-- Row 1: Check for updates now -->
   <div class="field">
-    <span class="field-label">Check for updates now</span>
+    <span class="field-label">{t("Check for updates now", ui.locale)}</span>
     <div class="row">
       <button
         type="button"
         class="btn-secondary"
         onclick={onCheckNow}
         disabled={offline || updater.checking}
-        title={offline ? "Disabled by Offline Mode" : "Check the manifest for a newer release"}
+        title={offline ? t("Disabled by Offline Mode", ui.locale) : (ui.locale === "ru" ? "Проверить канал обновлений на новую версию" : "Check the manifest for a newer release")}
       >
         {#if updater.checking}
           <span class="spin"><Loader size={14} /></span>
-          Checking…
+          {ui.locale === "ru" ? "Проверяем…" : "Checking…"}
         {:else}
           <RefreshCw size={14} />
-          Check now
+          {t("Check now", ui.locale)}
         {/if}
       </button>
-      <span class="meta">Last checked: {lastCheckedLabel}</span>
+      <span class="meta">{ui.locale === "ru" ? "Последняя проверка" : "Last checked"}: {lastCheckedLabel}</span>
     </div>
     {#if offline}
       <p class="hint">
-        Offline Mode is on — manual update checks are blocked. Turn it off above
-        to check the manifest.
+        {#if ui.locale === "ru"}
+          Офлайн-режим включён — ручная проверка обновлений заблокирована.
+          Отключите его выше, чтобы проверить канал обновлений.
+        {:else}
+          Offline Mode is on — manual update checks are blocked. Turn it off above
+          to check the manifest.
+        {/if}
       </p>
     {:else}
       <p class="hint">
-        Fetches <code>brew-browser.zerologic.com/updater.json</code> and
-        compares the published version to the one you're running. No
-        version number is sent.
+        {#if ui.locale === "ru"}
+          Загружает <code>brew-browser.zerologic.com/updater.json</code> и
+          сравнивает опубликованную версию с установленной. Номер вашей
+          версии не отправляется.
+        {:else}
+          Fetches <code>brew-browser.zerologic.com/updater.json</code> and
+          compares the published version to the one you're running. No
+          version number is sent.
+        {/if}
       </p>
     {/if}
   </div>
@@ -140,56 +153,62 @@
         disabled={settings.loading || settings.corruptOnDisk}
       />
       <span class="toggle-track" aria-hidden="true"></span>
-      <span class="toggle-label">Auto-check daily</span>
+      <span class="toggle-label">{t("Auto-check daily", ui.locale)}</span>
     </label>
     <p class="hint">
-      When on, brew-browser checks the manifest once every 24 hours and
-      surfaces a notice in the title bar if a newer version is available.
-      Suspended automatically while Offline Mode is on.
+      {#if ui.locale === "ru"}
+        Если включено, brew-browser проверяет канал обновлений раз в 24 часа
+        и показывает индикатор в заголовке окна, когда доступна новая версия.
+        Автоматически приостанавливается в офлайн-режиме.
+      {:else}
+        When on, brew-browser checks the manifest once every 24 hours and
+        surfaces a notice in the title bar if a newer version is available.
+        Suspended automatically while Offline Mode is on.
+      {/if}
     </p>
   </div>
 
   <!-- Row 3: Update channel -->
   <div class="field">
-    <span class="field-label">Update channel</span>
+    <span class="field-label">{t("Update channel", ui.locale)}</span>
     <div class="channel-row">
-      <span class="channel-name">Stable</span>
-      <span class="meta">No beta channel in this release.</span>
+      <span class="channel-name">{t("Stable", ui.locale)}</span>
+      <span class="meta">{t("No beta channel in this release.", ui.locale)}</span>
     </div>
   </div>
 
   <!-- Conditional: notice card when an update is available -->
   {#if info}
-    <div class="notice" role="region" aria-label={`Update available: brew-browser ${info.version}`}>
+    <div class="notice" role="region" aria-label={`${t("Update available", ui.locale)}: brew-browser ${info.version}`}>
       <div class="notice-head">
-        <strong>v{info.version} available</strong>
+        <strong>{ui.locale === "ru" ? `Доступна версия v${info.version}` : `v${info.version} available`}</strong>
         <button
           type="button"
           class="link"
           onclick={onOpenReleaseNotes}
-          aria-label="Open release notes in your browser"
+          aria-label={ui.locale === "ru" ? "Открыть примечания к релизу в браузере" : "Open release notes in your browser"}
         >
-          Release notes <ExternalLink size={12} />
+          {ui.locale === "ru" ? "Примечания к релизу" : "Release notes"} <ExternalLink size={12} />
         </button>
       </div>
 
       {#if updater.installComplete}
         <div class="result success">
           <CheckCircle size={16} />
-          <span>Install complete. Relaunch to use the new version.</span>
+          <span>{t("Install complete. Relaunch to use the new version.", ui.locale)}</span>
         </div>
         <button
           type="button"
           class="btn-primary"
           onclick={onRelaunch}
-          title="Relaunch into the freshly-installed brew-browser"
+          title={ui.locale === "ru" ? "Перезапустить только что установленный brew-browser" : "Relaunch into the freshly-installed brew-browser"}
         >
-          <RotateCw size={14} /> Relaunch now
+          <RotateCw size={14} /> {ui.locale === "ru" ? "Перезапустить сейчас" : "Relaunch now"}
         </button>
       {:else if updater.installing}
         <div class="progress" role="status" aria-live="polite">
           <span class="spin"><Loader size={16} /></span>
-          <span>Downloading and verifying brew-browser v{info.version}…</span>
+          <span>{ui.locale === "ru" ? `Загружаем и проверяем brew-browser v${info.version}…` : `Downloading and verifying brew-browser v${info.version}…`}</span>
         </div>
       {:else if updater.error}
         <div class="result error">
@@ -201,9 +220,9 @@
           class="btn-secondary"
           onclick={onTryAgain}
           disabled={offline}
-          title={offline ? "Disabled by Offline Mode" : "Retry the install"}
+          title={offline ? t("Disabled by Offline Mode", ui.locale) : (ui.locale === "ru" ? "Повторить установку" : "Retry the install")}
         >
-          <RotateCw size={14} /> Try again
+          <RotateCw size={14} /> {t("Try again", ui.locale)}
         </button>
       {:else}
         <button
@@ -211,9 +230,9 @@
           class="btn-primary"
           onclick={onInstall}
           disabled={offline}
-          title={offline ? "Disabled by Offline Mode" : `Download and install brew-browser v${info.version}`}
+          title={offline ? t("Disabled by Offline Mode", ui.locale) : (ui.locale === "ru" ? `Загрузить и установить brew-browser v${info.version}` : `Download and install brew-browser v${info.version}`)}
         >
-          <Download size={14} /> Install update
+          <Download size={14} /> {ui.locale === "ru" ? "Установить обновление" : "Install update"}
         </button>
       {/if}
 

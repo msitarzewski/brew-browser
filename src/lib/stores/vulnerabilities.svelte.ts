@@ -31,16 +31,20 @@ import {
   vulnsScanAll,
   vulnsScanOne,
 } from "$lib/api";
+import { t } from "$lib/i18n/messages";
 import { settings } from "$lib/stores/settings.svelte";
 import { toast } from "$lib/stores/toast.svelte";
 import { ui } from "$lib/stores/ui.svelte";
 import {
+  brewErrorMessage,
   isBrewError,
+  type BrewErrorPayload,
   type PackageKind,
   type RawVuln,
   type Severity,
 } from "$lib/types";
 import { reportableToastError } from "$lib/util/reportIssue";
+import { ruPlural } from "$lib/i18n/messages";
 
 /**
  * One per-package vulnerability record. Keyed in the store by
@@ -145,6 +149,10 @@ class VulnerabilitiesStore {
       next successful scan. */
   lastScanError: string | null = $state(null);
 
+  /** Machine-readable companion for UI states that should not depend on
+      localized human prose. */
+  lastScanErrorCode: BrewErrorPayload["code"] | null = $state(null);
+
   /** ISO-derived timestamp from the most recent scan report, or null
       before the first scan. */
   lastScannedAt: Date | null = $state(null);
@@ -240,14 +248,17 @@ class VulnerabilitiesStore {
       this.source = report.source;
       this.lastScannedAt = new Date(report.scannedAt);
       this.lastScanError = null;
+      this.lastScanErrorCode = null;
     } catch (e) {
       if (isBrewError(e) && e.code === "vulns_not_installed") {
         // Helper isn't installed yet — surface in the Settings card,
         // don't toast. The install affordance is the remediation path.
-        this.lastScanError = `brew vulns subcommand not installed. Run \`${e.installCommand}\` or click "Install brew-vulns".`;
+        this.lastScanErrorCode = e.code;
+        this.lastScanError = brewErrorMessage(e, ui.locale);
       } else {
-        this.lastScanError = isBrewError(e) ? e.code : String(e);
-        reportableToastError("Vulnerability scan failed", e);
+        this.lastScanErrorCode = isBrewError(e) ? e.code : null;
+        this.lastScanError = isBrewError(e) ? brewErrorMessage(e, ui.locale) : String(e);
+        reportableToastError(t("vulnerabilities.scanFailed", ui.locale), e);
       }
     } finally {
       this.loading = false;
@@ -275,12 +286,15 @@ class VulnerabilitiesStore {
       };
       this.records = new Map(this.records).set(keyFor(kind, name), record);
       this.lastScanError = null;
+      this.lastScanErrorCode = null;
     } catch (e) {
       if (isBrewError(e) && e.code === "vulns_not_installed") {
-        this.lastScanError = `brew vulns subcommand not installed. Run \`${e.installCommand}\` or click "Install brew-vulns".`;
+        this.lastScanErrorCode = e.code;
+        this.lastScanError = brewErrorMessage(e, ui.locale);
       } else {
-        this.lastScanError = isBrewError(e) ? e.code : String(e);
-        reportableToastError(`Vulnerability scan failed for ${name}`, e);
+        this.lastScanErrorCode = isBrewError(e) ? e.code : null;
+        this.lastScanError = isBrewError(e) ? brewErrorMessage(e, ui.locale) : String(e);
+        reportableToastError(t("vulnerabilities.scanOneFailed", ui.locale, { name }), e);
       }
     } finally {
       this.loading = false;
@@ -319,6 +333,7 @@ class VulnerabilitiesStore {
     // Successful install clears the "not installed" state; the next
     // scan call will populate real records.
     this.lastScanError = null;
+    this.lastScanErrorCode = null;
     return stdout;
   }
 
@@ -329,6 +344,7 @@ class VulnerabilitiesStore {
     this.records = new Map();
     this.loading = false;
     this.lastScanError = null;
+    this.lastScanErrorCode = null;
     this.lastScannedAt = null;
     this.source = null;
     // Reset the once-per-session notification flag so re-enabling the
@@ -357,17 +373,22 @@ class VulnerabilitiesStore {
     // Severity adjective for the title — match the highest tier that
     // has any findings, so a single critical lands harder than "11
     // packages have known vulnerabilities" without it.
+    const locale = ui.locale;
     let qualifier = "known";
-    if (counts.critical > 0) qualifier = "critical";
-    else if (counts.high > 0) qualifier = "high-severity";
-    else if (counts.medium > 0) qualifier = "medium-severity";
+    if (counts.critical > 0) qualifier = locale === "ru" ? "критическими" : "critical";
+    else if (counts.high > 0) qualifier = locale === "ru" ? "высокими" : "high-severity";
+    else if (counts.medium > 0) qualifier = locale === "ru" ? "средними" : "medium-severity";
+    else if (locale === "ru") qualifier = "известными";
 
     const noun = counts.vulnerablePackages === 1 ? "package" : "packages";
+    const title = locale === "ru"
+      ? `${counts.vulnerablePackages} ${ruPlural(counts.vulnerablePackages, "пакет", "пакета", "пакетов")} с ${qualifier} уязвимостями`
+      : `${counts.vulnerablePackages} ${noun} with ${qualifier} vulnerabilities`;
     toast.info(
-      `${counts.vulnerablePackages} ${noun} with ${qualifier} vulnerabilities`,
-      "See the Exposure card on the Dashboard for details.",
+      title,
+      locale === "ru" ? "Подробности — в карточке «Уязвимости» на сводке." : "See the Exposure card on the Dashboard for details.",
       {
-        label: "View Dashboard",
+        label: locale === "ru" ? "Открыть сводку" : "View Dashboard",
         onClick: () => ui.setSection("dashboard"),
       },
     );

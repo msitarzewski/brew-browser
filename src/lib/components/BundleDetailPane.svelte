@@ -30,6 +30,7 @@
   import { activity } from "$lib/stores/activity.svelte";
   import { packages } from "$lib/stores/packages.svelte";
   import { bundles } from "$lib/stores/bundles.svelte";
+  import { enrichment } from "$lib/stores/enrichment.svelte";
   import { services } from "$lib/stores/services.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { ui } from "$lib/stores/ui.svelte";
@@ -41,6 +42,7 @@
   import { stepMode } from "$lib/util/setupStep";
   import { isMac } from "$lib/util/platform";
   import { reportableToastError } from "$lib/util/reportIssue";
+  import { formatReadinessReason, t, type MessageKey } from "$lib/i18n/messages";
 
   // The pane reads the selected bundle out of the store by id (mirrors how
   // PackageDetail reads `ui.selectedPackage`). Undefined while the list is
@@ -50,6 +52,17 @@
   );
 
   const readiness = $derived(bundle ? bundles.readinessFor(bundle) : null);
+  const localizedReason = $derived(readiness ? formatReadinessReason(readiness.reason, ui.locale) : "");
+  const pendingCount = $derived(
+    bundle ? bundle.packages.filter((p) => stateOf(p) === "not-installed").length : 0,
+  );
+  const installLabel = $derived(
+    !bundle || pendingCount === 0
+      ? t("bundles.allInstalled", ui.locale)
+      : pendingCount === bundle.packages.length
+        ? t("bundles.installAll", ui.locale)
+        : t("bundles.installMissing", ui.locale, { count: pendingCount }),
+  );
 
   type InstalledState = "not-installed" | "installed" | "outdated";
   function stateOf(p: BundlePackage): InstalledState {
@@ -59,7 +72,11 @@
   }
 
   const STATE_TONE = { "not-installed": "neutral", installed: "success", outdated: "warning" } as const;
-  const STATE_LABEL = { "not-installed": "not installed", installed: "installed", outdated: "outdated" } as const;
+  const STATE_LABEL_KEY: Record<InstalledState, MessageKey> = {
+    "not-installed": "bundles.state.notInstalled",
+    installed: "bundles.state.installed",
+    outdated: "bundles.state.outdated",
+  };
 
   // ---- Per-package inline description accordion ------------------------
   //
@@ -89,7 +106,15 @@
   }
 
   async function loadDesc(p: BundlePackage, key: string) {
-    // 1) Prefer an already-resident description — installed packages carry
+    // 1) Prefer the localized enrichment summary, matching Library/Discover.
+    await enrichment.ensureLoaded();
+    const enriched = enrichment.summaryOf(p.name);
+    if (enriched) {
+      descCache[key] = { loading: false, text: enriched };
+      return;
+    }
+
+    // 2) Prefer an already-resident description — installed packages carry
     //    one on the `packages` store, so no round-trip is needed.
     const resident = packages.findInstalled(p.name, p.kind as PackageKind);
     if (resident?.description) {
@@ -97,7 +122,7 @@
       return;
     }
 
-    // 2) Fall back to `brew info` — the same call PackageDetail's loadDetail
+    // 3) Fall back to `brew info` — the same call PackageDetail's loadDetail
     //    uses. A tap-qualified name (`user/tap/name`) that isn't tapped
     //    locally makes `brew info` fail; retry the bare token like loadDetail.
     descCache[key] = { loading: true, text: null };
@@ -137,7 +162,7 @@
 
     const cmdLabel = `brew install ${p.name}`;
     const tmpId = crypto.randomUUID();
-    activity.startJob(`Installing ${p.name}`, tmpId, cmdLabel);
+    activity.startJob(t("bundles.activity.installPackage", ui.locale, { name: p.name }), tmpId, cmdLabel);
     ui.openDrawer();
     // Unlike "Install all", do NOT closeDetail — the user stays in the bundle
     // and watches this row flip to "Installed".
@@ -151,18 +176,18 @@
             if (j) j.jobId = evt.jobId;
             firstRemapped = true;
           } else if (!activity.jobs.some((j) => j.jobId === evt.jobId)) {
-            activity.startJob(`Installing ${p.name}`, evt.jobId, evt.command);
+            activity.startJob(t("bundles.activity.installPackage", ui.locale, { name: p.name }), evt.jobId, evt.command);
           }
         }
         activity.handleEvent(evt);
       });
       if (result.success) {
-        toast.success(`Installed ${p.name}`);
+        toast.success(t("bundles.toast.installedPackage", ui.locale, { name: p.name }));
         // Reload so `stateOf(p)` flips the row to "Installed" (bypass cache).
         await packages.load(true);
       }
     } catch (e) {
-      reportableToastError("Install failed", e);
+      reportableToastError(t("bundles.error.installFailed", ui.locale), e);
     } finally {
       installingPkgs[key] = false;
     }
@@ -197,7 +222,7 @@
     // brew steps (see brew_install_bundle) — the second step's `started`
     // arrives with a new jobId, so we register it as its own Activity job.
     const tmpId = crypto.randomUUID();
-    activity.startJob(`Installing ${b.name}`, tmpId, cmdLabel);
+    activity.startJob(t("bundles.activity.installBundle", ui.locale, { name: b.name }), tmpId, cmdLabel);
     ui.openDrawer();
     ui.closeDetail(); // dismiss the pane so the user sees the drawer
 
@@ -210,18 +235,18 @@
             if (j) j.jobId = evt.jobId;
             firstRemapped = true;
           } else if (!activity.jobs.some((j) => j.jobId === evt.jobId)) {
-            activity.startJob(`Installing ${b.name} (casks)`, evt.jobId, evt.command);
+            activity.startJob(t("bundles.activity.installBundleCasks", ui.locale, { name: b.name }), evt.jobId, evt.command);
           }
         }
         activity.handleEvent(evt);
       });
       if (result.success) {
-        toast.success(`Installed ${b.name}`);
+        toast.success(t("bundles.toast.installedBundle", ui.locale, { name: b.name }));
         // Reload so per-package installed state flips (force-bypass cache).
         await packages.load(true);
       }
     } catch (e) {
-      reportableToastError("Install failed", e);
+      reportableToastError(t("bundles.error.installFailed", ui.locale), e);
     } finally {
       installing = false;
     }
@@ -253,7 +278,7 @@
     try {
       await services.start(name);
     } catch (e) {
-      reportableToastError("Couldn't start service", e);
+      reportableToastError(t("bundles.error.startService", ui.locale), e);
     }
   }
 
@@ -261,16 +286,16 @@
     try {
       await openInFinder(path);
     } catch (e) {
-      reportableToastError(isMac ? "Couldn't reveal in Finder" : "Couldn't open in file manager", e);
+      reportableToastError(t(isMac ? "bundles.error.revealFinder" : "bundles.error.revealFileManager", ui.locale), e);
     }
   }
 
   async function copyCommand(run: string) {
     try {
       await navigator.clipboard.writeText(run);
-      toast.success("Copied", run);
+      toast.success(t("bundles.toast.copied", ui.locale), run);
     } catch (e) {
-      reportableToastError("Couldn't copy to clipboard", e);
+      reportableToastError(t("bundles.error.copy", ui.locale), e);
     }
   }
 
@@ -278,9 +303,9 @@
   function stepLabel(step: SetupStep): string {
     if (step.label) return step.label;
     switch (step.kind) {
-      case "service": return `Start ${step.service ?? "service"}`;
-      case "open": return step.url ?? "Open";
-      case "reveal": return step.path ?? "Reveal";
+      case "service": return step.service ? t("bundles.step.startServiceNamed", ui.locale, { service: step.service }) : t("Start service", ui.locale);
+      case "open": return step.url ?? t("bundles.action.open", ui.locale);
+      case "reveal": return step.path ?? t("bundles.action.reveal", ui.locale);
       default: return "";
     }
   }
@@ -291,13 +316,13 @@
 {#if bundle && readiness}
   <aside
     class="detail"
-    aria-label="Bundle detail"
+    aria-label={t("bundles.detail", ui.locale)}
     style="--detail-pane-width: {ui.detailPaneWidth}px"
   >
     <header class="panel-head">
       <h1 class="detail-title">{bundle.name}</h1>
       <ReadinessPill verdict={readiness.verdict} reason={readiness.reason} />
-      <button class="close" aria-label="Close detail panel" onclick={close} title="Close (Esc)">
+      <button class="close" aria-label={t("bundles.closeDetail", ui.locale)} onclick={close} title={t("bundles.closeTitle", ui.locale)}>
         <X size={16} />
       </button>
     </header>
@@ -317,12 +342,12 @@
           role="note"
         >
           <span class="verdict-icon" aria-hidden="true"><TriangleAlert size={16} /></span>
-          <p>{readiness.reason}</p>
+          <p>{localizedReason}</p>
         </div>
       {/if}
 
       <section class="block">
-        <h3>Packages</h3>
+        <h3>{t("bundles.header.packages", ui.locale)}</h3>
         <ul class="pkgs" role="list">
           {#each bundle.packages as p (p.name + p.kind)}
             {@const st = stateOf(p)}
@@ -335,12 +360,14 @@
                   class="pkg-toggle"
                   aria-expanded={open}
                   onclick={() => togglePkg(p)}
-                  title={open ? "Hide description" : "Show description"}
+                  title={open ? t("bundles.hideDescription", ui.locale) : t("bundles.showDescription", ui.locale)}
                 >
                   <span class="pkg-chevron" aria-hidden="true"><ChevronRight size={14} /></span>
                   <span class="pkg-name truncate">{p.name}</span>
                 </button>
-                <Pill tone={p.kind === "formula" ? "formula" : "cask"}>{p.kind}</Pill>
+                <Pill tone={p.kind === "formula" ? "formula" : "cask"}>
+                  {t(p.kind === "formula" ? "package.kind.formula" : "package.kind.cask", ui.locale)}
+                </Pill>
                 {#if st === "not-installed"}
                   {@const inst = installingPkgs[key] ?? false}
                   <span class="pkg-state">
@@ -353,24 +380,24 @@
                       }}
                       disabled={inst}
                       loading={inst}
-                      title={inst ? "Installing…" : `Install ${p.name}`}
+                      title={inst ? t("Installing…", ui.locale) : t("bundles.action.installPackage", ui.locale, { name: p.name })}
                     >
                       {#snippet icon()}<DownloadCloud size={13} />{/snippet}
-                      {inst ? "Installing…" : "Install"}
+                      {inst ? t("Installing…", ui.locale) : t("Install", ui.locale)}
                     </Button>
                   </span>
                 {:else}
-                  <span class="pkg-state"><Pill tone={STATE_TONE[st]}>{STATE_LABEL[st]}</Pill></span>
+                  <span class="pkg-state"><Pill tone={STATE_TONE[st]}>{t(STATE_LABEL_KEY[st], ui.locale)}</Pill></span>
                 {/if}
               </div>
               {#if open}
                 <div class="pkg-desc">
                   {#if descCache[key]?.loading}
-                    <span class="pkg-desc-loading">Loading…</span>
+                    <span class="pkg-desc-loading">{t("bundles.loadingDescription", ui.locale)}</span>
                   {:else if descCache[key]?.text}
                     <span class="pkg-desc-text">{descCache[key]?.text}</span>
                   {:else}
-                    <span class="pkg-desc-empty">No description available</span>
+                    <span class="pkg-desc-empty">{t("bundles.noDescription", ui.locale)}</span>
                   {/if}
                 </div>
               {/if}
@@ -388,11 +415,11 @@
 
       {#if bundle.setup.length > 0}
         <section class="block">
-          <h3>Setup</h3>
+          <h3>{t("bundles.setup", ui.locale)}</h3>
           <p class="setup-hint">
-            Brew-native steps run in the app. Commands marked
-            <em>you run this</em> are yours to copy and run in a terminal — the
-            app never executes them for you.
+            {t("bundles.setupHint.before", ui.locale)}{" "}
+            <em>{t("bundles.setupHint.youRunThis", ui.locale)}</em>{" "}
+            {t("bundles.setupHint.after", ui.locale)}
           </p>
           <ol class="setup" role="list">
             {#each bundle.setup as step, i (i)}
@@ -405,7 +432,7 @@
                   {@const running = serviceRunning(step.service ?? "")}
                   <span class="step-body">
                     <span class="step-label">{stepLabel(step)}</span>
-                    {#if running}<span class="step-tag ok">running</span>{/if}
+                    {#if running}<span class="step-tag ok">{t("bundles.step.running", ui.locale)}</span>{/if}
                   </span>
                   <Button
                     size="sm"
@@ -413,27 +440,29 @@
                     onclick={() => startService(step.service ?? "")}
                     disabled={!installed || running || services.isPending(step.service ?? "")}
                     title={!installed
-                      ? `${step.service} isn't installed yet — install the bundle first`
+                      ? step.service
+                        ? t("bundles.step.installFirst", ui.locale, { service: step.service })
+                        : t("bundles.step.installFirstGeneric", ui.locale)
                       : running
-                        ? "Already running"
-                        : "Start this service"}
+                        ? t("bundles.step.alreadyRunning", ui.locale)
+                        : t("bundles.step.startService", ui.locale)}
                   >
                     {#snippet icon()}<Play size={13} />{/snippet}
-                    Start
+                    {t("Start", ui.locale)}
                   </Button>
 
                 {:else if step.kind === "open"}
                   <span class="step-body"><span class="step-label">{stepLabel(step)}</span></span>
                   <Button size="sm" variant="secondary" onclick={() => safeOpenUrl(step.url ?? "")} disabled={!step.url}>
                     {#snippet icon()}<ExternalLink size={13} />{/snippet}
-                    Open
+                    {t("bundles.action.open", ui.locale)}
                   </Button>
 
                 {:else if step.kind === "reveal"}
                   <span class="step-body"><span class="step-label">{stepLabel(step)}</span></span>
                   <Button size="sm" variant="secondary" onclick={() => reveal(step.path ?? "")} disabled={!step.path}>
                     {#snippet icon()}<FolderOpen size={13} />{/snippet}
-                    Reveal
+                    {t("bundles.action.reveal", ui.locale)}
                   </Button>
 
                 {:else if step.kind === "command"}
@@ -441,12 +470,12 @@
                     {#if step.label}<span class="step-label">{step.label}</span>{/if}
                     <span class="step-run-row">
                       <code class="step-run">{step.run}</code>
-                      <span class="step-yourun" title="This runs in your terminal — the app never executes it">you run this</span>
+                      <span class="step-yourun" title={t("bundles.step.youRunThisTitle", ui.locale)}>{t("bundles.setupHint.youRunThis", ui.locale)}</span>
                     </span>
                   </span>
                   <Button size="sm" variant="secondary" onclick={() => copyCommand(step.run ?? "")} disabled={!step.run}>
                     {#snippet icon()}<Copy size={13} />{/snippet}
-                    Copy
+                    {t("bundles.action.copy", ui.locale)}
                   </Button>
 
                 {:else if mode === "note"}
@@ -465,7 +494,7 @@
 
       {#if bundle.links.length > 0}
         <section class="block">
-          <h3>Links</h3>
+          <h3>{t("bundles.links", ui.locale)}</h3>
           <ul class="links" role="list">
             {#each bundle.links as l (l.url)}
               <li>
@@ -481,24 +510,24 @@
     </div>
 
     <footer class="detail-foot">
-      <Button variant="primary" onclick={onInstallClick} disabled={installing} loading={installing}>
+      <Button variant="primary" onclick={onInstallClick} disabled={installing || pendingCount === 0} loading={installing}>
         {#snippet icon()}<DownloadCloud size={14} />{/snippet}
-        Install all
+        {installLabel}
       </Button>
     </footer>
   </aside>
 
   <DestructiveConfirm
     open={confirmOpen}
-    title="Install anyway?"
-    confirmLabel="Install anyway"
-    cancelLabel="Cancel"
+    title={t("bundles.installAnywayTitle", ui.locale)}
+    confirmLabel={t("bundles.installAnywayConfirm", ui.locale)}
+    cancelLabel={t("Cancel", ui.locale)}
     confirmVariant="danger"
     onConfirm={runInstall}
     onCancel={() => (confirmOpen = false)}
   >
-    <p>{readiness.reason}</p>
-    <p>Your machine may not run <strong>{bundle.name}</strong> well. You can install it anyway.</p>
+    <p>{localizedReason}</p>
+    <p>{t("bundles.installAnywayBody", ui.locale, { name: bundle.name })}</p>
   </DestructiveConfirm>
 {/if}
 

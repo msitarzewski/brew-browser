@@ -14,7 +14,7 @@ struct TrendingView: View {
     var body: some View {
         Group {
             if model.trendingLoading && model.trendingEntries.isEmpty {
-                ProgressView("Fetching install counts from formulae.brew.sh…")
+                ProgressView(L10n.string("Fetching install counts from formulae.brew.sh…"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VStack(spacing: 0) {
@@ -36,7 +36,7 @@ struct TrendingView: View {
     // parity). The picker is centered via overlay so the trailing cluster
     // doesn't shift it off-center.
     private var windowBar: some View {
-        Picker("Window", selection: Binding(
+        Picker(L10n.isRussian ? "Период" : "Window", selection: Binding(
             get: { model.trendingWindow },
             set: { w in Task { await model.setTrendingWindow(w) } }
         )) {
@@ -59,7 +59,7 @@ struct TrendingView: View {
                     // Spinner replaces the arrow while fetching so a click reads
                     // as "working" even when the refresh returns quickly.
                     Label {
-                        Text("Refresh")
+                        Text(L10n.string("Refresh"))
                     } icon: {
                         if model.trendingLoading {
                             ProgressView().controlSize(.small)
@@ -80,11 +80,8 @@ struct TrendingView: View {
     private var updatedLabel: String? {
         guard let at = model.trendingFetchedAt else { return nil }
         let secs = Int(max(0, Date().timeIntervalSince1970 - at))
-        let ago: String
-        if secs < 60 { ago = "\(secs)s" }
-        else if secs < 3600 { ago = "\(secs / 60)m" }
-        else { ago = "\(secs / 3600)h" }
-        return "Updated \(ago) ago"
+        let ago = L10n.shortElapsed(seconds: secs)
+        return L10n.isRussian ? "Обновлено \(ago) назад" : "Updated \(ago) ago"
     }
 
     @ViewBuilder
@@ -92,11 +89,11 @@ struct TrendingView: View {
         let rows = model.sortedTrendingRows
         if rows.isEmpty {
             ContentUnavailableView(
-                "Couldn't load trending",
+                L10n.string("Couldn't load trending"),
                 systemImage: "chart.line.uptrend.xyaxis",
                 description: Text(model.settings.paranoidMode
-                                  ? "Offline Mode is on — trending needs formulae.brew.sh."
-                                  : "formulae.brew.sh returned no entries.")
+                                  ? L10n.string("Offline Mode is on — trending needs formulae.brew.sh.")
+                                  : L10n.string("formulae.brew.sh returned no entries."))
             )
         } else {
             // Velocity is ALWAYS shown (computed from analytics, like Tauri).
@@ -125,24 +122,24 @@ struct TrendingView: View {
                 Text("\(r.rank)").foregroundStyle(.secondary).monospacedDigit()
             }.width(min: 32, ideal: 40)
 
-            TableColumn("Name", value: \.name) { nameCell($0) }.width(min: 130, ideal: 190)
+            TableColumn(L10n.string("Name"), value: \.name) { nameCell($0) }.width(min: 130, ideal: 190)
 
             if desc {
-                TableColumn("Description", value: \.summary) { r in
+                TableColumn(L10n.string("Description"), value: \.summary) { r in
                     Text(r.summary).foregroundStyle(.secondary).lineLimit(1)
                 }.width(min: 140, ideal: 260)
             }
 
-            TableColumn("Version", value: \.version) { r in
+            TableColumn(L10n.string("Version"), value: \.version) { r in
                 Text(r.version).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
             }.width(min: 60, ideal: 90)
 
-            TableColumn("Type", value: \.kind.rawValue) { KindPill(kind: $0.kind) }.width(min: 56, ideal: 72)
+            TableColumn(L10n.string("Type"), value: \.kind.rawValue) { KindPill(kind: $0.kind) }.width(min: 56, ideal: 72)
 
             // Velocity is always shown — computed from the analytics windows.
-            TableColumn("Velocity", value: \.velocityRank) { velocityCell($0) }.width(min: 64, ideal: 84)
+            TableColumn(L10n.string("Velocity"), value: \.velocityRank) { velocityCell($0) }.width(min: 64, ideal: 84)
 
-            TableColumn("Installs", value: \.installCount) { r in
+            TableColumn(L10n.string("Installs"), value: \.installCount) { r in
                 // Stacked: count on top, sparkline (opt-in) beneath (matches Tauri).
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(r.installCount, format: .number).monospacedDigit()
@@ -161,9 +158,9 @@ struct TrendingView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }.width(min: 90, ideal: 130)
 
-            TableColumn("Installed", value: \.installedRank) { r in
+            TableColumn(L10n.string("Installed"), value: \.installedRank) { r in
                 if r.isInstalled {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).help("Installed")
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).help(L10n.string("Installed"))
                 }
             }.width(min: 56, ideal: 72)
         }

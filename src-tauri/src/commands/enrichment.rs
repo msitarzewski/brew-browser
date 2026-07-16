@@ -14,14 +14,39 @@ use std::sync::Arc;
 use tauri::State;
 
 use crate::commands::info::validate_package_name;
-use crate::enrichment::{EnrichmentData, EnrichmentEntry};
+use crate::enrichment::{normalize_locale, EnrichmentData, EnrichmentEntry};
 use crate::error::BrewError;
 use crate::state::AppState;
 
 /// Return the full enrichment payload. Memoised on `AppState` so
 /// subsequent calls are an Arc-clone, not a re-parse.
 #[tauri::command]
-pub async fn enrichment_data(state: State<'_, AppState>) -> Result<Arc<EnrichmentData>, BrewError> {
+pub async fn enrichment_data(
+    locale: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Arc<EnrichmentData>, BrewError> {
+    let locale = normalize_locale(locale.as_deref());
+    if locale != "en" {
+        {
+            let cached = state.enrichment_locale_cache.lock().await;
+            if let Some(data) = cached.get(locale) {
+                return Ok(Arc::clone(data));
+            }
+        }
+
+        let base = enrichment_base_data(state.clone()).await?;
+        let localized = Arc::new(EnrichmentData::localized(&base, Some(locale))?);
+        let mut cached = state.enrichment_locale_cache.lock().await;
+        cached.insert(locale.to_string(), Arc::clone(&localized));
+        return Ok(localized);
+    }
+
+    enrichment_base_data(state).await
+}
+
+async fn enrichment_base_data(
+    state: State<'_, AppState>,
+) -> Result<Arc<EnrichmentData>, BrewError> {
     {
         let cached = state.enrichment_cache.lock().await;
         if let Some(data) = cached.as_ref() {
@@ -41,10 +66,11 @@ pub async fn enrichment_data(state: State<'_, AppState>) -> Result<Arc<Enrichmen
 #[tauri::command]
 pub async fn enrichment_lookup(
     name: String,
+    locale: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Option<EnrichmentEntry>, BrewError> {
     validate_package_name(&name)?;
-    let data = enrichment_data(state).await?;
+    let data = enrichment_data(locale, state).await?;
     Ok(data.entries.get(&name).cloned())
 }
 

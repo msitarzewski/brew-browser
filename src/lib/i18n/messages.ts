@@ -1,0 +1,148 @@
+import en from "./en";
+import ru from "./ru";
+
+export type MessageKey = keyof typeof en;
+type MessageCatalog = { [K in MessageKey]: string };
+type InterpolationValue = string | number;
+
+export const messages = {
+  en,
+  ru,
+} as const satisfies Record<string, MessageCatalog>;
+
+export type Locale = keyof typeof messages;
+export type LocalePreference = "system" | Locale;
+
+export const DEFAULT_LOCALE: Locale = "en";
+export const DEFAULT_LOCALE_PREFERENCE: LocalePreference = "system";
+export const SUPPORTED_LOCALES = Object.keys(messages) as Locale[];
+export const LOCALE_PREFERENCES = ["system", ...SUPPORTED_LOCALES] as const;
+
+export const messagesEn: Record<string, string> = en;
+export const messagesRu: Record<string, string> = ru;
+
+export function t(
+  key: MessageKey,
+  locale: Locale = DEFAULT_LOCALE,
+  params: Record<string, InterpolationValue> = {},
+): string {
+  const template = messages[locale][key] ?? messages.en[key] ?? key;
+  return template.replace(/\{([a-zA-Z0-9_]+)\}/gu, (_, name: string) => {
+    const value = params[name];
+    return value === undefined ? `{${name}}` : String(value);
+  });
+}
+
+export function ruPlural(n: number, one: string, few: string, many: string): string {
+  const mod10 = Math.abs(n) % 10;
+  const mod100 = Math.abs(n) % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
+}
+
+export function formatBrewOperationsRunning(count: number, locale: Locale): string {
+  if (locale === "ru") {
+    return `${count} ${ruPlural(count, "операция brew выполняется", "операции brew выполняются", "операций brew выполняется")}`;
+  }
+  return `${count} brew operation${count === 1 ? "" : "s"} running`;
+}
+
+export function formatVulnerablePackages(count: number, locale: Locale): string {
+  if (locale === "ru") {
+    return `${count} ${ruPlural(count, "уязвимый пакет", "уязвимых пакета", "уязвимых пакетов")}`;
+  }
+  return `${count} vulnerable package${count === 1 ? "" : "s"}`;
+}
+
+export function formatVulnerablePackageLabel(count: number, locale: Locale): string {
+  if (locale === "ru") {
+    return ruPlural(count, "уязвимый пакет", "уязвимых пакета", "уязвимых пакетов");
+  }
+  return `vulnerable package${count === 1 ? "" : "s"}`;
+}
+
+export function formatBundlePackageSummary(formulae: number, casks: number, locale: Locale): string {
+  const parts: string[] = [];
+  if (locale === "ru") {
+    if (formulae > 0) parts.push(`${formulae} ${ruPlural(formulae, "формула", "формулы", "формул")}`);
+    if (casks > 0) parts.push(`${casks} ${ruPlural(casks, "cask-пакет", "cask-пакета", "cask-пакетов")}`);
+    return parts.join(" · ") || "пакетов нет";
+  }
+  if (formulae > 0) parts.push(`${formulae} ${formulae === 1 ? "formula" : "formulae"}`);
+  if (casks > 0) parts.push(`${casks} cask${casks === 1 ? "" : "s"}`);
+  return parts.join(" · ") || "no packages";
+}
+
+export function formatCatalogSource(source: "bundled" | "user-refreshed", locale: Locale): string {
+  if (locale === "ru") {
+    switch (source) {
+      case "bundled": return "встроенный";
+      case "user-refreshed": return "обновлён пользователем";
+    }
+  }
+  return source;
+}
+
+export function formatPackageKind(kind: "formula" | "cask", locale: Locale): string {
+  if (locale === "ru") {
+    return kind === "formula" ? "формула" : "cask-пакет";
+  }
+  return kind;
+}
+
+export function formatReadinessLabel(verdict: "ready" | "marginal" | "blocked", locale: Locale): string {
+  if (locale === "ru") {
+    switch (verdict) {
+      case "ready": return "Готово";
+      case "marginal": return "Ограниченно";
+      case "blocked": return "Не рекомендуется";
+    }
+  }
+  switch (verdict) {
+    case "ready": return "Ready";
+    case "marginal": return "Marginal";
+    case "blocked": return "Not recommended";
+  }
+}
+
+export function formatReadinessReason(reason: string, locale: Locale): string {
+  if (locale !== "ru") return reason;
+  if (reason === "Ready.") return "Готово.";
+
+  let match = reason.match(/^Built for (.+)\.$/u);
+  if (match) return `Рассчитано на ${match[1]}.`;
+
+  match = reason.match(/^Needs ≥(\d+) GB RAM \(you have (\d+) GB\)\.$/u);
+  if (match) return `Нужно ≥${match[1]} ГБ RAM (сейчас ${match[2]} ГБ).`;
+
+  match = reason.match(/^Needs ≥(\d+) GB free disk \(you have (\d+) GB\)\.$/u);
+  if (match) return `Нужно ≥${match[1]} ГБ свободного места (сейчас ${match[2]} ГБ).`;
+
+  match = reason.match(/^Below the recommended (\d+) GB — may be slow\.$/u);
+  if (match) return `Меньше рекомендуемых ${match[1]} ГБ — может работать медленно.`;
+
+  return reason;
+}
+
+export function isLocalePreference(value: string | null): value is LocalePreference {
+  return value === "system" || (value !== null && value in messages);
+}
+
+function localeFromLanguage(language: string): Locale | null {
+  const normalized = language.toLowerCase();
+  const primary = normalized.split("-")[0];
+  return SUPPORTED_LOCALES.find((locale) => locale === normalized || locale === primary) ?? null;
+}
+
+export function resolveLocalePreference(
+  preference: LocalePreference,
+  languages: readonly string[] = typeof navigator === "undefined" ? [] : navigator.languages,
+): Locale {
+  if (preference !== "system") return preference;
+  for (const language of languages) {
+    const locale = localeFromLanguage(language);
+    if (locale) return locale;
+  }
+  return DEFAULT_LOCALE;
+}

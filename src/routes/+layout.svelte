@@ -9,10 +9,13 @@
   import { settings } from "$lib/stores/settings.svelte";
   import { vulnerabilities } from "$lib/stores/vulnerabilities.svelte";
   import { github } from "$lib/stores/github.svelte";
+  import { startRuntimeLocalization } from "$lib/i18n/runtime";
 
   let { children } = $props();
 
   onMount(() => {
+    ui.loadLocalePreferenceFromStorage();
+    const stopLocalization = startRuntimeLocalization(ui.locale);
     ui.loadThemeFromStorage();
     // Settings (Phase 12b) — all read with enum/numeric validation so a
     // corrupt or hostile localStorage entry can't poison runtime state.
@@ -75,6 +78,7 @@
       unwatch();
       stopProbe();
       stopOnboarding();
+      stopLocalization();
       unlistenAbout?.();
       unlistenSettings?.();
     };

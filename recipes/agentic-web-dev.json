@@ -14,6 +14,7 @@
     { "name": "caddy", "kind": "formula" },
     { "name": "orbstack", "kind": "cask" }
   ],
+  "tap": "anomalyco/tap",
   "requires": { "minRamGB": 8, "recommendedRamGB": 16, "minDiskGB": 8, "arch": "apple-silicon", "gpu": "none" },
   "setup": [
     { "kind": "note", "text": "opencode needs a model/provider configured before first use — point it at Anthropic, OpenAI, Google, a local Ollama server, or any other supported provider." },

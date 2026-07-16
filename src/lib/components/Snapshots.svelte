@@ -17,6 +17,7 @@
   import { activity } from "$lib/stores/activity.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t, ruPlural } from "$lib/i18n/messages";
   import { brewfileDump, brewfileInstall, brewfileDelete, brewfileExport, brewfileImport } from "$lib/api";
   import type { BrewfileSummary } from "$lib/types";
   import { isLinux } from "$lib/util/platform";
@@ -47,7 +48,7 @@
     if (!newLabel.trim()) return;
     creating = true;
     const tmpId = crypto.randomUUID();
-    activity.startJob(`Dumping Brewfile: ${newLabel}`, tmpId, `brew bundle dump`);
+    activity.startJob(ui.locale === "ru" ? `Сохраняем Brewfile: ${newLabel}` : `Dumping Brewfile: ${newLabel}`, tmpId, `brew bundle dump`);
     ui.openDrawer();
     try {
       const summary = await brewfileDump(newLabel.trim(), (evt) => {
@@ -57,12 +58,16 @@
         }
         activity.handleEvent(evt);
       });
-      toast.success(`Snapshot saved`, `${summary.counts.formulae + summary.counts.casks} packages`);
+      const total = summary.counts.formulae + summary.counts.casks;
+      toast.success(
+        t("Snapshot saved", ui.locale),
+        ui.locale === "ru" ? `${total} ${ruPlural(total, "пакет", "пакета", "пакетов")}` : `${total} packages`,
+      );
       showNewModal = false;
       newLabel = "";
       brewfiles.load();
     } catch (e) {
-      reportableToastError("Snapshot failed", e);
+      reportableToastError(t("Snapshot failed", ui.locale), e);
     } finally {
       creating = false;
     }
@@ -71,7 +76,7 @@
   async function doRestore(b: BrewfileSummary) {
     toRestore = null;
     const tmpId = crypto.randomUUID();
-    activity.startJob(`Restoring ${b.label}`, tmpId, `brew bundle install`);
+    activity.startJob(ui.locale === "ru" ? `Восстанавливаем ${b.label}` : `Restoring ${b.label}`, tmpId, `brew bundle install`);
     ui.openDrawer();
     try {
       const result = await brewfileInstall(b.id, (evt) => {
@@ -81,10 +86,10 @@
         }
         activity.handleEvent(evt);
       });
-      if (result.success) toast.success("Restore complete");
-      else toast.error("Restore failed");
+      if (result.success) toast.success(t("Restore complete", ui.locale));
+      else toast.error(t("Restore failed", ui.locale));
     } catch (e) {
-      reportableToastError("Restore failed", e);
+      reportableToastError(t("Restore failed", ui.locale), e);
     }
   }
 
@@ -92,10 +97,10 @@
     toDelete = null;
     try {
       await brewfileDelete(b.id);
-      toast.success(`Deleted snapshot "${b.label}"`);
+      toast.success(t("Deleted snapshot", ui.locale), b.label);
       brewfiles.load();
     } catch (e) {
-      reportableToastError("Delete failed", e);
+      reportableToastError(t("Delete failed", ui.locale), e);
     }
   }
 
@@ -108,9 +113,9 @@
       });
       if (!target) return;
       await brewfileExport(b.id, target);
-      toast.success(`Exported "${b.label}"`);
+      toast.success(t("Exported snapshot", ui.locale), b.label);
     } catch (e) {
-      reportableToastError("Export failed", e);
+      reportableToastError(t("Export failed", ui.locale), e);
     }
   }
 
@@ -124,15 +129,34 @@
       if (!picked || typeof picked !== "string") return;
       const label = picked.split("/").pop() ?? "imported";
       await brewfileImport(picked, label);
-      toast.success(`Imported "${label}"`);
+      toast.success(t("Imported snapshot", ui.locale), label);
       brewfiles.load();
     } catch (e) {
-      reportableToastError("Import failed", e);
+      reportableToastError(t("Import failed", ui.locale), e);
     }
   }
 
   function formatDate(s: string): string {
-    try { return new Date(s).toLocaleString(); } catch { return s; }
+    try { return new Date(s).toLocaleString(ui.locale === "ru" ? "ru-RU" : undefined); } catch { return s; }
+  }
+
+  function snapshotMeta(b: BrewfileSummary): string {
+    const parts = [
+      ui.locale === "ru"
+        ? `${b.counts.formulae} ${ruPlural(b.counts.formulae, "формула", "формулы", "формул")}`
+        : `${b.counts.formulae} formulae`,
+    ];
+    if (!isLinux || b.counts.casks > 0) {
+      parts.push(ui.locale === "ru"
+        ? `${b.counts.casks} ${ruPlural(b.counts.casks, "cask-пакет", "cask-пакета", "cask-пакетов")}`
+        : `${b.counts.casks} casks`);
+    }
+    if (b.counts.masApps > 0) {
+      parts.push(ui.locale === "ru"
+        ? `${b.counts.masApps} ${ruPlural(b.counts.masApps, "MAS-приложение", "MAS-приложения", "MAS-приложений")}`
+        : `${b.counts.masApps} MAS apps`);
+    }
+    return parts.join(" · ");
   }
 </script>
 
@@ -143,22 +167,22 @@
     <div class="head-right" data-tauri-drag-region="false">
       <Button size="md" variant="secondary" onclick={doImport}>
         {#snippet icon()}<Upload size={14} />{/snippet}
-        Import…
+        {t("Import…", ui.locale)}
       </Button>
       <Button size="md" variant="primary" onclick={openNew}>
         {#snippet icon()}<Plus size={14} />{/snippet}
-        New Snapshot
+        {t("New Snapshot", ui.locale)}
       </Button>
     </div>
   </header>
 
   <div class="list-wrap">
     {#if brewfiles.loading}
-      <LoadingState rows={4} label="Loading snapshots…" />
+      <LoadingState rows={4} label={t("Loading snapshots…", ui.locale)} />
     {:else if brewfiles.error}
-      <EmptyState title="Couldn't load snapshots" body={brewfiles.error}>
+      <EmptyState title={t("Couldn't load snapshots", ui.locale)} body={brewfiles.error}>
         {#snippet icon()}<Archive size={48} />{/snippet}
-        {#snippet cta()}<Button variant="secondary" onclick={() => brewfiles.load()}>Retry</Button>{/snippet}
+        {#snippet cta()}<Button variant="secondary" onclick={() => brewfiles.load()}>{t("Retry", ui.locale)}</Button>{/snippet}
       </EmptyState>
     {:else if brewfiles.list.length === 0}
       <!-- Inline CTAs intentionally omitted: the same actions live in
@@ -168,10 +192,10 @@
            brew-browser/brewfiles/): ~/Library/Application Support on macOS,
            XDG data home (~/.local/share by default) on Linux. -->
       <EmptyState
-        title="No snapshots yet."
+        title={t("No snapshots yet", ui.locale)}
         body={isLinux
-          ? "Save your current setup so you can restore it on another machine. Snapshots live in ~/.local/share/brew-browser/brewfiles/ — findable outside the app too."
-          : "Save your current setup so you can restore it on another Mac. Snapshots live in ~/Library/Application Support/brew-browser/brewfiles/ — findable outside the app too."}
+          ? t("Save your current setup so you can restore it on another machine. Snapshots live in ~/.local/share/brew-browser/brewfiles/ — findable outside the app too.", ui.locale)
+          : t("Save your current setup so you can restore it on another Mac. Snapshots live in ~/Library/Application Support/brew-browser/brewfiles/ — findable outside the app too.", ui.locale)}
       >
         {#snippet icon()}<Archive size={48} />{/snippet}
       </EmptyState>
@@ -185,20 +209,20 @@
                 <!-- Brewfiles legitimately carry cask lines (a snapshot may
                      come from a Mac) — real cask counts always show. Only
                      the decorative "0 casks" is suppressed on Linux. -->
-                <p class="meta">{formatDate(b.createdAt)} · {b.counts.formulae} formulae{#if !isLinux || b.counts.casks > 0} · {b.counts.casks} casks{/if}{#if b.counts.masApps > 0} · {b.counts.masApps} MAS apps{/if}</p>
+                <p class="meta">{formatDate(b.createdAt)} · {snapshotMeta(b)}</p>
               </div>
               <div class="actions">
                 <Button size="sm" variant="primary" onclick={() => (toRestore = b)}>
                   {#snippet icon()}<RotateCcw size={14} />{/snippet}
-                  Restore
+                  {t("Restore", ui.locale)}
                 </Button>
                 <Button size="sm" variant="secondary" onclick={() => doExport(b)}>
                   {#snippet icon()}<Download size={14} />{/snippet}
-                  Export…
+                  {t("Export…", ui.locale)}
                 </Button>
-                <Button size="sm" variant="ghost" onclick={() => (toDelete = b)} ariaLabel={`Delete ${b.label}`} title="Delete">
+                <Button size="sm" variant="ghost" onclick={() => (toDelete = b)} ariaLabel={ui.locale === "ru" ? `Удалить ${b.label}` : `Delete ${b.label}`} title={t("Delete", ui.locale)}>
                   {#snippet icon()}<Trash2 size={14} />{/snippet}
-                  Delete
+                  {t("Delete", ui.locale)}
                 </Button>
               </div>
             </header>
@@ -210,39 +234,39 @@
   </div>
 </section>
 
-<Modal open={showNewModal} title="New Snapshot" defaultFocus="first" onClose={() => (showNewModal = false)}>
+<Modal open={showNewModal} title={t("New Snapshot", ui.locale)} defaultFocus="first" onClose={() => (showNewModal = false)}>
   <div class="modal-body">
     <label>
-      <span class="lbl">Name</span>
+      <span class="lbl">{t("Name", ui.locale)}</span>
       <Input bind:value={newLabel} placeholder="snapshot-name" />
     </label>
-    <p class="hint text-muted">Stored in <code>~/Library/Application Support/brew-browser/brewfiles/</code></p>
+    <p class="hint text-muted">{t("Stored in ~/Library/Application Support/brew-browser/brewfiles/", ui.locale)}</p>
   </div>
   {#snippet actions()}
-    <Button variant="secondary" onclick={() => (showNewModal = false)}>Cancel</Button>
-    <Button variant="primary" loading={creating} onclick={doCreate}>Create</Button>
+    <Button variant="secondary" onclick={() => (showNewModal = false)}>{t("Cancel", ui.locale)}</Button>
+    <Button variant="primary" loading={creating} onclick={doCreate}>{t("Create", ui.locale)}</Button>
   {/snippet}
 </Modal>
 
 <DestructiveConfirm
   open={!!toDelete}
-  title={toDelete ? `Delete snapshot "${toDelete.label}"?` : ""}
-  confirmLabel="Delete"
+  title={toDelete ? (ui.locale === "ru" ? `Удалить снимок «${toDelete.label}»?` : `Delete snapshot "${toDelete.label}"?`) : ""}
+  confirmLabel={t("Delete", ui.locale)}
   onCancel={() => (toDelete = null)}
   onConfirm={() => toDelete && doDelete(toDelete)}
 >
-  <p>The Brewfile will be removed from disk. This cannot be undone.</p>
+  <p>{t("The Brewfile will be removed from disk. This cannot be undone.", ui.locale)}</p>
 </DestructiveConfirm>
 
 <DestructiveConfirm
   open={!!toRestore}
-  title={toRestore ? `Restore from "${toRestore.label}"?` : ""}
-  confirmLabel="Restore"
+  title={toRestore ? (ui.locale === "ru" ? `Восстановить из снимка «${toRestore.label}»?` : `Restore from "${toRestore.label}"?`) : ""}
+  confirmLabel={t("Restore", ui.locale)}
   confirmVariant="primary"
   onCancel={() => (toRestore = null)}
   onConfirm={() => toRestore && doRestore(toRestore)}
 >
-  <p>This will install packages from the snapshot. Existing packages are skipped.</p>
+  <p>{t("This will install packages from the snapshot. Existing packages are skipped.", ui.locale)}</p>
 </DestructiveConfirm>
 
 <style>
@@ -275,5 +299,4 @@
   .modal-body label { display: flex; flex-direction: column; gap: var(--space-1); }
   .lbl { font-size: var(--text-body-sm); color: var(--color-text-secondary); font-weight: var(--fw-medium); }
   .hint { font-size: var(--text-caption); }
-  .hint code { background: var(--color-surface-sunken); padding: 1px 4px; border-radius: var(--radius-sm); }
 </style>

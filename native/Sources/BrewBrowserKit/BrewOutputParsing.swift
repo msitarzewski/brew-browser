@@ -17,6 +17,9 @@ enum BrewErrorPatterns {
         if isBundle,
            stderr.contains("key not found:"),
            stderr.contains("Homebrew::Bundle::Brew::Topo") {
+            if L10n.isRussian {
+                return "В `brew bundle` сработала внутренняя ошибка topo-sort для одной из установленных формул. Это ошибка Homebrew, а не brew-browser. Попробуйте `brew untap` для недавно добавленного tap или посмотрите полный вывод в Активности."
+            }
             return "Homebrew's `brew bundle` hit an internal topo-sort error on one "
                 + "of your installed formulae. This is an upstream Homebrew bug, not "
                 + "a brew-browser issue. Try `brew untap` on a recently-added tap, or "
@@ -26,6 +29,9 @@ enum BrewErrorPatterns {
         // Pattern 2 — Homebrew explicitly asks the user to report upstream.
         if stderr.contains("Please report this issue:"),
            stderr.contains("docs.brew.sh/Troubleshooting") {
+            if L10n.isRussian {
+                return "Homebrew сообщил о внутренней ошибке и попросил отправить отчёт upstream. Посмотрите полный вывод в Активности и откройте https://docs.brew.sh/Troubleshooting для дальнейших шагов."
+            }
             return "Homebrew reported an internal error and asked you to report it "
                 + "upstream. See the full output in Activity, and visit "
                 + "https://docs.brew.sh/Troubleshooting for next steps."
@@ -35,6 +41,9 @@ enum BrewErrorPatterns {
         // current session doesn't own (ports PR #51).
         if command.contains("services"),
            stderr.contains("Could not find service") || stderr.contains("not found in domain") {
+            if L10n.isRussian {
+                return "brew не нашёл эту службу в текущем домене launchd. Скорее всего, plist зарегистрирован для другого пользователя или сеанса. Попробуйте `brew services restart` или перенесите plist в ~/Library/LaunchAgents и выполните `launchctl bootstrap gui/$UID`."
+            }
             return "brew could not find this service in the current launchd domain. "
                 + "The plist is likely registered for a different user or session. "
                 + "Try `brew services restart`, or move the plist to "
@@ -44,6 +53,9 @@ enum BrewErrorPatterns {
         // Pattern 4 — another brew process holds the lock (environmental).
         if stderr.contains("has already locked")
             || stderr.contains("Please wait for it to finish or terminate it") {
+            if L10n.isRussian {
+                return "Другой процесс Homebrew уже выполняется и удерживает lock. Дождитесь его завершения или закройте другой процесс, затем повторите попытку — это не проблема brew-browser."
+            }
             return "Another Homebrew process is already running and holds the lock. "
                 + "Wait for it to finish (or quit the other process) and try again — "
                 + "this isn't a brew-browser problem."
@@ -53,10 +65,16 @@ enum BrewErrorPatterns {
         // has no interactive terminal for the admin password prompt.
         if sudoPasswordPromptRequired(stderr) {
             if let token = sudoCaskToken(stderr: stderr, command: command) {
+                if L10n.isRussian {
+                    return "Cask-пакету `\(token)` нужен пароль администратора, но brew-browser запускает brew без интерактивного терминала, поэтому sudo не может запросить пароль здесь. Выполните в Терминале: `brew upgrade --cask \(token)`, затем обновите brew-browser."
+                }
                 return "The cask `\(token)` needs an administrator password, but "
                     + "brew-browser runs brew without an interactive terminal so sudo "
                     + "cannot prompt here. Run this in Terminal: "
                     + "`brew upgrade --cask \(token)`, then refresh brew-browser."
+            }
+            if L10n.isRussian {
+                return "Этому Homebrew cask нужен пароль администратора, но brew-browser запускает brew без интерактивного терминала, поэтому sudo не может запросить пароль здесь. Выполните обновление cask-пакета в Терминале, затем обновите brew-browser."
             }
             return "This Homebrew cask needs an administrator password, but "
                 + "brew-browser runs brew without an interactive terminal so sudo "

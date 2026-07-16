@@ -14,6 +14,7 @@ import PackageDescription
 // `BrewBrowser` executable is wrapped into a launchable .app by build-app.sh.
 let package = Package(
     name: "BrewBrowser",
+    defaultLocalization: "en",
     platforms: [.macOS(.v26)],
     products: [
         // Exposing the library as a product makes SwiftPM/Xcode generate a
@@ -34,7 +35,12 @@ let package = Package(
         .executableTarget(
             name: "BrewBrowser",
             dependencies: ["BrewBrowserKit"],
-            path: "Sources/BrewBrowser"
+            path: "Sources/BrewBrowser",
+            resources: [
+                .process("Resources/Localizable.xcstrings"),
+                .process("Resources/en.lproj"),
+                .process("Resources/ru.lproj")
+            ]
         ),
         // Library: all views, AppModel, and the brew/vulns/github/trending/
         // enrichment services. Bundled JSON resources live here alongside the
@@ -48,13 +54,18 @@ let package = Package(
             ],
             path: "Sources/BrewBrowserKit",
             resources: [
+                .process("Resources/Localizable.xcstrings"),
+                .process("Resources/en.lproj"),
+                .process("Resources/ru.lproj"),
                 .copy("Resources/categories.json"),
                 .copy("Resources/enrichment.json"),
+                .copy("Resources/enrichment.ru.json"),
                 // Curated Bundles catalog (M2) — the six first-party recipes,
                 // generated from recipes/*.json by scripts/validate-recipes.mjs.
                 // Same artifact the Tauri app bundles; parsed at launch by
                 // BundleCatalog (Bundles.swift) via Bundle.module, tolerant/lossy.
                 .copy("Resources/bundles.json"),
+                .copy("Resources/bundles.ru.json"),
                 // GitHub Octocat mark (vector PDF, Primer/Octicons MIT). Rendered
                 // as a template image in the toolbar's "connected" chip.
                 .copy("Resources/github-mark.pdf"),

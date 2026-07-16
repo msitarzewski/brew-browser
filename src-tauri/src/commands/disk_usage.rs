@@ -482,7 +482,10 @@ mod tests {
         assert_eq!(parse_size_token("1KB"), Some(1024));
         assert_eq!(parse_size_token("1.5KB"), Some(1536));
         assert_eq!(parse_size_token("500MB"), Some(500 * 1024 * 1024));
-        assert_eq!(parse_size_token("1.2GB"), Some((1.2 * 1024.0 * 1024.0 * 1024.0) as u64));
+        assert_eq!(
+            parse_size_token("1.2GB"),
+            Some((1.2 * 1024.0 * 1024.0 * 1024.0) as u64)
+        );
         // trailing punctuation from a sentence is tolerated
         assert_eq!(parse_size_token("2GB."), Some(2 * 1024 * 1024 * 1024));
     }

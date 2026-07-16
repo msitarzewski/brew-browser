@@ -38,15 +38,7 @@ struct ActivityDrawer: View {
     /// form ("Installing X"); on completion show the terminal form so a green ✓
     /// doesn't sit next to "Installing".
     static func displayLabel(_ job: ActivityJob) -> String {
-        switch job.status {
-        case .running:   return job.label
-        case .succeeded: return job.label
-                .replacingOccurrences(of: "Installing ", with: "Installed ")
-                .replacingOccurrences(of: "Upgrading ", with: "Upgraded ")
-                .replacingOccurrences(of: "Uninstalling ", with: "Uninstalled ")
-        case .failed:    return "Failed: \(job.label)"
-        case .canceled:  return "Canceled: \(job.label)"
-        }
+        L10n.activityDisplayLabel(job)
     }
 
     var body: some View {
@@ -93,21 +85,21 @@ struct ActivityDrawer: View {
             if job.status == .running {
                 Button {
                     model.cancelJob(job.id)
-                } label: { Label("Cancel", systemImage: "stop.circle") }
+                } label: { Label(L10n.string("action.cancel"), systemImage: "stop.circle") }
                 .buttonStyle(.borderless)
             }
             Button {
                 copyLog(job)
             } label: { Image(systemName: "doc.on.doc") }
             .buttonStyle(.borderless)
-            .help("Copy output")
+            .help(L10n.string("activity.copyOutput"))
             Button {
                 model.drawerOpen.toggle()
             } label: {
                 Image(systemName: model.drawerOpen ? "chevron.down" : "chevron.up")
             }
             .buttonStyle(.borderless)
-            .help(model.drawerOpen ? "Collapse" : "Expand")
+            .help(model.drawerOpen ? L10n.string("activity.collapse") : L10n.string("activity.expand"))
             // Close — dismiss the drawer for this job (stays in Activity history).
             // Cancels first if it's still running. Mirrors the Tauri drawer's X.
             Button {
@@ -117,7 +109,7 @@ struct ActivityDrawer: View {
                 Image(systemName: "xmark")
             }
             .buttonStyle(.borderless)
-            .help("Close")
+            .help(L10n.string("action.close"))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -150,10 +142,7 @@ struct ActivityDrawer: View {
     }
 
     static func progressLabel(_ p: JobProgress) -> String {
-        var s = p.phase
-        if !p.package.isEmpty { s += " \(p.package)" }
-        if let total = p.total { s += " (\(p.current) of \(total))" }
-        return s
+        L10n.progressLabel(p)
     }
 
     @ViewBuilder
@@ -214,18 +203,20 @@ struct ActivityDrawer: View {
                     } else if !AppModel.isAppError(job) {
                         // brew ran and exited non-zero: a Homebrew/formula problem,
                         // NOT a brew-browser bug. No report — point at Terminal.
-                        Text("This looks like a Homebrew error, not a brew-browser bug — the command ran but exited with status \(job.exitCode ?? 0). Try the same command in Terminal; if it fails there too, it's a Homebrew or formula issue to report upstream.")
+                        Text(L10n.isRussian
+                             ? "Похоже, это ошибка Homebrew, а не brew-browser: команда выполнилась и завершилась с кодом \(job.exitCode ?? 0). Попробуйте ту же команду в Терминале; если она тоже завершается ошибкой, сообщите о проблеме в Homebrew или мейнтейнерам соответствующей формулы или cask-пакета."
+                             : "This looks like a Homebrew error, not a brew-browser bug — the command ran but exited with status \(job.exitCode ?? 0). Try the same command in Terminal; if it fails there too, it's a Homebrew or formula issue to report upstream.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                             .fixedSize(horizontal: false, vertical: true)
                     } else {
                         // No brew exit code = the app couldn't run the command. Our bug.
-                        Text("brew-browser hit an unexpected error running this command.")
+                        Text(L10n.string("brew-browser hit an unexpected error running this command."))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
-                        Button("Report to brew-browser") {
+                        Button(L10n.string("Report to brew-browser")) {
                             ReportIssue.open(for: job, brewVersion: model.brewVersion)
                         }
                         .buttonStyle(.link)
@@ -282,7 +273,7 @@ struct ActivityDrawer: View {
                     .foregroundStyle(Self.footerColor(job.status))
                     .lineLimit(3)
                 if job.status == .failed && AppModel.isAppError(job) {
-                    Button("Report to brew-browser") {
+                    Button(L10n.string("Report to brew-browser")) {
                         ReportIssue.open(for: job, brewVersion: model.brewVersion)
                     }
                     .buttonStyle(.link)
@@ -322,22 +313,32 @@ struct ActivityDrawer: View {
     /// Compact duration like "4.2s" from durationMs.
     static func duration(_ ms: Int?) -> String? {
         guard let ms else { return nil }
-        return String(format: "%.1fs", Double(ms) / 1000)
+        let seconds = Double(ms) / 1000
+        if L10n.isRussian {
+            return String(format: "%.1f с", seconds).replacingOccurrences(of: ".", with: ",")
+        }
+        return String(format: "%.1fs", seconds)
     }
 
     static func footerText(_ job: ActivityJob) -> String {
         let dur = duration(job.durationMs)
         switch job.status {
         case .running:   return ""
-        case .succeeded: return dur.map { "Done in \($0)." } ?? "Done."
+        case .succeeded:
+            if L10n.isRussian { return dur.map { "Готово за \($0)." } ?? "Готово." }
+            return dur.map { "Done in \($0)." } ?? "Done."
         case .failed:
-            let base = dur.map { "Failed after \($0)." } ?? "Failed."
+            let base = L10n.isRussian
+                ? (dur.map { "Ошибка через \($0)." } ?? "Ошибка.")
+                : (dur.map { "Failed after \($0)." } ?? "Failed.")
             if let friendly = job.friendlyFailureMessage, !friendly.isEmpty {
-                return "\(base) See notice at right."
+                return L10n.isRussian ? "\(base) См. пояснение справа." : "\(base) See notice at right."
             }
-            if let code = job.exitCode, code != 0 { return "\(base) Exit \(code)." }
+            if let code = job.exitCode, code != 0 {
+                return L10n.isRussian ? "\(base) Код выхода \(code)." : "\(base) Exit \(code)."
+            }
             return base
-        case .canceled:  return "Stopped."
+        case .canceled:  return L10n.isRussian ? "Остановлено." : "Stopped."
         }
     }
 
@@ -388,9 +389,9 @@ struct ActivityView: View {
         Group {
             if model.jobs.isEmpty {
                 ContentUnavailableView(
-                    "No activity yet",
+                    L10n.string("No activity yet"),
                     systemImage: "list.bullet.rectangle",
-                    description: Text("Installs, upgrades, uninstalls, and updates show up here.")
+                    description: Text(L10n.string("Installs, upgrades, uninstalls, and updates show up here."))
                 )
             } else {
                 List(model.jobs) { job in
@@ -402,7 +403,7 @@ struct ActivityView: View {
                             HStack(spacing: 10) {
                                 icon(job.status)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(job.label).fontWeight(.medium)
+                                    Text(ActivityDrawer.displayLabel(job)).fontWeight(.medium)
                                     Text(job.command).font(.caption.monospaced()).foregroundStyle(.secondary)
                                 }
                                 Spacer()
@@ -430,7 +431,7 @@ struct ActivityView: View {
                         .frame(width: 24)
                         .opacity(hovered == job.id ? 1 : 0)
                         .allowsHitTesting(hovered == job.id)
-                        .help("Remove from history")
+                        .help(L10n.string("Remove from history"))
                     }
                     .onHover { inside in
                         if inside { hovered = job.id }
@@ -438,12 +439,12 @@ struct ActivityView: View {
                     }
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) { model.removeJob(job.id) } label: {
-                            Label("Remove", systemImage: "trash")
+                            Label(L10n.string("Remove"), systemImage: "trash")
                         }
                     }
                     .contextMenu {
                         Button(role: .destructive) { model.removeJob(job.id) } label: {
-                            Label("Remove", systemImage: "trash")
+                            Label(L10n.string("Remove"), systemImage: "trash")
                         }
                     }
                 }
@@ -452,7 +453,7 @@ struct ActivityView: View {
         .toolbar {
             if model.jobs.contains(where: { $0.status != .running }) {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Clear Finished") { model.clearFinishedJobs() }
+                    Button(L10n.string("Clear Finished")) { model.clearFinishedJobs() }
                 }
             }
         }
@@ -461,7 +462,15 @@ struct ActivityView: View {
     /// Right-aligned status string; failures append their exit code.
     private func statusText(_ job: ActivityJob) -> String {
         if job.status == .failed, let code = job.exitCode, code != 0 {
-            return "Failed · exit \(code)"
+            return L10n.isRussian ? "Ошибка · код \(code)" : "Failed · exit \(code)"
+        }
+        if L10n.isRussian {
+            switch job.status {
+            case .running: return "Выполняется"
+            case .succeeded: return "Готово"
+            case .failed: return "Ошибка"
+            case .canceled: return "Отменено"
+            }
         }
         return job.status.rawValue.capitalized
     }

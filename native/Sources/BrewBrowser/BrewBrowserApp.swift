@@ -65,8 +65,8 @@ struct AppCommands: Commands {
         // mirrors the Tauri AboutModal. A "Sponsor brew-browser…" item sits below
         // so the donate CTA also lives in the app menu.
         CommandGroup(replacing: .appInfo) {
-            Button("About Brew Browser") { model.aboutOpen = true }
-            Button("Sponsor Brew Browser…") {
+            Button(L10n.string("about.title")) { model.aboutOpen = true }
+            Button(L10n.string("chrome.donate.menu")) {
                 if let url = URL(string: AboutInfo.sponsorURL) {
                     NSWorkspace.shared.open(url)
                 }
@@ -79,26 +79,26 @@ struct AppCommands: Commands {
         // Sparkle's documented SwiftUI integration. Mirrors the Tauri "Check now"
         // (`SettingsSectionUpdates.svelte`).
         CommandGroup(after: .appInfo) {
-            Button("Check for Updates…") { updater.checkForUpdates() }
+            Button(L10n.string("updates.checkForUpdates")) { updater.checkForUpdates() }
                 .disabled(!updater.canCheckForUpdates)
         }
 
         // A dedicated "Go" menu hosts the section-nav shortcuts (⌘0–6) so they
         // appear together with their key equivalents, like a stock View menu.
-        CommandMenu("Go") {
-            Button("Dashboard") { model.go(toSectionNumber: 0) }
+        CommandMenu(L10n.string("menu.go")) {
+            Button(L10n.string("nav.dashboard")) { model.go(toSectionNumber: 0) }
                 .keyboardShortcut("0", modifiers: .command)
-            Button("Library")   { model.go(toSectionNumber: 1) }
+            Button(L10n.string("nav.library"))   { model.go(toSectionNumber: 1) }
                 .keyboardShortcut("1", modifiers: .command)
-            Button("Discover")  { model.go(toSectionNumber: 2) }
+            Button(L10n.string("nav.discover"))  { model.go(toSectionNumber: 2) }
                 .keyboardShortcut("2", modifiers: .command)
-            Button("Trending")  { model.go(toSectionNumber: 3) }
+            Button(L10n.string("nav.trending"))  { model.go(toSectionNumber: 3) }
                 .keyboardShortcut("3", modifiers: .command)
-            Button("Snapshots") { model.go(toSectionNumber: 4) }
+            Button(L10n.string("nav.snapshots")) { model.go(toSectionNumber: 4) }
                 .keyboardShortcut("4", modifiers: .command)
-            Button("Services")  { model.go(toSectionNumber: 5) }
+            Button(L10n.string("nav.services"))  { model.go(toSectionNumber: 5) }
                 .keyboardShortcut("5", modifiers: .command)
-            Button("Activity")  { model.go(toSectionNumber: 6) }
+            Button(L10n.string("nav.activity"))  { model.go(toSectionNumber: 6) }
                 .keyboardShortcut("6", modifiers: .command)
             Button("Bundles")   { model.go(toSectionNumber: 7) }
                 .keyboardShortcut("7", modifiers: .command)
@@ -106,25 +106,25 @@ struct AppCommands: Commands {
             Divider()
 
             // ⌘K command palette.
-            Button("Command Palette…") { model.paletteOpen = true }
+            Button(L10n.string("palette.title.menu")) { model.paletteOpen = true }
                 .keyboardShortcut("k", modifiers: .command)
         }
 
         // ⌘R refresh + ⌘L drawer toggle replace the stock toolbar/sidebar
         // command group so they slot into the View menu.
         CommandGroup(after: .toolbar) {
-            Button("Refresh") {
+            Button(L10n.string("action.refresh")) {
                 Task { await model.refreshCurrent() }
             }
             .keyboardShortcut("r", modifiers: .command)
             .disabled(model.isLoading)
 
-            Button(model.drawerOpen ? "Hide Activity Drawer" : "Show Activity Drawer") {
+            Button(model.drawerOpen ? L10n.string("activity.drawer.hide") : L10n.string("activity.drawer.show")) {
                 model.toggleDrawer()
             }
             .keyboardShortcut("l", modifiers: .command)
 
-            Button("Cycle Theme") { model.cycleTheme() }
+            Button(L10n.string("theme.cycle")) { model.cycleTheme() }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
         }
     }

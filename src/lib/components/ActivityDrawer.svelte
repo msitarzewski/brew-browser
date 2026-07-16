@@ -17,6 +17,7 @@
     ui,
   } from "$lib/stores/ui.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t, type MessageKey } from "$lib/i18n/messages";
   import type { ActivityLine } from "$lib/types";
   import { openReportIssueFromJob } from "$lib/util/reportIssue";
   import {
@@ -62,10 +63,21 @@
         activity.handleEvent(evt);
       });
     } catch (e) {
-      toast.error("Couldn't run that action", String(e));
+      toast.error(ui.locale === "ru" ? "Не удалось выполнить действие" : "Couldn't run that action", String(e));
     } finally {
       recoveryBusy = false;
     }
+  }
+
+  function recoveryText(source: string): string {
+    return t(source as MessageKey, ui.locale);
+  }
+
+  function recoveryReasonText(opt: RecoveryOption): string {
+    if (opt.action === "install") {
+      return t("recovery.reason.alreadyInstalled", ui.locale, { name: opt.name });
+    }
+    return t("recovery.reason.stillRequired", ui.locale, { name: opt.name });
   }
 
   // ─── Adaptive aria-live for high-volume install streams (security audit §N4).
@@ -164,9 +176,9 @@
   // it changes; empty string while running emits nothing.
   let completionAnnounce = $derived.by(() => {
     if (!activeJob || activeJob.status === "running") return "";
-    if (activeJob.status === "succeeded") return `${activeJob.label}: done.`;
-    if (activeJob.status === "failed") return `${activeJob.label}: failed.`;
-    if (activeJob.status === "canceled") return `${activeJob.label}: canceled.`;
+    if (activeJob.status === "succeeded") return ui.locale === "ru" ? `${activeJob.label}: готово.` : `${activeJob.label}: done.`;
+    if (activeJob.status === "failed") return ui.locale === "ru" ? `${activeJob.label}: ошибка.` : `${activeJob.label}: failed.`;
+    if (activeJob.status === "canceled") return ui.locale === "ru" ? `${activeJob.label}: отменено.` : `${activeJob.label}: canceled.`;
     return "";
   });
 
@@ -197,9 +209,9 @@
     const text = activeJob.lines.map((l: ActivityLine) => l.text).join("\n");
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("Copied log to clipboard");
+      toast.success(ui.locale === "ru" ? "Лог скопирован в буфер обмена" : "Copied log to clipboard");
     } catch {
-      toast.error("Copy failed");
+      toast.error(ui.locale === "ru" ? "Не удалось скопировать лог" : "Copy failed");
     }
   }
 
@@ -217,15 +229,20 @@
   }
   /** Shorter "4.2s" / "1m 14s" form for the quiet completion footer. */
   function formatElapsed(ms: number): string {
-    if (ms < 10_000) return `${(ms / 1000).toFixed(1)}s`;
+    if (ms < 10_000) return ui.locale === "ru" ? `${(ms / 1000).toFixed(1)} с` : `${(ms / 1000).toFixed(1)}s`;
     const totalSec = Math.round(ms / 1000);
     const m = Math.floor(totalSec / 60);
     const s = totalSec % 60;
+    if (ui.locale === "ru") return m > 0 ? `${m} мин ${s} с` : `${s} с`;
     return m > 0 ? `${m}m ${s}s` : `${s}s`;
   }
 
   function failedFooter(job: typeof activeJob): string {
-    if (!job) return "Failed.";
+    if (!job) return ui.locale === "ru" ? "Не удалось выполнить." : "Failed.";
+    if (ui.locale === "ru") {
+      const base = `Не удалось выполнить${job.durationMs ? ` за ${formatElapsed(job.durationMs)}` : ""}.`;
+      return `${base} См. уведомление справа.`;
+    }
     const base = `Failed${job.durationMs ? ` after ${formatElapsed(job.durationMs)}` : ""}.`;
     // The failure card on the right always renders a notice now (friendly
     // message, Homebrew-error guidance, or app-error report), so always point there.
@@ -233,10 +250,10 @@
   }
 
   function failureTitle(label: string): string {
-    if (label.startsWith("Upgrading ")) return "Upgrade failed";
-    if (label.startsWith("Installing ")) return "Install failed";
-    if (label.startsWith("Uninstalling ")) return "Uninstall failed";
-    return `${label} failed`;
+    if (label.startsWith("Upgrading ") || label.startsWith("Обновляем ")) return ui.locale === "ru" ? "Не удалось обновить" : "Upgrade failed";
+    if (label.startsWith("Installing ") || label.startsWith("Устанавливаем ")) return ui.locale === "ru" ? "Не удалось установить" : "Install failed";
+    if (label.startsWith("Uninstalling ") || label.startsWith("Удаляем ")) return ui.locale === "ru" ? "Не удалось удалить" : "Uninstall failed";
+    return ui.locale === "ru" ? `Не удалось выполнить: ${label}` : `${label} failed`;
   }
 </script>
 
@@ -260,9 +277,9 @@
       />
     {/if}
     <header class="strip">
-      <button class="title" onclick={() => ui.toggleDrawer()} title={ui.drawerMinimized ? "Expand drawer" : "Minimize drawer"}>
+      <button class="title" onclick={() => ui.toggleDrawer()} title={ui.drawerMinimized ? (ui.locale === "ru" ? "Развернуть журнал" : "Expand drawer") : (ui.locale === "ru" ? "Свернуть журнал" : "Minimize drawer")}>
         {#if ui.drawerMinimized}<ChevronUp size={14} />{:else}<ChevronDown size={14} />{/if}
-        <span>Activity</span>
+        <span>{t("Activity", ui.locale)}</span>
         {#if activeJob}
           <span class="sep">·</span>
           {#if activeJob.status === "running"}
@@ -273,20 +290,20 @@
           {:else if activeJob.status === "failed"}
             <span class="fail"><XCircle size={12} /> {activeJob.label}</span>
           {:else if activeJob.status === "canceled"}
-            <span class="dim">{activeJob.label} (canceled)</span>
+            <span class="dim">{activeJob.label} {ui.locale === "ru" ? "(отменено)" : "(canceled)"}</span>
           {/if}
         {/if}
       </button>
       <div class="controls">
         {#if activeJob?.status === "running"}
-          <button class="ctl" onclick={() => activity.cancel(activeJob!.jobId)} title="Cancel">
-            <Square size={12} /> Cancel
+          <button class="ctl" onclick={() => activity.cancel(activeJob!.jobId)} title={t("Cancel", ui.locale)}>
+            <Square size={12} /> {t("Cancel", ui.locale)}
           </button>
         {/if}
-        <button class="ctl" onclick={copyLog} title="Copy log">
+        <button class="ctl" onclick={copyLog} title={ui.locale === "ru" ? "Скопировать лог" : "Copy log"}>
           <Copy size={12} />
         </button>
-        <button class="ctl" onclick={() => ui.closeDrawer()} title="Close drawer" aria-label="Close drawer">
+        <button class="ctl" onclick={() => ui.closeDrawer()} title={ui.locale === "ru" ? "Закрыть журнал" : "Close drawer"} aria-label={ui.locale === "ru" ? "Закрыть журнал" : "Close drawer"}>
           <X size={14} />
         </button>
       </div>
@@ -303,7 +320,7 @@
           ></div>
         </div>
         <span class="progress-label mono">
-          {p.phase}{p.package ? ` ${p.package}` : ""}{p.total ? ` (${p.current} of ${p.total})` : ""}
+          {p.phase}{p.package ? ` ${p.package}` : ""}{p.total ? (ui.locale === "ru" ? ` (${p.current} из ${p.total})` : ` (${p.current} of ${p.total})`) : ""}
         </span>
       </div>
     {/if}
@@ -320,9 +337,9 @@
       <div class="drawer-body" class:with-notice={activeJob?.status === "failed"}>
         <div class="console" bind:this={consoleEl} onscroll={onScroll} role="log" aria-live={liveMode} aria-atomic="false">
           {#if !activeJob}
-            <p class="muted">Quiet. brew commands run by brew-browser appear here.</p>
+            <p class="muted">{ui.locale === "ru" ? "Тихо. Команды brew, запущенные из brew-browser, появятся здесь." : "Quiet. brew commands run by brew-browser appear here."}</p>
           {:else if activeJob.lines.length === 0}
-            <p class="muted">Waiting for output…</p>
+            <p class="muted">{ui.locale === "ru" ? "Ждём вывод…" : "Waiting for output…"}</p>
           {:else}
             {#each activeJob.lines as line, i (i)}
               {@const cls = classifyLine(line.text)}
@@ -335,11 +352,11 @@
                    (and reliably) even when the streaming log was muted mid-surge. -->
               <div class="footer-line {activeJob.status}">
                 {#if activeJob.status === "succeeded"}
-                  Done{activeJob.durationMs ? ` in ${formatElapsed(activeJob.durationMs)}` : ""}.
+                  {ui.locale === "ru" ? `Готово${activeJob.durationMs ? ` за ${formatElapsed(activeJob.durationMs)}` : ""}.` : `Done${activeJob.durationMs ? ` in ${formatElapsed(activeJob.durationMs)}` : ""}.`}
                 {:else if activeJob.status === "failed"}
                   <span>{failedFooter(activeJob)}</span>
                 {:else if activeJob.status === "canceled"}
-                  Stopped. Output above.
+                  {ui.locale === "ru" ? "Остановлено. Вывод выше." : "Stopped. Output above."}
                 {/if}
               </div>
             {/if}
@@ -347,7 +364,7 @@
         </div>
 
         {#if activeJob?.status === "failed"}
-          <aside class="failure-card" aria-label="Failure details">
+          <aside class="failure-card" aria-label={ui.locale === "ru" ? "Сведения об ошибке" : "Failure details"}>
             <div class="failure-card-head">
               <AlertTriangle size={16} />
               <h3>{failureTitle(activeJob.label)}</h3>
@@ -355,21 +372,21 @@
             {#if recovery}
               <!-- A recoverable brew failure (#13/#102/#100): offer a one-click
                    retry with the right flag instead of pointing at Terminal. -->
-              <p>{recovery.reason}</p>
+              <p>{recoveryReasonText(recovery)}</p>
               <div class="recovery-actions">
                 {#each recovery.choices as choice (choice.kind)}
                   <button
                     type="button"
                     class="recovery-btn {choice.variant}"
                     disabled={recoveryBusy}
-                    title={choice.hint}
+                    title={recoveryText(choice.hint)}
                     onclick={() => runRecoveryChoice(recovery!, choice.kind)}
                   >
-                    {choice.label}
+                    {recoveryText(choice.label)}
                   </button>
                 {/each}
               </div>
-              <p class="recovery-hint">{recovery.choices[0].hint}</p>
+              <p class="recovery-hint">{recoveryText(recovery.choices[0].hint)}</p>
             {:else if activeJob.friendlyMessage}
               <!-- A known brew failure with a curated friendly message. -->
               <p>{activeJob.friendlyMessage}</p>
@@ -378,22 +395,26 @@
                    brew-browser bug. Don't invite a report — point at Terminal so the
                    real (upstream) failure is taken to the right place. -->
               <p>
-                This looks like a <strong>Homebrew</strong> error, not a brew-browser bug —
-                the command ran but exited with status {activeJob.exitCode}. Try the same
-                command in Terminal; if it fails there too, it's a Homebrew or formula issue
-                to report upstream.
+                {#if ui.locale === "ru"}
+                  Похоже, это ошибка <strong>Homebrew</strong>, а не brew-browser: команда запустилась, но завершилась со статусом {activeJob.exitCode}. Попробуйте выполнить ту же команду в Терминале; если она тоже завершится ошибкой, сообщите о проблеме в Homebrew или мейнтейнерам соответствующей формулы или cask-пакета.
+                {:else}
+                  This looks like a <strong>Homebrew</strong> error, not a brew-browser bug —
+                  the command ran but exited with status {activeJob.exitCode}. Try the same
+                  command in Terminal; if it fails there too, it's a Homebrew or formula issue
+                  to report upstream.
+                {/if}
               </p>
             {:else}
               <!-- No exit code = brew-browser couldn't run the command (IPC/spawn
                    failure). That IS our bug, so this is the only case that offers a report. -->
-              <p>brew-browser hit an unexpected error running this command.</p>
+              <p>{t("brew-browser hit an unexpected error running this command.", ui.locale)}</p>
               <button
                 type="button"
                 class="report-btn"
                 onclick={() => { void openReportIssueFromJob(activeJob!, activeJob!.label); }}
-                title="Open a pre-filled GitHub issue against brew-browser with this output"
+                title={ui.locale === "ru" ? "Открыть предзаполненную проблему GitHub для brew-browser с этим выводом" : "Open a pre-filled GitHub issue against brew-browser with this output"}
               >
-                Report to brew-browser
+                {ui.locale === "ru" ? "Сообщить в brew-browser" : "Report to brew-browser"}
               </button>
             {/if}
           </aside>

@@ -17,6 +17,7 @@
   import { library, isManual, isDependencyOnly, type LibraryFilter } from "$lib/stores/library.svelte";
   import { enrichment } from "$lib/stores/enrichment.svelte";
   import { vulnerabilities } from "$lib/stores/vulnerabilities.svelte";
+  import { t, ruPlural } from "$lib/i18n/messages";
   import { resolveCategoryIcon } from "$lib/util/categoryIcon";
   import { isLinux } from "$lib/util/platform";
   import type { Package } from "$lib/types";
@@ -132,12 +133,37 @@
   let countBar = $derived.by(() => {
     const shown = sorted.length;
     const f = library.filter;
-    const noun = f === "all" ? (shown === 1 ? "package" : "packages") : f;
-    const parts = [`${shown} ${noun}`];
-    if (f !== "outdated") parts.push(`${packages.outdated.length} outdated`);
-    if (f !== "pinned") parts.push(`${packages.all.filter((p) => p.pinned).length} pinned`);
+    const pinned = packages.all.filter((p) => p.pinned).length;
+    const parts = [formatCountBarPart(f, shown)];
+    if (f !== "outdated") parts.push(formatCountBarPart("outdated", packages.outdated.length));
+    if (f !== "pinned") parts.push(formatCountBarPart("pinned", pinned));
     return parts.join(" · ");
   });
+
+  function formatCountBarPart(filter: LibraryFilter, count: number): string {
+    if (ui.locale === "ru") {
+      switch (filter) {
+        case "all":        return `${count} ${ruPlural(count, "пакет", "пакета", "пакетов")}`;
+        case "formulae":   return `${count} ${ruPlural(count, "формула", "формулы", "формул")}`;
+        case "casks":      return `${count} ${ruPlural(count, "cask-пакет", "cask-пакета", "cask-пакетов")}`;
+        case "outdated":   return `${count} ${ruPlural(count, "с обновлением", "с обновлениями", "с обновлениями")}`;
+        case "pinned":     return `${count} ${ruPlural(count, "закреплён", "закреплены", "закреплены")}`;
+        case "manual":     return `${count} ${ruPlural(count, "установлен вручную", "установлены вручную", "установлены вручную")}`;
+        case "dependency": return `${count} ${ruPlural(count, "зависимость", "зависимости", "зависимостей")}`;
+        case "vulnerable": return `${count} ${ruPlural(count, "уязвимый", "уязвимых", "уязвимых")}`;
+      }
+    }
+    switch (filter) {
+      case "all":        return `${count} package${count === 1 ? "" : "s"}`;
+      case "formulae":   return `${count} ${count === 1 ? "formula" : "formulae"}`;
+      case "casks":      return `${count} cask${count === 1 ? "" : "s"}`;
+      case "outdated":   return `${count} outdated`;
+      case "pinned":     return `${count} pinned`;
+      case "manual":     return `${count} manual`;
+      case "dependency": return `${count} ${count === 1 ? "dependency" : "dependencies"}`;
+      case "vulnerable": return `${count} vulnerable`;
+    }
+  }
 
   function changeSort(key: string) {
     const k = key as SortKey;
@@ -165,6 +191,17 @@
     await packages.load(true);
     vulnerabilities.scanIfNeeded().catch(() => {});
   }
+
+  function filterLabel(filter: LibraryFilter): string {
+    if (filter === "all") return t("All", ui.locale);
+    if (filter === "formulae") return t("Formulae", ui.locale);
+    if (filter === "casks") return t("Casks", ui.locale);
+    if (filter === "outdated") return t("Outdated", ui.locale);
+    if (filter === "manual") return t("Manual", ui.locale);
+    if (filter === "dependency") return t("Dependency", ui.locale);
+    if (filter === "vulnerable") return t("Vulnerable", ui.locale);
+    return filter;
+  }
 </script>
 
 <section class="library">
@@ -176,18 +213,18 @@
            alongside the outdated + pinned tallies (#90). -->
     </div>
     <div class="head-right" data-tauri-drag-region="false">
-      <Input bind:value={query} placeholder="Filter…" variant="search" size="sm" ariaLabel="Filter installed packages" />
+      <Input bind:value={query} placeholder={ui.locale === "ru" ? "Фильтр…" : "Filter…"} variant="search" size="sm" ariaLabel={ui.locale === "ru" ? "Фильтр установленных пакетов" : "Filter installed packages"} />
       <span class="refresh-wrap">
-        <Button size="sm" variant="ghost" onclick={refreshLibrary} ariaLabel="Refresh" title="Refresh (⌘R)">
+        <Button size="sm" variant="ghost" onclick={refreshLibrary} ariaLabel={t("Refresh", ui.locale)} title={ui.locale === "ru" ? "Обновить (⌘R)" : "Refresh (⌘R)"}>
           {#snippet icon()}<RefreshCw size={14} />{/snippet}
-          Refresh
+          {t("Refresh", ui.locale)}
         </Button>
       </span>
     </div>
   </header>
 
   <div class="filter-bar">
-    <div class="pillgroup" role="tablist" aria-label="Type filter">
+    <div class="pillgroup" role="tablist" aria-label={ui.locale === "ru" ? "Фильтр по типу" : "Type filter"}>
       {#each libraryFilters as f (f)}
         <!-- Counts moved to the bottom status bar (`count-bar`) — the tabs
              stay clean labels. -->
@@ -197,7 +234,7 @@
           class:on={library.filter === f}
           onclick={() => library.setFilter(f)}
         >
-          {f === "all" ? "All" : f[0].toUpperCase() + f.slice(1)}
+          {filterLabel(f)}
         </button>
       {/each}
     </div>
@@ -205,7 +242,7 @@
     <!-- Phase 13: chip bar hidden when the AI Features toggle is off
          (categories are LLM-generated). -->
     {#if categories.visible && discover.hasFilter}
-      <div class="chip-bar" aria-label="Active category filters">
+      <div class="chip-bar" aria-label={ui.locale === "ru" ? "Активные фильтры категорий" : "Active category filters"}>
         {#each [...discover.selectedCategories] as slug (slug)}
           {@const Icon = resolveCategoryIcon(
             categories.data?.categories[slug]?.icon ?? "HelpCircle",
@@ -213,29 +250,29 @@
           <button
             class="chip on"
             onclick={() => discover.toggle(slug)}
-            aria-label={`Remove ${categories.labelOf(slug)} filter`}
+            aria-label={ui.locale === "ru" ? `Убрать фильтр «${categories.labelOf(slug, ui.locale)}»` : `Remove ${categories.labelOf(slug, ui.locale)} filter`}
           >
             <Icon size={12} />
-            <span>{categories.labelOf(slug)}</span>
+            <span>{categories.labelOf(slug, ui.locale)}</span>
             <XIcon size={12} />
           </button>
         {/each}
-        <button class="chip-clear" onclick={() => discover.clear()}>Clear</button>
+        <button class="chip-clear" onclick={() => discover.clear()}>{t("Clear", ui.locale)}</button>
       </div>
     {/if}
   </div>
 
   <div class="list-wrap">
     {#if packages.loading && !packages.list}
-      <LoadingState rows={8} label="Loading installed packages…" />
+      <LoadingState rows={8} label={ui.locale === "ru" ? "Загружаем установленные пакеты…" : "Loading installed packages…"} />
     {:else if packages.error}
       <EmptyState
-        title="Couldn't load packages"
+        title={t("Couldn't load packages", ui.locale)}
         body={packages.error}
       >
         {#snippet icon()}<PackageIcon size={48} />{/snippet}
         {#snippet cta()}
-          <Button variant="secondary" onclick={() => packages.load(true)}>Retry</Button>
+          <Button variant="secondary" onclick={() => packages.load(true)}>{t("Retry", ui.locale)}</Button>
         {/snippet}
       </EmptyState>
     {:else if sorted.length === 0}
@@ -245,24 +282,24 @@
       {@const chipFilterActive = categories.visible && discover.hasFilter}
       <EmptyState
         title={query
-          ? `Nothing matches "${query}"`
+          ? (ui.locale === "ru" ? `По запросу «${query}» ничего не найдено` : `Nothing matches "${query}"`)
           : chipFilterActive
-            ? "No installed packages in the selected categories."
-            : "No packages installed."}
+            ? (ui.locale === "ru" ? "В выбранных категориях нет установленных пакетов." : "No installed packages in the selected categories.")
+            : (ui.locale === "ru" ? "Пакеты не установлены." : "No packages installed.")}
         body={query
-          ? "Try a shorter or different term."
+          ? (ui.locale === "ru" ? "Попробуйте более короткий или другой запрос." : "Try a shorter or different term.")
           : chipFilterActive
-            ? "Remove a chip or open Discover to find more."
-            : "`brew install wget` would be a fine start. Or open Discover to look around."}
+            ? (ui.locale === "ru" ? "Уберите категорию или откройте Каталог, чтобы найти другие пакеты." : "Remove a chip or open Discover to find more.")
+            : (ui.locale === "ru" ? "`brew install wget` — хороший старт. Или откройте Каталог и посмотрите варианты." : "`brew install wget` would be a fine start. Or open Discover to look around.")}
       >
         {#snippet icon()}<PackageIcon size={48} />{/snippet}
         {#snippet cta()}
           {#if query}
-            <Button variant="secondary" onclick={() => (query = "")}>Clear filter</Button>
+            <Button variant="secondary" onclick={() => (query = "")}>{t("Clear filter", ui.locale)}</Button>
           {:else if chipFilterActive}
-            <Button variant="secondary" onclick={() => discover.clear()}>Clear categories</Button>
+            <Button variant="secondary" onclick={() => discover.clear()}>{t("Clear categories", ui.locale)}</Button>
           {:else}
-            <Button variant="primary" onclick={() => ui.setSection("discover")}>Open Discover</Button>
+            <Button variant="primary" onclick={() => ui.setSection("discover")}>{t("Open Discover", ui.locale)}</Button>
           {/if}
         {/snippet}
       </EmptyState>
@@ -273,17 +310,17 @@
            severity dot, see PackageRow's `no-kind` variant). -->
       <div class="list-header" class:no-kind={isLinux} role="row">
         <span></span>
-        <SortableHeader label="Name" sortKey="name" active={sortKey === "name"} dir={sortDir} onSort={changeSort} />
-        <span class="header-desc">Description</span>
-        <SortableHeader label="Version" sortKey="version" active={sortKey === "version"} dir={sortDir} onSort={changeSort} />
+        <SortableHeader label={t("Name", ui.locale)} sortKey="name" active={sortKey === "name"} dir={sortDir} onSort={changeSort} />
+        <span class="header-desc">{t("Description", ui.locale)}</span>
+        <SortableHeader label={t("Version", ui.locale)} sortKey="version" active={sortKey === "version"} dir={sortDir} onSort={changeSort} />
         {#if !isLinux}
-          <SortableHeader label="Type" sortKey="kind" active={sortKey === "kind"} dir={sortDir} onSort={changeSort} />
+          <SortableHeader label={t("Type", ui.locale)} sortKey="kind" active={sortKey === "kind"} dir={sortDir} onSort={changeSort} />
         {:else}
           <span></span>
         {/if}
-        <SortableHeader label="Outdated" sortKey="outdated" active={sortKey === "outdated"} dir={sortDir} onSort={changeSort} />
+        <SortableHeader label={t("Outdated", ui.locale)} sortKey="outdated" active={sortKey === "outdated"} dir={sortDir} onSort={changeSort} />
       </div>
-      <div class="list" role="list" aria-label="Installed packages">
+      <div class="list" role="list" aria-label={ui.locale === "ru" ? "Установленные пакеты" : "Installed packages"}>
         {#each sorted as p (p.fullName + p.kind)}
           <PackageRow
             pkg={p}

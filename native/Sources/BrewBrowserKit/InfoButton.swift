@@ -37,7 +37,7 @@ struct InfoButton: View {
                     open = false
                     onReport()
                 } label: {
-                    Label("Report an issue on GitHub", systemImage: "exclamationmark.bubble")
+                    Label(L10n.string("Report an issue on GitHub"), systemImage: "exclamationmark.bubble")
                 }
                 .controlSize(.small)
             }

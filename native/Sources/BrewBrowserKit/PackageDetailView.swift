@@ -55,7 +55,7 @@ struct PackageDetailView: View {
                             .font(.title3)
                     }
                     .buttonStyle(.plain)
-                    .help("Close")
+                    .help(L10n.string("Close"))
                 }
                 .padding(.bottom, -8)  // tuck the title block up under the ✕ row
 
@@ -73,10 +73,10 @@ struct PackageDetailView: View {
                 .frame(maxWidth: .infinity)
 
                 if model.detailLoading && info == nil {
-                    ProgressView("Loading \(pkg.name)…")
+                    ProgressView(L10n.isRussian ? "Загружаем \(pkg.name)…" : "Loading \(pkg.name)…")
                         .frame(maxWidth: .infinity, minHeight: 200)
                 } else if let err = model.detailError, info == nil {
-                    ContentUnavailableView("Couldn't load \(pkg.name)",
+                    ContentUnavailableView(L10n.isRussian ? "Не удалось загрузить \(pkg.name)" : "Couldn't load \(pkg.name)",
                                            systemImage: "exclamationmark.triangle",
                                            description: Text(err))
                 } else {
@@ -138,16 +138,16 @@ struct PackageDetailView: View {
     private func deviceFlowSheet(_ flow: DeviceFlowStart) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "person.badge.key").font(.largeTitle).foregroundStyle(.secondary)
-            Text("Sign in to GitHub").font(.title2.weight(.semibold))
-            Text("Your browser opened to GitHub's device page. Enter this code (it's copied to your clipboard):")
+            Text(L10n.string("Sign in to GitHub")).font(.title2.weight(.semibold))
+            Text(L10n.string("Your browser opened to GitHub's device page. Enter this code (it's copied to your clipboard):"))
                 .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
             Text(flow.userCode)
                 .font(.system(.title, design: .monospaced).weight(.bold))
                 .textSelection(.enabled)
                 .padding(.horizontal, 16).padding(.vertical, 8)
                 .background(.quaternary, in: .rect(cornerRadius: 8))
-            ProgressView("Waiting for authorization…").controlSize(.small)
-            Button("Cancel") { model.cancelGitHubSignIn() }
+            ProgressView(L10n.string("Waiting for authorization…")).controlSize(.small)
+            Button(L10n.string("Cancel")) { model.cancelGitHubSignIn() }
             if let err = model.githubSignInError {
                 Text(err).font(.caption).foregroundStyle(.red)
             }
@@ -158,14 +158,14 @@ struct PackageDetailView: View {
 
     private var issueSheet: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("File an issue for \(pkg.name)").font(.headline)
-            TextField("Title", text: $issueTitle)
-            TextField("Description", text: $issueBody, axis: .vertical)
+            Text(L10n.isRussian ? "Сообщить о проблеме для \(pkg.name)" : "File an issue for \(pkg.name)").font(.headline)
+            TextField(L10n.string("Title"), text: $issueTitle)
+            TextField(L10n.string("Description"), text: $issueBody, axis: .vertical)
                 .lineLimit(5...10)
             HStack {
                 Spacer()
-                Button("Cancel") { showIssueSheet = false }
-                Button("Submit") {
+                Button(L10n.string("Cancel")) { showIssueSheet = false }
+                Button(L10n.string("Submit")) {
                     let t = issueTitle, b = issueBody
                     showIssueSheet = false
                     Task {
@@ -186,50 +186,50 @@ struct PackageDetailView: View {
 
     private var metaCard: some View {
         VStack(spacing: 0) {
-            metaRow("Token", pkg.name, mono: true)
+            metaRow(L10n.string("Token"), pkg.name, mono: true)
             Divider()
             HStack {
-                Text("Installed").foregroundStyle(.secondary)
+                Text(L10n.string("Installed")).foregroundStyle(.secondary)
                     .frame(width: 90, alignment: .leading)
-                Text(info?.installedVersion ?? "Not installed")
+                Text(info?.installedVersion ?? L10n.string("Not installed"))
                     .textSelection(.enabled)
                 // Dependency indicator: a formula installed only as a dependency
                 // (not on request) — mirrors the Tauri detail badge. Casks are
                 // always on-request so never show this. Feature #3.
                 if isInstalled, pkg.kind == .formula, !installedOnRequest {
-                    Text("Dependency")
+                    Text(L10n.string("Dependency"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 6).padding(.vertical, 2)
                         .background(Color.secondary.opacity(0.12), in: .capsule)
-                        .help("Installed as a dependency, not requested directly")
+                        .help(L10n.string("Installed as a dependency, not requested directly"))
                 }
                 Spacer()
             }
             .padding(.vertical, 6)
             Divider()
             HStack {
-                Text("Latest").foregroundStyle(.secondary)
+                Text(L10n.string("Latest")).foregroundStyle(.secondary)
                     .frame(width: 90, alignment: .leading)
                 Text(info?.stableVersion ?? "—").monospaced()
                 if info?.isOutdated == true {
-                    Text("Upgrade available")
+                    Text(L10n.string("Upgrade available"))
                         .font(.caption).foregroundStyle(.orange)
                 }
                 Spacer()
             }
             .padding(.vertical, 6)
             if let lic = info?.license {
-                Divider(); metaRow("License", lic)
+                Divider(); metaRow(L10n.string("License"), lic)
             }
             if let tap = info?.tap {
-                Divider(); metaRow("Tap", tap, mono: true)
+                Divider(); metaRow(L10n.string("Tap"), tap, mono: true)
             }
             // On-disk size of the installed keg (feature #4). Rendered only when
             // the package is installed and du succeeded — nil → no row (never a
             // fabricated "0 B"). Lazily computed in BrewService.info().
             if let bytes = info?.installedSizeBytes {
-                Divider(); metaRow("Size", Self.human(bytes))
+                Divider(); metaRow(L10n.string("Size"), Self.human(bytes))
             }
         }
         .padding(12)
@@ -261,12 +261,12 @@ struct PackageDetailView: View {
     }
 
     private var categoriesRow: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            FlowRow(spacing: 6) {
-                ForEach(model.detailCategories, id: \.self) { label in
-                    Chip(text: label)
-                }
-            }
+	        VStack(alignment: .leading, spacing: 4) {
+	            FlowRow(spacing: 6) {
+	                ForEach(model.detailCategories, id: \.self) { label in
+	                    Chip(text: L10n.display(label))
+	                }
+	            }
             HStack {
                 Spacer()
                 wrongButton(.categories, currentValue: model.detailCategories.joined(separator: ", "))
@@ -326,9 +326,7 @@ struct PackageDetailView: View {
             let tone: Color = isDisabled ? .red : .orange
             GroupBox {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(isDisabled
-                         ? "This package is disabled and is no longer available — it will be removed."
-                         : "This package is deprecated and scheduled for removal. It still installs for now.")
+                    Text(L10n.string(isDisabled ? "detail.deprecation.disabled.body" : "detail.deprecation.deprecated.body"))
                         .font(.callout)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     if let reason = status.activeReason, !reason.isEmpty {
@@ -338,12 +336,12 @@ struct PackageDetailView: View {
                             .textSelection(.enabled)
                     }
                     if let date = status.activeDate, !date.isEmpty {
-                        Text(isDisabled ? "Disabled: \(date)" : "Deprecated: \(date)")
+                        Text(String(format: L10n.string(isDisabled ? "detail.deprecation.disabledDate.format" : "detail.deprecation.deprecatedDate.format"), date))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     if let replacement = status.activeReplacement, !replacement.isEmpty {
                         HStack(spacing: 6) {
-                            Text("Use instead:").font(.callout).foregroundStyle(.secondary)
+                            Text(L10n.string("detail.deprecation.useInstead")).font(.callout).foregroundStyle(.secondary)
                             Button {
                                 // Most replacements share the deprecated package's
                                 // kind (formula→formula, cask→cask); openDetail
@@ -372,27 +370,27 @@ struct PackageDetailView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
                 if !model.brewVulnsInstalled {
-                    Text("Install `brew vulns` to scan this package for known vulnerabilities.")
+                Text(L10n.string("Install `brew vulns` to scan this package for known vulnerabilities."))
                         .font(.callout).foregroundStyle(.secondary)
                 } else if model.detailVulnsLoading {
-                    ProgressView("Scanning all packages…")
+                    ProgressView(L10n.string("Scanning all packages…"))
                 } else if !model.detailVulnsScanned {
                     // Never scanned — hazard tone; don't imply safety unverified.
                     Label {
-                        Text("Not scanned yet. Scanning checks **every** installed package — `brew vulns` can't scan just one.")
+                        Text(L10n.string("detail.security.notScanned.detail"))
                             .font(.callout).foregroundStyle(.secondary)
                     } icon: {
                         Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                     }
-                    Button("Scan all packages") { Task { await model.scanDetailVulns() } }
+                    Button(L10n.string("Scan all packages")) { Task { await model.scanDetailVulns() } }
                 } else if model.detailVulns.isEmpty {
                     // "Clean" is only a confident green when freshly scanned this
                     // session; a cached/stale clean is a caution, not an all-clear.
                     if model.vulnScannedThisSession {
-                        Label("No known vulnerabilities", systemImage: "checkmark.seal.fill")
+                        Label(L10n.string("No known vulnerabilities"), systemImage: "checkmark.seal.fill")
                             .foregroundStyle(.green)
                     } else {
-                        Label("No advisories as of the last scan — re-scan to confirm", systemImage: "exclamationmark.triangle.fill")
+                        Label(L10n.string("detail.security.cleanStale"), systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
                     }
                     rescanRow
@@ -416,15 +414,15 @@ struct PackageDetailView: View {
                                         }
                                     }
                                     .buttonStyle(.link)
-                                    .help("Open advisory: \(url.absoluteString)")
+                                    .help(String(format: L10n.string("detail.security.openAdvisory.format"), url.absoluteString))
                                 } else {
-                                    Text(v.rawId.isEmpty ? "Advisory" : v.rawId)
+                                    Text(v.rawId.isEmpty ? L10n.string("Advisory") : v.rawId)
                                         .font(.callout.monospaced())
                                 }
                                 SeverityPill(severity: v.severity)
                                 Spacer()
                                 if let fixed = v.fixedIn {
-                                    Text("Patched in \(fixed)").font(.caption).foregroundStyle(.secondary)
+                                    Text(String(format: L10n.string("detail.security.patchedIn.format"), fixed)).font(.caption).foregroundStyle(.secondary)
                                 }
                             }
                             if !v.summary.isEmpty {
@@ -439,7 +437,7 @@ struct PackageDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 2)
         } label: {
-            Label("Security", systemImage: "shield")
+            Label(L10n.string("Security"), systemImage: "shield")
         }
     }
 
@@ -448,16 +446,16 @@ struct PackageDetailView: View {
     /// makes that explicit.
     @ViewBuilder private var rescanRow: some View {
         HStack(spacing: 8) {
-            Button("Re-scan all") { Task { await model.scanDetailVulns() } }
+            Button(L10n.string("Re-scan all")) { Task { await model.scanDetailVulns() } }
                 .controlSize(.small)
             if let at = model.vulnLastScannedAt {
-                Text("Last scan: \(at.formatted(.relative(presentation: .named)))")
+                Text(String(format: L10n.string("detail.security.lastScan.format"), at.formatted(.relative(presentation: .named))))
                     .font(.caption2).foregroundStyle(.secondary)
             }
             Spacer()
         }
         .padding(.top, 2)
-        .help("Runs brew vulns across your whole install — it can't scan a single package")
+        .help(L10n.string("detail.security.rescanHelp"))
     }
 
     // MARK: service
@@ -473,18 +471,18 @@ struct PackageDetailView: View {
                         ServiceStatusPill(status: svc.status)
                         Spacer()
                         if let user = svc.user {
-                            Text("user: \(user)").font(.caption).foregroundStyle(.secondary)
+                            Text(L10n.isRussian ? "пользователь: \(user)" : "user: \(user)").font(.caption).foregroundStyle(.secondary)
                         }
                     }
                     if model.servicePending.contains(svc.name) {
                         ProgressView().controlSize(.small)
                     } else {
                         HStack(spacing: 8) {
-                            Button("Start") { Task { await model.performServiceAction(.start, name: svc.name) } }
+                            Button(L10n.string("Start")) { Task { await model.performServiceAction(.start, name: svc.name) } }
                                 .disabled(svc.status == .started)
-                            Button("Stop") { Task { await model.performServiceAction(.stop, name: svc.name) } }
+                            Button(L10n.string("Stop")) { Task { await model.performServiceAction(.stop, name: svc.name) } }
                                 .disabled(svc.status == .stopped || svc.status == .notLoaded)
-                            Button("Restart") { Task { await model.performServiceAction(.restart, name: svc.name) } }
+                            Button(L10n.string("Restart")) { Task { await model.performServiceAction(.restart, name: svc.name) } }
                         }
                         .controlSize(.small)
                     }
@@ -492,7 +490,7 @@ struct PackageDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 2)
             } label: {
-                Label("Service", systemImage: "gearshape.2")
+                Label(L10n.string("Service"), systemImage: "gearshape.2")
             }
         }
     }
@@ -513,10 +511,10 @@ struct PackageDetailView: View {
                     .chartYAxis(.hidden)
                     .padding(.top, 4)
                 } else {
-                    Text("Not enough data yet").font(.caption).foregroundStyle(.secondary)
+                    Text(L10n.string("Not enough data yet")).font(.caption).foregroundStyle(.secondary)
                 }
             } label: {
-                Label("Install trend", systemImage: "chart.line.uptrend.xyaxis")
+                Label(L10n.string("Install trend"), systemImage: "chart.line.uptrend.xyaxis")
             }
         }
     }
@@ -546,7 +544,7 @@ struct PackageDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 2)
         } label: {
-            Label("Why install this?", systemImage: "lightbulb")
+            Label(L10n.string("Why install this?"), systemImage: "lightbulb")
         }
     }
 
@@ -569,7 +567,7 @@ struct PackageDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 2)
         } label: {
-            Label("Similar packages", systemImage: "square.stack.3d.up")
+            Label(L10n.string("Similar packages"), systemImage: "square.stack.3d.up")
         }
     }
 
@@ -600,7 +598,9 @@ struct PackageDetailView: View {
                     // Archived-repo warning — likely unmaintained.
                     if stats.archived {
                         Label {
-                            Text("Archived\(stats.archivedAt.map { " \(relativeISO($0))" } ?? "") — likely unmaintained.")
+                            Text(L10n.isRussian
+                                 ? "Архивирован\(stats.archivedAt.map { " \(relativeISO($0))" } ?? "") — вероятно, больше не поддерживается."
+                                 : "Archived\(stats.archivedAt.map { " \(relativeISO($0))" } ?? "") — likely unmaintained.")
                         } icon: {
                             Image(systemName: "archivebox").foregroundStyle(.orange)
                         }
@@ -611,13 +611,17 @@ struct PackageDetailView: View {
                     // License-mismatch warning — brew license != GitHub SPDX.
                     if let spdx = stats.licenseSpdx, let brewLic = info?.license, spdx != brewLic {
                         Label {
-                            Text("License mismatch — brew: \(Text(brewLic).monospaced()), GitHub: \(Text(spdx).monospaced())")
+                            if L10n.isRussian {
+                                Text("Лицензии не совпадают — brew: \(Text(brewLic).monospaced()), GitHub: \(Text(spdx).monospaced())")
+                            } else {
+                                Text("License mismatch — brew: \(Text(brewLic).monospaced()), GitHub: \(Text(spdx).monospaced())")
+                            }
                         } icon: {
                             Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .help("brew reports: \(brewLic) · GitHub reports: \(spdx)")
+                        .help(L10n.isRussian ? "brew сообщает: \(brewLic) · GitHub сообщает: \(spdx)" : "brew reports: \(brewLic) · GitHub reports: \(spdx)")
                     }
 
                     // Star / Watch / File issue — each routes through the model,
@@ -629,32 +633,32 @@ struct PackageDetailView: View {
                         Button {
                             Task { await model.toggleStar() }
                         } label: {
-                            Label(starred ? "Starred" : "Star",
+                            Label(starred ? L10n.string("Starred") : L10n.string("Star"),
                                   systemImage: starred ? "star.fill" : "star")
                         }
                         .help(!model.githubSignedIn
-                              ? "Sign in to GitHub to star this repository"
-                              : starred ? "Unstar this repository" : "Star this repository")
+                              ? L10n.string("Sign in to GitHub to star this repository")
+                              : starred ? L10n.string("Unstar this repository") : L10n.string("Star this repository"))
                         Button {
                             Task { await model.toggleWatch() }
                         } label: {
-                            Label(watching ? "Watching" : "Watch",
+                            Label(watching ? L10n.string("Watching") : L10n.string("Watch"),
                                   systemImage: watching ? "eye.fill" : "eye")
                         }
                         .help(!model.githubSignedIn
-                              ? "Sign in to GitHub to watch this repository"
-                              : watching ? "Stop watching" : "Watch for activity")
+                              ? L10n.string("Sign in to GitHub to watch this repository")
+                              : watching ? L10n.string("Stop watching") : L10n.string("Watch for activity"))
                         Button {
                             showIssueSheet = true
                         } label: {
-                            Label("File issue", systemImage: "exclamationmark.bubble")
+                            Label(L10n.string("File issue"), systemImage: "exclamationmark.bubble")
                         }
                         Spacer()
                     }
                     .controlSize(.small)
 
                     if !model.githubSignedIn {
-                        Text("Sign in to GitHub happens on first action.")
+                        Text(L10n.string("Sign in to GitHub happens on first action."))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
@@ -684,20 +688,20 @@ struct PackageDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 2)
         } label: {
-            Label("Caveats", systemImage: "exclamationmark.bubble")
+            Label(L10n.string("Caveats"), systemImage: "exclamationmark.bubble")
         }
     }
 
     @ViewBuilder private var dependenciesSection: some View {
         if let info, !info.dependencies.isEmpty {
-            DisclosureGroup("Dependencies (\(info.dependencies.count))") {
+            DisclosureGroup(L10n.isRussian ? "Зависимости (\(info.dependencies.count))" : "Dependencies (\(info.dependencies.count))") {
                 FlowRow(spacing: 6) {
                     ForEach(info.dependencies, id: \.self) { Chip(text: $0) }
                 }
             }
         }
         if let info, !info.conflictsWith.isEmpty {
-            DisclosureGroup("Conflicts with (\(info.conflictsWith.count))") {
+            DisclosureGroup(L10n.isRussian ? "Конфликтует с (\(info.conflictsWith.count))" : "Conflicts with (\(info.conflictsWith.count))") {
                 FlowRow(spacing: 6) {
                     ForEach(info.conflictsWith, id: \.self) { Chip(text: $0) }
                 }
@@ -715,7 +719,7 @@ struct PackageDetailView: View {
     @ViewBuilder private var dependentsSection: some View {
         let dependents = model.detailDependents
         if !dependents.isEmpty {
-            DisclosureGroup("Required by (\(dependents.count))") {
+            DisclosureGroup(L10n.isRussian ? "Зависимые пакеты (\(dependents.count))" : "Required by (\(dependents.count))") {
                 FlowRow(spacing: 6) {
                     ForEach(dependents) { dep in
                         Button {
@@ -724,7 +728,7 @@ struct PackageDetailView: View {
                             HStack(spacing: 4) {
                                 Text(dep.name)
                                 if dep.edge != .required {
-                                    Text(dep.edge.rawValue)
+                                    Text(edgeLabel(dep.edge))
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                 } else if dep.kind == .cask {
@@ -741,13 +745,23 @@ struct PackageDetailView: View {
         }
     }
 
+    private func edgeLabel(_ edge: ReverseDependent.Edge) -> String {
+        if !L10n.isRussian { return edge.rawValue }
+        switch edge {
+        case .required: return "обязательная"
+        case .recommended: return "рекомендуемая"
+        case .build: return "для сборки"
+        case .optional: return "опциональная"
+        }
+    }
+
     // MARK: footer
 
     private var footer: some View {
         HStack {
             if model.actionRunning {
                 ProgressView().controlSize(.small)
-                Text("Working… (see Activity)").font(.caption).foregroundStyle(.secondary)
+                Text(L10n.string("Working… (see Activity)")).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
             // Footer adapts to install state, driven by the live installed list
@@ -762,30 +776,26 @@ struct PackageDetailView: View {
                     Button {
                         Task { await model.setPinnedDetail(!(info?.pinned ?? false)) }
                     } label: {
-                        Label(info?.pinned == true ? "Unpin" : "Pin",
+                        Label(L10n.pinButton(isPinned: info?.pinned == true),
                               systemImage: info?.pinned == true ? "pin.slash" : "pin")
                     }
                     .disabled(model.actionRunning)
-                    .help(info?.pinned == true
-                        ? "Unpin — let brew upgrade update this again"
-                        : (model.detailPackage?.kind == .cask
-                            ? "Pin — hold back from brew upgrade. A cask that self-updates may still update on its own."
-                            : "Pin — hold back from brew upgrade"))
+                    .help(L10n.pinHelp(isPinned: info?.pinned == true, kind: model.detailPackage?.kind))
                     if info?.isOutdated == true {
                         Button {
                             Task { await model.upgradeDetail(greedy: LocalPrefs.shared.greedyUpgrade) }
-                        } label: { Label("Upgrade", systemImage: "arrow.up.circle") }
+                        } label: { Label(L10n.string("Upgrade"), systemImage: "arrow.up.circle") }
                         .buttonStyle(.borderedProminent)
                         .disabled(model.actionRunning)
                     }
                     Button(role: .destructive) {
                         confirmUninstall = true
-                    } label: { Label("Uninstall", systemImage: "trash") }
+                    } label: { Label(L10n.string("Uninstall"), systemImage: "trash") }
                     .disabled(model.actionRunning)
                 } else {
                     Button {
                         Task { await model.installDetail() }
-                    } label: { Label("Install", systemImage: "arrow.down.circle") }
+                    } label: { Label(L10n.string("Install"), systemImage: "arrow.down.circle") }
                     .buttonStyle(.borderedProminent)
                     .disabled(model.actionRunning)
                 }
@@ -793,11 +803,11 @@ struct PackageDetailView: View {
         }
         .padding(12)
         .background(.bar)
-        .confirmationDialog("Uninstall \(pkg.name)?", isPresented: $confirmUninstall, titleVisibility: .visible) {
-            Button("Uninstall", role: .destructive) { Task { await model.uninstallDetail() } }
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog(L10n.isRussian ? "Удалить \(pkg.name)?" : "Uninstall \(pkg.name)?", isPresented: $confirmUninstall, titleVisibility: .visible) {
+            Button(L10n.string("Uninstall"), role: .destructive) { Task { await model.uninstallDetail() } }
+            Button(L10n.string("Cancel"), role: .cancel) {}
         } message: {
-            Text("This runs `brew uninstall \(pkg.name)`.")
+            Text(L10n.isRussian ? "Будет выполнено `brew uninstall \(pkg.name)`." : "This runs `brew uninstall \(pkg.name)`.")
         }
     }
 }
@@ -814,7 +824,7 @@ struct SeverityPill: View {
         }
     }
     var body: some View {
-        Text(severity.rawValue.capitalized)
+        Text(L10n.severityTitle(severity))
             .font(.caption2.weight(.medium))
             .padding(.horizontal, 7).padding(.vertical, 2)
             .background(color.opacity(0.2), in: .capsule)
@@ -843,7 +853,7 @@ struct SeverityDot: View {
         Circle()
             .fill(color)
             .frame(width: 8, height: 8)
-            .help("\(count) known vulnerabilit\(count == 1 ? "y" : "ies") (highest: \(severity.rawValue)). Click row to see details.")
+            .help(L10n.vulnerabilityDotHelp(count: count, severity: severity))
     }
 }
 
@@ -863,7 +873,7 @@ struct DeprecationBadge: View {
     private var color: Color { kind == .disabled ? .red : .orange }
 
     var body: some View {
-        Text(kind.label)
+        Text(L10n.display(kind.label))
             .font(.caption2.weight(.medium))
             .padding(.horizontal, 6).padding(.vertical, 1)
             .background(color.opacity(0.18), in: .capsule)
@@ -873,8 +883,8 @@ struct DeprecationBadge: View {
 
     private var tooltip: String {
         let base = kind == .disabled
-            ? "Disabled — this package is no longer available and will be removed."
-            : "Deprecated — still installable, but scheduled for removal."
+            ? L10n.string("detail.deprecation.disabled.tooltip")
+            : L10n.string("detail.deprecation.deprecated.tooltip")
         if let reason, !reason.isEmpty { return "\(base)\n\(reason)" }
         return base
     }

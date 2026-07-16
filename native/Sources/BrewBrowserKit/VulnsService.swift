@@ -154,16 +154,34 @@ enum VulnsServiceError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .brewNotFound:
+            if L10n.isRussian {
+                return "Не удалось найти исполняемый файл brew. Установлен ли Homebrew?"
+            }
             return "Couldn't find the brew executable. Is Homebrew installed?"
         case let .scanFailed(code, stderr):
+            if L10n.isRussian {
+                return "brew vulns завершился с кодом \(code): \(stderr)"
+            }
             return "brew vulns failed (exit \(code)): \(stderr)"
         case let .installFailed(code, stderr):
+            if L10n.isRussian {
+                return "brew install brew-vulns завершился с кодом \(code): \(stderr)"
+            }
             return "brew install brew-vulns failed (exit \(code)): \(stderr)"
         case let .decodeFailed(message):
+            if L10n.isRussian {
+                return "Не удалось разобрать вывод brew vulns: \(message)"
+            }
             return "Couldn't parse brew vulns output: \(message)"
         case let .invalidFormulaName(name):
+            if L10n.isRussian {
+                return "Некорректное имя формулы: \(name)"
+            }
             return "Invalid formula name: \(name)"
         case let .spawnFailed(message):
+            if L10n.isRussian {
+                return "Не удалось запустить brew: \(message)"
+            }
             return "Couldn't launch brew: \(message)"
         }
     }

@@ -5,6 +5,15 @@
 
 import { discover } from "./discover.svelte";
 import type { SettingsSection, SidebarSection, ThemePreference } from "$lib/types";
+import {
+  DEFAULT_LOCALE_PREFERENCE,
+  isLocalePreference,
+  resolveLocalePreference,
+  t,
+  type Locale,
+  type LocalePreference,
+  type MessageKey,
+} from "$lib/i18n/messages";
 
 /** Default width of the package detail pane in pixels — the original fixed width. */
 export const DETAIL_PANE_DEFAULT_WIDTH = 420;
@@ -28,6 +37,7 @@ const GREEDY_UPGRADE_KEY = "brew-browser:greedy-upgrade";
 const ACTIVITY_MAX_JOBS_KEY = "brew-browser:activity:max-jobs";
 const ACTIVITY_MAX_LINES_KEY = "brew-browser:activity:max-lines";
 const SIDEBAR_COLLAPSED_KEY = "brew-browser:sidebar-collapsed";
+const LOCALE_PREFERENCE_KEY = "brew-browser:locale-preference";
 
 /** Defaults for the Activity-retention settings (Phase 12b). */
 export const ACTIVITY_MAX_JOBS_DEFAULT = 50;
@@ -53,6 +63,7 @@ const DEFAULT_SECTION_VALUES = [
   "snapshots",
   "services",
   "activity",
+  "bundles",
 ] as const;
 
 function clampInt(v: number, lo: number, hi: number, fallback: number): number {
@@ -82,25 +93,30 @@ export function clampActivityDrawerHeight(height: number, windowHeight?: number)
 /** Human-readable titles shown in the window title bar for each section.
     Kept here (not in Sidebar) so the title bar can read them without
     importing the navigation array. */
-const SECTION_TITLES: Record<SidebarSection, string> = {
-  dashboard: "Dashboard",
-  library:   "Library",
-  discover:  "Discover",
-  trending:  "Trending",
-  snapshots: "Snapshots",
-  services:  "Services",
-  activity:  "Activity",
-  bundles:   "Bundles",
+const SECTION_TITLES: Record<SidebarSection, MessageKey> = {
+  dashboard: "nav.dashboard",
+  library:   "nav.library",
+  discover:  "nav.discover",
+  trending:  "nav.trending",
+  snapshots: "nav.snapshots",
+  services:  "nav.services",
+  activity:  "nav.activity",
+  bundles:   "nav.bundles",
 };
 
 class UiStore {
   /** First-launch landing. Dashboard is the home screen; clicking the sidebar
       brand returns here. Other sections live below it in the nav. */
   section: SidebarSection = $state("dashboard");
+  theme: ThemePreference = $state("system");
+  /** UI language preference. `system` keeps English for non-Russian systems
+      and enables Russian for `ru-*` system locales. */
+  localePreference: LocalePreference = $state(DEFAULT_LOCALE_PREFERENCE);
+  locale: Locale = $derived(resolveLocalePreference(this.localePreference));
 
   /** The active section's display name — shown in the window title bar
       (the panel-head `<h1>` was removed in favour of the title bar). */
-  pageTitle = $derived(SECTION_TITLES[this.section]);
+  pageTitle = $derived(t(SECTION_TITLES[this.section], this.locale));
   drawerOpen: boolean = $state(false);
   drawerMinimized: boolean = $state(false);
   /** Expanded Activity drawer height in px; persisted to localStorage. */
@@ -113,7 +129,6 @@ class UiStore {
   settingsInitialSection: SettingsSection | null = $state(null);
   /** About modal — native menu "About brew-browser" + sidebar footer link. */
   aboutOpen: boolean = $state(false);
-  theme: ThemePreference = $state("system");
   /** the package currently shown in the detail panel; null = panel closed */
   selectedPackage: { name: string; kind: "formula" | "cask" } | null = $state(null);
   /** id of the bundle currently shown in the Bundles detail pane; null = pane
@@ -331,6 +346,18 @@ class UiStore {
     try {
       const v = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
       if (v !== null) this.sidebarCollapsed = v === "1";
+    } catch { /* ignore */ }
+  }
+
+  setLocalePreference(preference: LocalePreference) {
+    this.localePreference = preference;
+    try { localStorage.setItem(LOCALE_PREFERENCE_KEY, preference); } catch { /* ignore */ }
+  }
+
+  loadLocalePreferenceFromStorage() {
+    try {
+      const value = localStorage.getItem(LOCALE_PREFERENCE_KEY);
+      if (isLocalePreference(value)) this.localePreference = value;
     } catch { /* ignore */ }
   }
 

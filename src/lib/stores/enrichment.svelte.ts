@@ -14,11 +14,30 @@
 
 import { enrichmentData, enrichmentLiveEntry } from "$lib/api";
 import { settings } from "$lib/stores/settings.svelte";
+import { ui } from "$lib/stores/ui.svelte";
 import { bareToken } from "$lib/util/token";
 import type { EnrichmentData, EnrichmentEntry } from "$lib/types";
 
+function mergeLiveWithLocalized(
+  live: EnrichmentEntry | undefined,
+  localized: EnrichmentEntry | undefined,
+): EnrichmentEntry | undefined {
+  if (!live) return localized;
+  if (!localized || ui.locale !== "ru") return live;
+
+  return {
+    friendlyName: localized.friendlyName ?? live.friendlyName,
+    summary: localized.summary ?? live.summary,
+    useCases: localized.useCases.length > 0 ? localized.useCases : live.useCases,
+    similar: live.similar.length > 0 ? live.similar : localized.similar,
+    tags: live.tags.length > 0 ? live.tags : localized.tags,
+    searchTerms: localized.searchTerms ?? live.searchTerms,
+  };
+}
+
 class EnrichmentStore {
   data: EnrichmentData | null = $state(null);
+  dataLocale: string | null = $state(null);
   loading: boolean = $state(false);
   error: string | null = $state(null);
 
@@ -33,14 +52,16 @@ class EnrichmentStore {
       Failures are recorded on `this.error` but never rethrown; the store
       stays usable with `data === null` and lookups return `null`. */
   async ensureLoaded(): Promise<void> {
-    if (this.data || this.loadPromise) {
+    const locale = ui.locale;
+    if ((this.data && this.dataLocale === locale) || this.loadPromise) {
       return this.loadPromise ?? Promise.resolve();
     }
     this.loading = true;
     this.error = null;
     this.loadPromise = (async () => {
       try {
-        this.data = await enrichmentData();
+        this.data = await enrichmentData(locale);
+        this.dataLocale = locale;
       } catch (e) {
         this.error = `Failed to load enrichment: ${String(e)}`;
       } finally {
@@ -58,14 +79,17 @@ class EnrichmentStore {
    */
   lookup(token: string): EnrichmentEntry | null {
     if (!settings.effective.aiFeaturesEnabled) return null;
+    if (this.data && this.dataLocale !== ui.locale) {
+      void this.ensureLoaded();
+    }
     // Live overlay wins over the bundled baseline.
-    const hit = this.liveEntries[token] ?? this.data?.entries[token];
+    const hit = mergeLiveWithLocalized(this.liveEntries[token], this.data?.entries[token]);
     if (hit) return hit;
     // Tap-qualified token (`user/tap/name`) → retry the bare name the
     // enrichment is keyed by (live overlay still preferred over bundled).
     const bare = bareToken(token);
     if (bare === token) return null;
-    return this.liveEntries[bare] ?? this.data?.entries[bare] ?? null;
+    return mergeLiveWithLocalized(this.liveEntries[bare], this.data?.entries[bare]) ?? null;
   }
 
   /** Friendly-name short-circuit: returns `friendlyName` if available AND

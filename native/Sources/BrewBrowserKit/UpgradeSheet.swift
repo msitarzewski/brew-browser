@@ -34,19 +34,19 @@ struct UpgradeSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Choose packages to upgrade").font(.headline)
+            Text(L10n.string("upgrade.choosePackages")).font(.headline)
 
             if rows.isEmpty {
-                Text("No outdated packages.")
+                Text(L10n.string("upgrade.noOutdated"))
                     .font(.callout).foregroundStyle(.secondary)
                     .padding(.vertical, 8)
             } else {
                 // Toolbar: selected count + select-all/deselect-all toggle.
                 HStack {
-                    Text("\(selectedCount) of \(upgradable.count) selected")
+                    Text(L10n.selectedCount(selectedCount, total: upgradable.count))
                         .font(.callout).foregroundStyle(.secondary)
                     Spacer()
-                    Button(allSelected ? "Deselect all" : "Select all") {
+                    Button(allSelected ? L10n.string("action.deselectAll") : L10n.string("action.selectAll")) {
                         if allSelected { deselectAll() } else { selectAll() }
                     }
                     .buttonStyle(.link)
@@ -66,16 +66,14 @@ struct UpgradeSheet: View {
 
             HStack {
                 Spacer()
-                Button("Cancel") { onClose() }
+                Button(L10n.string("action.cancel")) { onClose() }
                 Button {
                     let names = rows.filter { isChecked($0) }.map(\.name)
                     onClose()
                     Task { await model.upgradeMany(names, greedy: LocalPrefs.shared.greedyUpgrade) }
                 } label: {
                     Label(
-                        selectedCount == 0
-                            ? "Upgrade"
-                            : "Upgrade \(selectedCount) \(selectedCount == 1 ? "package" : "packages")",
+                        L10n.upgradePackageButton(selectedCount),
                         systemImage: "arrow.up.circle"
                     )
                 }
@@ -100,12 +98,12 @@ struct UpgradeSheet: View {
                 Text(p.name)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if p.pinned {
-                    Text("pinned")
+                    Text(L10n.string("package.pinned"))
                         .font(.caption2.weight(.medium))
                         .padding(.horizontal, 7).padding(.vertical, 2)
                         .background(Color.orange.opacity(0.18), in: .capsule)
                         .foregroundStyle(.orange)
-                        .help("Pinned packages are not upgraded by brew. Unpin with `brew unpin <name>`.")
+                        .help(L10n.string("upgrade.pinned.help"))
                 }
                 KindPill(kind: p.kind)
                     .frame(width: 84, alignment: .leading)

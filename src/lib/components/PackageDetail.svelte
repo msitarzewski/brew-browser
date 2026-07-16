@@ -35,6 +35,7 @@
   import { packages } from "$lib/stores/packages.svelte";
   import { activity } from "$lib/stores/activity.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t, ruPlural, type Locale } from "$lib/i18n/messages";
   import { categories } from "$lib/stores/categories.svelte";
   import { discover } from "$lib/stores/discover.svelte";
   import { enrichment } from "$lib/stores/enrichment.svelte";
@@ -70,13 +71,15 @@
   // homepage URL so the line itself stays one token wide.
   function iconSourceLabel(src: IconSource): string {
     switch (src.kind) {
-      case "installedApp": return "installed app";
-      case "homepage":     return "homepage";
-      case "none":         return "none";
+      case "installedApp": return t("icon.source.installedApp", ui.locale);
+      case "homepage":     return t("icon.source.homepage", ui.locale);
+      case "none":         return t("icon.source.none", ui.locale);
     }
   }
   function iconSourceTitle(src: IconSource): string | undefined {
-    return src.kind === "homepage" ? `Favicon from ${src.homepage}` : undefined;
+    return src.kind === "homepage"
+      ? t("icon.source.faviconFrom", ui.locale, { homepage: src.homepage })
+      : undefined;
   }
 
   let detail = $state<PackageDetail | null>(null);
@@ -145,10 +148,10 @@
         try {
           detail = await brewInfo(bare, kind);
         } catch {
-          error = isBrewError(e) ? brewErrorMessage(e) : `Backend not available: ${String(e)}`;
+          error = isBrewError(e) ? brewErrorMessage(e, ui.locale) : t("trending.error.backend", ui.locale, { error: String(e) });
         }
       } else {
-        error = isBrewError(e) ? brewErrorMessage(e) : `Backend not available: ${String(e)}`;
+        error = isBrewError(e) ? brewErrorMessage(e, ui.locale) : t("trending.error.backend", ui.locale, { error: String(e) });
       }
     } finally {
       loading = false;
@@ -187,7 +190,7 @@
     if (!ui.selectedPackage) return;
     const { name, kind } = ui.selectedPackage;
     const tmpId = crypto.randomUUID();
-    activity.startJob(`Installing ${name}`, tmpId, `brew install ${name}${force ? " --force" : ""}`);
+    activity.startJob(ui.locale === "ru" ? `Устанавливаем ${name}` : `Installing ${name}`, tmpId, `brew install ${name}${force ? " --force" : ""}`);
     ui.openDrawer();
     try {
       const result = await brewInstall(name, kind, force, (evt) => {
@@ -199,7 +202,7 @@
         activity.handleEvent(evt);
       });
       if (result.success) {
-        toast.success(`Installed ${name}`);
+        toast.success(ui.locale === "ru" ? `Установлено: ${name}` : `Installed ${name}`);
         packages.load(true);
         if (ui.selectedPackage) loadDetail(ui.selectedPackage.name, ui.selectedPackage.kind);
         // v0.5.0 — newly installed package has no scan record. Kick a
@@ -216,7 +219,7 @@
         }
       }
     } catch (e) {
-      reportableToastError("Install failed", e);
+      reportableToastError(ui.locale === "ru" ? "Не удалось установить" : "Install failed", e);
     }
   }
 
@@ -233,7 +236,7 @@
     confirmUninstall = false;
     const { name, kind } = ui.selectedPackage;
     const tmpId = crypto.randomUUID();
-    activity.startJob(`Uninstalling ${name}`, tmpId, `brew uninstall ${name}`);
+    activity.startJob(ui.locale === "ru" ? `Удаляем ${name}` : `Uninstalling ${name}`, tmpId, `brew uninstall ${name}`);
     ui.openDrawer();
     try {
       const result = await brewUninstall(name, kind, false, (evt) => {
@@ -244,7 +247,7 @@
         activity.handleEvent(evt);
       });
       if (result.success) {
-        toast.success(`Uninstalled ${name}`);
+        toast.success(ui.locale === "ru" ? `Удалено: ${name}` : `Uninstalled ${name}`);
         // v0.5.0 — drop the vuln cache entry for the version we just removed.
         // Safe even when feature is off (no-op). Capture installedVersion
         // BEFORE closeDetail/packages.load wipes our `pkg` derived.
@@ -256,7 +259,7 @@
         ui.closeDetail();
       }
     } catch (e) {
-      reportableToastError("Uninstall failed", e);
+      reportableToastError(ui.locale === "ru" ? "Не удалось удалить" : "Uninstall failed", e);
     }
   }
 
@@ -264,7 +267,7 @@
     if (!ui.selectedPackage) return;
     const { name, kind } = ui.selectedPackage;
     const tmpId = crypto.randomUUID();
-    activity.startJob(`Upgrading ${name}`, tmpId, `brew upgrade ${name}`);
+    activity.startJob(ui.locale === "ru" ? `Обновляем ${name}` : `Upgrading ${name}`, tmpId, `brew upgrade ${name}`);
     ui.openDrawer();
     try {
       const result = await brewUpgrade(name, (evt) => {
@@ -275,7 +278,7 @@
         activity.handleEvent(evt);
       }, ui.greedyUpgrade);
       if (result.success) {
-        toast.success(`Upgraded ${name}`);
+        toast.success(ui.locale === "ru" ? `Обновлено: ${name}` : `Upgraded ${name}`);
         // v0.5.0 — old version gone, new version installed. Drop the old
         // vuln entry and re-scan so the Security card reflects the patched
         // state immediately. Capture oldVersion BEFORE packages.load
@@ -294,7 +297,7 @@
         }
       }
     } catch (e) {
-      reportableToastError("Upgrade failed", e);
+      reportableToastError(t("Upgrade failed", ui.locale), e);
     }
   }
 
@@ -490,11 +493,11 @@
    *  the default and stays unlabelled to keep the list quiet; the rest
    *  are flagged so build-only / opt-in edges read honestly. */
   function edgeLabel(dep: ReverseDependent): string | null {
-    if (dep.kind === "cask") return "cask";
+    if (dep.kind === "cask") return ui.locale === "ru" ? "cask-пакет" : "cask";
     switch (dep.edge) {
-      case "build":       return "build";
-      case "recommended": return "recommended";
-      case "optional":    return "optional";
+      case "build":       return ui.locale === "ru" ? "для сборки" : "build";
+      case "recommended": return ui.locale === "ru" ? "рекомендуемая" : "recommended";
+      case "optional":    return ui.locale === "ru" ? "опциональная" : "optional";
       case "required":    return null;
     }
   }
@@ -517,6 +520,21 @@
   );
   let svcStatus = $derived(svc ? normalizeServiceStatus(svc.status) : null);
   let svcPending = $derived(pkg ? services.isPending(pkg.name) : false);
+
+  function serviceStatusLabel(status: ReturnType<typeof normalizeServiceStatus> | null, locale: Locale = ui.locale): string {
+    if (!status) return locale === "ru" ? "неизвестно" : "unknown";
+    if (locale === "ru") {
+      switch (status) {
+        case "started":   return "запущена";
+        case "stopped":   return "остановлена";
+        case "none":      return "не загружена";
+        case "error":     return "ошибка";
+        case "scheduled": return "запланирована";
+        case "unknown":   return "неизвестно";
+      }
+    }
+    return status === "started" ? "running" : status === "none" ? "not loaded" : status;
+  }
 
   // ────────────────────────────────────────────────────────────────
   // Phase 12c — GitHub stats card.
@@ -574,6 +592,21 @@
     if (Number.isNaN(t)) return "—";
     const diffMs = Date.now() - t;
     const days = Math.max(0, Math.floor(diffMs / (24 * 60 * 60 * 1000)));
+    if (ui.locale === "ru") {
+      if (days === 0) return "сегодня";
+      if (days === 1) return "вчера";
+      if (days < 7) return `${days} ${ruPlural(days, "день", "дня", "дней")} назад`;
+      if (days < 30) {
+        const weeks = Math.floor(days / 7);
+        return `${weeks} ${ruPlural(weeks, "неделю", "недели", "недель")} назад`;
+      }
+      if (days < 365) {
+        const months = Math.floor(days / 30);
+        return `${months} ${ruPlural(months, "месяц", "месяца", "месяцев")} назад`;
+      }
+      const years = Math.floor(days / 365);
+      return `${years} ${ruPlural(years, "год", "года", "лет")} назад`;
+    }
     if (days === 0) return "today";
     if (days === 1) return "yesterday";
     if (days < 7) return `${days} days ago`;
@@ -585,8 +618,8 @@
 
   /** Format the rate-limit reset time for the inline error variant. */
   function fmtResetTime(resetAt: number): string {
-    if (!resetAt) return "soon";
-    return new Date(resetAt * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (!resetAt) return ui.locale === "ru" ? "скоро" : "soon";
+    return new Date(resetAt * 1000).toLocaleTimeString(ui.locale === "ru" ? "ru-RU" : undefined, { hour: "2-digit", minute: "2-digit" });
   }
 
   // ────────────────────────────────────────────────────────────────
@@ -635,6 +668,18 @@
     }
   });
 
+  function githubActionRu(actionLabel: string): string {
+    switch (actionLabel) {
+      case "star this package": return "поставить звезду этому пакету";
+      case "watch this package": return "отслеживать этот пакет";
+      case "file an issue": return "сообщить о проблеме";
+      case "file an issue on this repo": return "сообщить о проблеме в этом репозитории";
+      case "update star": return "обновить звезду";
+      case "update watch": return "обновить отслеживание";
+      default: return actionLabel;
+    }
+  }
+
   /** Intercept any authed GitHub action while signed out: deep-link to
       Settings → GitHub and toast a hint. Returns false when the caller
       should stop. Keeps the action buttons usable without painting a
@@ -653,8 +698,10 @@
     if (github.status?.signedIn) return true;
     ui.openSettings("github");
     toast.info(
-      `Sign in to GitHub to ${actionLabel}`,
-      "Use the Sign in with GitHub button in Settings.",
+      ui.locale === "ru"
+        ? `Войдите в GitHub, чтобы ${githubActionRu(actionLabel)}`
+        : `Sign in to GitHub to ${actionLabel}`,
+      t("Use the Sign in with GitHub button in Settings.", ui.locale),
     );
     return false;
   }
@@ -683,10 +730,12 @@
     if (isBrewError(e) && e.code === "scope_required") {
       const scope = e.scope;
       toast.error(
-        `Couldn't ${actionLabel}`,
-        `Needs the "${scope}" GitHub permission. Click to grant it without signing out.`,
+        ui.locale === "ru" ? `Не удалось ${githubActionRu(actionLabel)}` : `Couldn't ${actionLabel}`,
+        ui.locale === "ru"
+          ? `Не хватает разрешения GitHub "${scope}". Нажмите, чтобы выдать его без выхода из аккаунта.`
+          : `Needs the "${scope}" GitHub permission. Click to grant it without signing out.`,
         {
-          label: "Re-authorize",
+          label: t("Re-authorize", ui.locale),
           onClick: () => {
             void github.signIn();
           },
@@ -695,8 +744,8 @@
       return;
     }
     toast.error(
-      `Couldn't ${actionLabel}`,
-      isBrewError(e) ? brewErrorMessage(e) : String(e),
+      ui.locale === "ru" ? `Не удалось ${githubActionRu(actionLabel)}` : `Couldn't ${actionLabel}`,
+      isBrewError(e) ? brewErrorMessage(e, ui.locale) : String(e),
     );
   }
 
@@ -707,8 +756,8 @@
     const hp = githubHp;
     try {
       const target = await github.toggleStar(hp);
-      if (target === true) toast.success(`Starred ${pkg!.name}`);
-      else if (target === false) toast.success(`Unstarred ${pkg!.name}`);
+      if (target === true) toast.success(ui.locale === "ru" ? `${t("Starred package", ui.locale)}: ${pkg!.name}` : `Starred ${pkg!.name}`);
+      else if (target === false) toast.success(ui.locale === "ru" ? `${t("Unstarred package", ui.locale)}: ${pkg!.name}` : `Unstarred ${pkg!.name}`);
       starredState = github.starredCache.get(hp) ?? "unknown";
     } catch (e) {
       showActionFailureToast("update star", e);
@@ -732,7 +781,9 @@
       if (want) await github.watch(githubHp);
       else await github.unwatch(githubHp);
       watching = want;
-      toast.success(want ? `Watching ${pkg!.name}` : `Stopped watching ${pkg!.name}`);
+      toast.success(want
+        ? (ui.locale === "ru" ? `${t("Watching package", ui.locale)}: ${pkg!.name}` : `Watching ${pkg!.name}`)
+        : (ui.locale === "ru" ? `${t("Stopped watching package", ui.locale)}: ${pkg!.name}` : `Stopped watching ${pkg!.name}`));
     } catch (e) {
       showActionFailureToast("update watch", e);
     } finally {
@@ -794,7 +845,7 @@
     if (!pkg) return;
     const ver = await ensureAppVersion();
     const currentCats = pkgCategories
-      .map((slug) => categories.labelOf(slug))
+      .map((slug) => categories.labelOf(slug, ui.locale))
       .join(", ") || "(none)";
     const body = [
       `**Package:** ${pkg.name} (${pkg.kind})`,
@@ -885,6 +936,17 @@
     }
   }
 
+  function severityLabel(sev: Severity): string {
+    if (ui.locale !== "ru") return sev;
+    switch (sev) {
+      case "critical": return "критическая";
+      case "high": return "высокая";
+      case "medium": return "средняя";
+      case "low": return "низкая";
+      default: return "неизвестная";
+    }
+  }
+
   /** First HTTPS reference for a vuln — used as the click-target for
       the CVE/GHSA id. When `references` is empty (brew-vulns currently
       omits the field for OSV-sourced entries; only GHSA enrichment
@@ -960,6 +1022,17 @@
     if (Number.isNaN(t)) return "";
     const diffMs = Date.now() - t;
     const sec = Math.floor(diffMs / 1000);
+    if (ui.locale === "ru") {
+      if (sec < 60) return "только что";
+      const min = Math.floor(sec / 60);
+      if (min < 60) return `${min} ${ruPlural(min, "минуту", "минуты", "минут")} назад`;
+      const hr = Math.floor(min / 60);
+      if (hr < 24) return `${hr} ${ruPlural(hr, "час", "часа", "часов")} назад`;
+      const day = Math.floor(hr / 24);
+      if (day < 30) return `${day} ${ruPlural(day, "день", "дня", "дней")} назад`;
+      const mo = Math.floor(day / 30);
+      return `${mo} ${ruPlural(mo, "месяц", "месяца", "месяцев")} назад`;
+    }
     if (sec < 60) return "just now";
     const min = Math.floor(sec / 60);
     if (min < 60) return `${min}m ago`;
@@ -993,9 +1066,21 @@
     if (!pkg) return;
     try {
       await services.act(pkg.name, action);
-      toast.success(`${action.charAt(0).toUpperCase() + action.slice(1)}ed ${pkg.name}`);
+      toast.success(ui.locale === "ru"
+        ? (action === "start"
+          ? `Запущена служба ${pkg.name}`
+          : action === "stop"
+            ? `Остановлена служба ${pkg.name}`
+            : `Перезапущена служба ${pkg.name}`)
+        : `${action.charAt(0).toUpperCase() + action.slice(1)}ed ${pkg.name}`);
     } catch (e) {
-      reportableToastError(`Failed to ${action} ${pkg.name}`, e);
+      reportableToastError(ui.locale === "ru"
+        ? (action === "start"
+          ? `Не удалось запустить службу ${pkg.name}`
+          : action === "stop"
+            ? `Не удалось остановить службу ${pkg.name}`
+            : `Не удалось перезапустить службу ${pkg.name}`)
+        : `Failed to ${action} ${pkg.name}`, e);
     }
   }
 </script>
@@ -1003,7 +1088,7 @@
 {#if ui.selectedPackage}
   <aside
     class="detail"
-    aria-label="Package detail"
+    aria-label={t("Package detail", ui.locale)}
     style="--detail-pane-width: {ui.detailPaneWidth}px"
   >
     <header class="panel-head">
@@ -1026,18 +1111,18 @@
         {enriched?.friendlyName ?? ui.selectedPackage.name}
       </h1>
       <Pill tone={ui.selectedPackage.kind === "formula" ? "formula" : "cask"}>{ui.selectedPackage.kind}</Pill>
-      <button class="close" aria-label="Close detail panel" onclick={close} title="Close (Esc)">
+      <button class="close" aria-label={t("Close detail panel", ui.locale)} onclick={close} title={t("close Esc", ui.locale)}>
         <X size={16} />
       </button>
     </header>
 
     <div class="body">
       {#if loading}
-        <LoadingState rows={5} label="Loading package detail…" />
+        <LoadingState rows={5} label={t("Loading package detail…", ui.locale)} />
       {:else if error}
         <div class="error">
-          <p>Couldn't load detail: {error}</p>
-          <Button variant="secondary" onclick={() => ui.selectedPackage && loadDetail(ui.selectedPackage.name, ui.selectedPackage.kind)}>Retry</Button>
+          <p>{t("Couldn't load detail", ui.locale)}: {error}</p>
+          <Button variant="secondary" onclick={() => ui.selectedPackage && loadDetail(ui.selectedPackage.name, ui.selectedPackage.kind)}>{t("Retry", ui.locale)}</Button>
         </div>
       {:else if detail && pkg}
         <!-- Centered app-icon identity anchor (matches native's DetailIcon):
@@ -1061,19 +1146,19 @@
                  is off, enriched is null so this row doesn't render and
                  the h1 falls back to the raw token (legacy behaviour). -->
             <div>
-              <dt>Token</dt>
+              <dt>{t("Token", ui.locale)}</dt>
               <dd class="mono">{ui.selectedPackage.name}</dd>
             </div>
           {/if}
           <div>
-            <dt>Installed</dt>
+            <dt>{t("Installed", ui.locale)}</dt>
             <dd>
               {#if pkg.installedVersion}
                 {pkg.installedVersion}
               {:else if detail.existsInApplications}
-                Installed by User
+                {t("Installed by User", ui.locale)}
               {:else}
-                Not installed
+                {t("Not installed", ui.locale)}
               {/if}
             </dd>
           </div>
@@ -1088,13 +1173,13 @@
                both-flags-true package reads as Manual ("On request"). -->
           {#if pkg.installedVersion && (pkg.installedOnRequest || pkg.installedAsDependency)}
             <div>
-              <dt>Install</dt>
+              <dt>{t("Install", ui.locale)}</dt>
               <dd>
                 {#if pkg.installedOnRequest}
-                  On request
+                  {t("On request", ui.locale)}
                 {:else}
-                  <span title="Installed as a dependency of another package, not requested directly.">
-                    <Pill tone="info">dependency</Pill>
+                  <span title={t("Installed as a dependency, not requested directly", ui.locale)}>
+                    <Pill tone="info">{t("dependency", ui.locale)}</Pill>
                   </span>
                 {/if}
               </dd>
@@ -1109,34 +1194,34 @@
                Shares `fmtBytes` with the Dashboard Storage card. -->
           {#if detail.installedSizeBytes != null}
             <div>
-              <dt>Size</dt>
-              <dd title="Total on-disk size of the installed keg (all versions).">
+              <dt>{t("Size", ui.locale)}</dt>
+              <dd title={t("Total on-disk size of the installed keg (all versions).", ui.locale)}>
                 {fmtBytes(detail.installedSizeBytes)}
               </dd>
             </div>
           {/if}
           <div>
-            <dt>Latest</dt>
+            <dt>{t("Latest", ui.locale)}</dt>
             <dd>
               {pkg.stableVersion ?? "—"}
               {#if isOutdated}
-                <span class="warn">Upgrade available</span>
+                <span class="warn">{t("Upgrade available", ui.locale)}</span>
               {/if}
             </dd>
           </div>
           {#if pkg.license}
-            <div><dt>License</dt><dd>{pkg.license}</dd></div>
+            <div><dt>{t("License", ui.locale)}</dt><dd>{pkg.license}</dd></div>
           {/if}
           {#if pkg.tap}
             <div><dt>Tap</dt><dd>{pkg.tap}</dd></div>
           {/if}
           <div>
-            <dt>Icon source</dt>
+            <dt>{t("Icon source", ui.locale)}</dt>
             <dd class="icon-source" title={iconSourceTitle(pkg.iconSource)}>{iconSourceLabel(pkg.iconSource)}</dd>
           </div>
           {#if categories.visible && pkgCategories.length > 0}
             <div>
-              <dt>Categories</dt>
+              <dt>{t("Categories", ui.locale)}</dt>
               <dd class="cat-pills">
                 {#each pkgCategories as slug (slug)}
                   {@const Icon = resolveCategoryIcon(
@@ -1146,16 +1231,16 @@
                     type="button"
                     class="cat-pill"
                     onclick={() => jumpToCategory(slug)}
-                    title={`Browse all packages in ${categories.labelOf(slug)}`}
+                    title={t("detail.category.openTitle", ui.locale, { category: categories.labelOf(slug, ui.locale) })}
                   >
                     <Icon size={12} />
-                    <span>{categories.labelOf(slug)}</span>
+                    <span>{categories.labelOf(slug, ui.locale)}</span>
                   </button>
                 {/each}
                 <InfoButton
-                  title="About categories"
-                  body="Generated offline at build time by Claude Haiku 4.5 — no network or LLM calls happen while you use brew-browser. Open an issue if a category looks off and we'll fix it in the next release."
-                  label="About this package's categories"
+                  title={t("About categories", ui.locale)}
+                  body={t("detail.aboutCategories.body", ui.locale)}
+                  label={t("About this package's categories", ui.locale)}
                   onReport={openWrongCategoryIssue}
                 />
               </dd>
@@ -1167,7 +1252,7 @@
                tech-stack labels (database, video-editing, kubernetes…). -->
           {#if enriched && enriched.tags.length > 0}
             <div>
-              <dt>Tags</dt>
+              <dt>{t("Tags", ui.locale)}</dt>
               <dd class="tag-pills">
                 {#each enriched.tags as t (t)}
                   <span class="tag-pill">
@@ -1176,9 +1261,9 @@
                   </span>
                 {/each}
                 <InfoButton
-                  title="About tags"
-                  body="Generated offline at build time by Claude Haiku 4.5 — no network or LLM calls happen while you use brew-browser. Open an issue if a tag looks off and we'll fix it in the next release."
-                  label="About these tags"
+                  title={t("About tags", ui.locale)}
+                  body={t("detail.aboutTags.body", ui.locale)}
+                  label={t("About these tags", ui.locale)}
                   onReport={() => openWrongEnrichedIssue("tags")}
                 />
               </dd>
@@ -1192,9 +1277,9 @@
         {#if enriched?.summary}
           <blockquote class="enriched-summary">
             <p>{enriched.summary}&nbsp;<InfoButton
-              title="About this summary"
-              body="Generated offline at build time by Claude Haiku 4.5 — no network or LLM calls happen while you use brew-browser. Open an issue if the summary looks off and we'll fix it in the next release."
-              label="About this summary"
+              title={t("About this summary", ui.locale)}
+              body={t("detail.aboutSummary.body", ui.locale)}
+              label={t("About this summary", ui.locale)}
               onReport={() => openWrongEnrichedIssue("summary")}
             /></p>
           </blockquote>
@@ -1227,26 +1312,26 @@
             <div class="deprecation-body">
               <p class="deprecation-line">
                 <strong>
-                  {deprecationNotice.kind === "disabled" ? "Disabled" : "Deprecated"}
+                  {deprecationNotice.kind === "disabled" ? t("Disabled", ui.locale) : t("Deprecated", ui.locale)}
                 </strong>{#if deprecationNotice.date}<span class="deprecation-date"> &middot; {deprecationNotice.date}</span>{/if}{#if deprecationNotice.reason}<span class="deprecation-reason"> — {deprecationNotice.reason}</span>{/if}
               </p>
               {#if deprecationNotice.kind === "disabled"}
-                <p class="deprecation-sub">No longer available via Homebrew.</p>
+                <p class="deprecation-sub">{t("No longer available via Homebrew.", ui.locale)}</p>
               {:else}
-                <p class="deprecation-sub">May be removed in a future Homebrew update.</p>
+                <p class="deprecation-sub">{t("May be removed in a future Homebrew update.", ui.locale)}</p>
               {/if}
               {#if deprecationNotice.replacement}
                 <p class="deprecation-replacement">
-                  Use
+                  {t("Use", ui.locale)}
                   <button
                     type="button"
                     class="deprecation-replacement-link"
                     onclick={() => openReplacement(deprecationNotice!.replacement!)}
-                    title={`Open ${deprecationNotice.replacement}`}
+                    title={t("package.openToken", ui.locale, { token: deprecationNotice.replacement })}
                   >
                     {deprecationNotice.replacement}
                   </button>
-                  instead.
+                  {t("instead.", ui.locale)}
                 </p>
               {/if}
             </div>
@@ -1258,28 +1343,28 @@
              gated; the entire section disappears when the user hasn't
              opted into vulnerability scanning. -->
         {#if securityCardVisible}
-          <section class="sec-card" aria-label="Security">
+          <section class="sec-card" aria-label={t("Security", ui.locale)}>
             {#if securityRecord === undefined}
               <!-- State 1: never scanned this package -->
               <div class="sec-head">
                 <Shield size={16} class="sec-icon" />
-                <h3>Security</h3>
+                <h3>{t("Security", ui.locale)}</h3>
               </div>
-              <p class="sec-cta">Check this package for known vulnerabilities.</p>
+              <p class="sec-cta">{t("Check this package for known vulnerabilities.", ui.locale)}</p>
               <div class="sec-actions">
                 <button
                   type="button"
                   class="sec-btn sec-btn-primary"
                   disabled={securityLoading}
                   onclick={checkSecurity}
-                  title="Runs brew vulns across your whole install — it can't scan a single package"
+                  title={t("Runs brew vulns across your whole install — it can't scan a single package", ui.locale)}
                 >
                   {#if securityLoading}
                     <Loader size={14} class="spin-slow" />
-                    <span>Scanning all…</span>
+                    <span>{t("Scanning all…", ui.locale)}</span>
                   {:else}
                     <Shield size={14} />
-                    <span>Scan all packages</span>
+                    <span>{t("Scan all packages", ui.locale)}</span>
                   {/if}
                 </button>
               </div>
@@ -1288,10 +1373,12 @@
                    session). Don't claim all-clear — caution + re-scan prompt. -->
               <div class="sec-head">
                 <ShieldAlert size={16} class="sec-icon-warn" />
-                <h3>Security</h3>
+                <h3>{t("Security", ui.locale)}</h3>
               </div>
               <p class="sec-clean">
-                No advisories as of the last scan ({relativeScanTime(securityRecord.scannedAt)}). Packages may have changed since — re-scan to confirm.
+                {ui.locale === "ru"
+                  ? `На момент последней проверки (${relativeScanTime(securityRecord.scannedAt)}) записей об уязвимостях нет. Пакеты могли измениться — проверьте ещё раз.`
+                  : `No advisories as of the last scan (${relativeScanTime(securityRecord.scannedAt)}). Packages may have changed since — re-scan to confirm.`}
               </p>
               <div class="sec-foot">
                 <button
@@ -1299,34 +1386,34 @@
                   class="sec-link"
                   disabled={securityLoading}
                   onclick={checkSecurity}
-                  title="Runs brew vulns across your whole install — it can't scan a single package"
+                  title={t("Runs brew vulns across your whole install — it can't scan a single package", ui.locale)}
                 >
-                  {securityLoading ? "Scanning all…" : "Re-scan all"}
+                  {securityLoading ? t("Scanning all…", ui.locale) : t("Re-scan all", ui.locale)}
                 </button>
               </div>
             {:else if securityRecord.vulns.length === 0}
               <!-- State 2b: scanned clean THIS session -->
               <div class="sec-head sec-head-clean">
                 <ShieldCheck size={16} class="sec-icon-clean" />
-                <h3>Security</h3>
+                <h3>{t("Security", ui.locale)}</h3>
               </div>
               <p class="sec-clean">
-                No known vulnerabilities{securityRecord.version
-                  ? ` at version ${securityRecord.version}`
-                  : ""}.
+                {securityRecord.version
+                  ? (ui.locale === "ru" ? `Известных уязвимостей в версии ${securityRecord.version} нет.` : `No known vulnerabilities at version ${securityRecord.version}.`)
+                  : t("No known vulnerabilities.", ui.locale)}
               </p>
               <div class="sec-foot">
                 <span class="sec-stamp text-muted">
-                  scanned {relativeScanTime(securityRecord.scannedAt)}
+                  {ui.locale === "ru" ? "проверено" : "scanned"} {relativeScanTime(securityRecord.scannedAt)}
                 </span>
                 <button
                   type="button"
                   class="sec-link"
                   disabled={securityLoading}
                   onclick={checkSecurity}
-                  title="Runs brew vulns across your whole install — it can't scan a single package"
+                  title={t("Runs brew vulns across your whole install — it can't scan a single package", ui.locale)}
                 >
-                  {securityLoading ? "Scanning all…" : "Re-scan all"}
+                  {securityLoading ? t("Scanning all…", ui.locale) : t("Re-scan all", ui.locale)}
                 </button>
               </div>
             {:else}
@@ -1335,8 +1422,10 @@
               <div class="sec-head sec-head-vuln">
                 <ShieldAlert size={16} class="sec-icon-vuln" />
                 <h3>
-                  Security &middot;
-                  {vulns.length} known vulnerabilit{vulns.length === 1 ? "y" : "ies"}
+                  {t("Security", ui.locale)} &middot;
+                  {ui.locale === "ru"
+                    ? `${vulns.length} ${ruPlural(vulns.length, "известная уязвимость", "известные уязвимости", "известных уязвимостей")}`
+                    : `${vulns.length} known vulnerabilit${vulns.length === 1 ? "y" : "ies"}`}
                 </h3>
               </div>
 
@@ -1346,10 +1435,10 @@
                     type="button"
                     class="sec-btn sec-btn-primary"
                     onclick={upgradeForSecurity}
-                    title="Run brew upgrade for this package"
+                    title={t("Run brew upgrade for this package", ui.locale)}
                   >
                     <ArrowUpCircle size={14} />
-                    <span>Upgrade to fix</span>
+                    <span>{t("Upgrade to fix", ui.locale)}</span>
                   </button>
                 </div>
               {/if}
@@ -1360,14 +1449,14 @@
                   {@const link = vulnPrimaryLink(v)}
                   <li class="sec-item">
                     <div class="sec-item-head">
-                      <span class="sec-sev sec-sev-{tone}">{v.severity}</span>
+                      <span class="sec-sev sec-sev-{tone}">{severityLabel(v.severity)}</span>
                       {#if v.id}
                         {#if link}
                           <button
                             type="button"
                             class="sec-id"
                             onclick={() => openVulnRef(link)}
-                            title={`Open advisory: ${link}`}
+                            title={`${t("Open advisory", ui.locale)}: ${link}`}
                           >
                             {v.id}
                             <ExternalLink size={10} />
@@ -1377,8 +1466,8 @@
                         {/if}
                       {/if}
                       {#if v.fixedIn}
-                        <span class="sec-fixed" title="Patched version">
-                          Patched in {v.fixedIn}
+                        <span class="sec-fixed" title={t("Patched version", ui.locale)}>
+                          {t("Patched in", ui.locale)} {v.fixedIn}
                         </span>
                       {/if}
                     </div>
@@ -1397,7 +1486,7 @@
                           class="sec-details-link"
                           onclick={() => openVulnRef(link)}
                         >
-                          No summary available — view details
+                          {t("No summary available — view details", ui.locale)}
                           <ExternalLink size={10} />
                         </button>
                       </p>
@@ -1408,16 +1497,16 @@
 
               <div class="sec-foot">
                 <span class="sec-stamp text-muted">
-                  scanned {relativeScanTime(securityRecord.scannedAt)}
+                  {ui.locale === "ru" ? "проверено" : "scanned"} {relativeScanTime(securityRecord.scannedAt)}
                 </span>
                 <button
                   type="button"
                   class="sec-link"
                   disabled={securityLoading}
                   onclick={checkSecurity}
-                  title="Runs brew vulns across your whole install — it can't scan a single package"
+                  title={t("Runs brew vulns across your whole install — it can't scan a single package", ui.locale)}
                 >
-                  {securityLoading ? "Scanning all…" : "Re-scan all"}
+                  {securityLoading ? t("Scanning all…", ui.locale) : t("Re-scan all", ui.locale)}
                 </button>
               </div>
             {/if}
@@ -1442,15 +1531,15 @@
             (p) => p.estimatedDailyInstalls != null,
           )}
           {#if daily.length >= 2}
-            <section class="trend-card" aria-label={`Install trend for ${pkg.name}`}>
+            <section class="trend-card" aria-label={ui.locale === "ru" ? `Динамика установок ${pkg.name}` : `Install trend for ${pkg.name}`}>
               <header class="trend-head">
-                <h3>Install trend</h3>
-                <span class="trend-meta text-muted">Daily install snapshots</span>
+                <h3>{t("Install trend", ui.locale)}</h3>
+                <span class="trend-meta text-muted">{t("detail.trend.daily", ui.locale)}</span>
               </header>
               <TrendingSparkline
                 data={daily.map((p) => p.estimatedDailyInstalls ?? 0)}
                 variant="detail"
-                title={`${pkg.name} install trend`}
+                title={t("package.installTrendFor", ui.locale, { name: pkg.name })}
               />
             </section>
           {/if}
@@ -1458,13 +1547,13 @@
 
         <!-- Phase 13: "Why install this?" use-case bullets. -->
         {#if enriched && enriched.useCases.length > 0}
-          <section class="enriched-section" aria-label="Use cases">
+          <section class="enriched-section" aria-label={t("Use cases", ui.locale)}>
             <h3>
-              Why install this?
+              {t("Why install this?", ui.locale)}
               <InfoButton
-                title="About use cases"
-                body="Generated offline at build time by Claude Haiku 4.5 — no network or LLM calls happen while you use brew-browser. Open an issue if these use cases look off and we'll fix them in the next release."
-                label="About these use cases"
+                title={t("About use cases", ui.locale)}
+                body={t("detail.aboutUseCases.body", ui.locale)}
+                label={t("About these use cases", ui.locale)}
                 onReport={() => openWrongEnrichedIssue("use_cases")}
               />
             </h3>
@@ -1479,13 +1568,13 @@
         <!-- Phase 13: Similar packages, clickable pills that re-open
              PackageDetail for that token. -->
         {#if enriched && enriched.similar.length > 0}
-          <section class="enriched-section" aria-label="Similar packages">
+          <section class="enriched-section" aria-label={t("Similar packages", ui.locale)}>
             <h3>
-              Similar packages
+              {t("Similar packages", ui.locale)}
               <InfoButton
-                title="About similar packages"
-                body="Generated offline at build time by Claude Haiku 4.5 — no network or LLM calls happen while you use brew-browser. Open an issue if these suggestions look off and we'll fix them in the next release."
-                label="About these similar packages"
+                title={t("About similar packages", ui.locale)}
+                body={t("detail.aboutSimilar.body", ui.locale)}
+                label={t("About these similar packages", ui.locale)}
                 onReport={() => openWrongEnrichedIssue("similar")}
               />
             </h3>
@@ -1495,7 +1584,7 @@
                   type="button"
                   class="similar-pill"
                   onclick={() => openSimilar(token)}
-                  title={`Open ${token}`}
+                  title={ui.locale === "ru" ? `Открыть ${token}` : `Open ${token}`}
                 >
                   {token}
                 </button>
@@ -1505,20 +1594,20 @@
         {/if}
 
         {#if githubOutcome}
-          <section class="gh-card" aria-label="GitHub repository statistics">
+          <section class="gh-card" aria-label={t("GitHub repository statistics", ui.locale)}>
             {#if githubOutcome.kind === "loading"}
               <div class="gh-loading">
                 <Loader size={14} class="spin-slow" />
-                <span>Loading GitHub stats…</span>
+                <span>{t("Loading GitHub stats…", ui.locale)}</span>
               </div>
             {:else if githubOutcome.kind === "loaded"}
               {@const s = githubOutcome.stats}
               <div class="gh-stats">
-                <span class="gh-stat" title="Stargazers">
+                <span class="gh-stat" title={t("github.stargazers", ui.locale)}>
                   <Star size={14} /> {fmtCount(s.stars)}
                 </span>
                 <span class="gh-sep">·</span>
-                <span class="gh-stat" title="Forks">
+                <span class="gh-stat" title={t("github.forks", ui.locale)}>
                   <GitFork size={14} /> {fmtCount(s.forks)}
                 </span>
                 {#if s.lastReleaseTag}
@@ -1535,37 +1624,39 @@
                 <div class="gh-archived" role="status">
                   <Archive size={14} />
                   <span>
-                    Archived{s.archivedAt ? ` ${fmtRelative(s.archivedAt)}` : ""} — likely unmaintained.
+                    {s.archivedAt
+                      ? (ui.locale === "ru" ? `Архивирован ${fmtRelative(s.archivedAt)} — вероятно, больше не поддерживается.` : `Archived ${fmtRelative(s.archivedAt)} — likely unmaintained.`)
+                      : (ui.locale === "ru" ? "Архивирован — вероятно, больше не поддерживается." : "Archived — likely unmaintained.")}
                   </span>
                 </div>
               {/if}
               {#if s.licenseSpdx && pkg.license && s.licenseSpdx !== pkg.license}
                 <div
                   class="gh-license-mismatch"
-                  title={`brew reports: ${pkg.license} · GitHub reports: ${s.licenseSpdx}`}
+                  title={t("github.licenseMismatchTitle", ui.locale, { brew: pkg.license, github: s.licenseSpdx })}
                 >
                   <AlertCircle size={12} aria-hidden="true" />
-                  <span>License mismatch — brew: <code>{pkg.license}</code>, GitHub: <code>{s.licenseSpdx}</code></span>
+                  <span>{t("License mismatch", ui.locale)} — brew: <code>{pkg.license}</code>, GitHub: <code>{s.licenseSpdx}</code></span>
                 </div>
               {/if}
             {:else if githubOutcome.kind === "rateLimited"}
               <div class="gh-error">
                 <AlertCircle size={14} />
                 <span>
-                  GitHub stats temporarily unavailable (rate limit resets at
-                  {fmtResetTime(githubOutcome.resetAt)}).
-                  Sign in via Settings → GitHub to remove the limit.
+                  {ui.locale === "ru"
+                    ? `Статистика GitHub временно недоступна (лимит запросов сбросится в ${fmtResetTime(githubOutcome.resetAt)}). Войдите через «Настройки → GitHub», чтобы снять ограничение.`
+                    : `GitHub stats temporarily unavailable (rate limit resets at ${fmtResetTime(githubOutcome.resetAt)}). Sign in via Settings → GitHub to remove the limit.`}
                 </span>
               </div>
             {:else if githubOutcome.kind === "blocked"}
               <div class="gh-error">
                 <AlertCircle size={14} />
-                <span>Blocked by Offline Mode. Disable in Settings → Network.</span>
+                <span>{t("Blocked by Offline Mode. Disable in Settings → Network.", ui.locale)}</span>
               </div>
             {:else if githubOutcome.kind === "error"}
               <div class="gh-error">
                 <AlertCircle size={14} />
-                <span>Couldn't load GitHub stats: {githubOutcome.message}</span>
+                <span>{t("Couldn't load GitHub stats", ui.locale)}: {githubOutcome.message}</span>
               </div>
             {/if}
             <!-- kind === "miss" renders nothing -->
@@ -1586,18 +1677,18 @@
                   onclick={onToggleStar}
                   disabled={starToggling || (githubSignedIn && starredState === "unknown")}
                   title={!githubSignedIn
-                    ? "Sign in to GitHub to star this repository"
+                    ? t("Sign in to GitHub to star this repository", ui.locale)
                     : starredState === true
-                      ? "Unstar this repository"
+                      ? t("Unstar this repository", ui.locale)
                       : starredState === false
-                        ? "Star this repository"
-                        : "Loading starred state…"}
+                        ? t("Star this repository", ui.locale)
+                        : (ui.locale === "ru" ? "Загружаем состояние звезды…" : "Loading starred state…")}
                 >
                   <Star
                     size={14}
                     fill={githubSignedIn && starredState === true ? "currentColor" : "none"}
                   />
-                  <span>{githubSignedIn && starredState === true ? "Starred" : "Star"}</span>
+                  <span>{githubSignedIn && starredState === true ? t("Starred", ui.locale) : t("Star", ui.locale)}</span>
                 </button>
 
                 <button
@@ -1607,17 +1698,17 @@
                   onclick={onToggleWatch}
                   disabled={watchPending}
                   title={!githubSignedIn
-                    ? "Sign in to GitHub to watch this repository"
+                    ? t("Sign in to GitHub to watch this repository", ui.locale)
                     : watching === true
-                      ? "Stop watching"
-                      : "Watch for activity"}
+                      ? t("Stop watching", ui.locale)
+                      : t("Watch for activity", ui.locale)}
                 >
                   {#if githubSignedIn && watching === true}
                     <EyeIcon size={14} />
-                    <span>Watching</span>
+                    <span>{t("Watching", ui.locale)}</span>
                   {:else}
                     <EyeOff size={14} />
-                    <span>Watch</span>
+                    <span>{t("Watch", ui.locale)}</span>
                   {/if}
                 </button>
 
@@ -1626,11 +1717,13 @@
                   class="gh-action"
                   onclick={openPackageIssue}
                   title={!githubSignedIn
-                    ? "Sign in to GitHub to file an issue"
-                    : `File an issue against ${githubHp ? githubRepoFromHomepage(githubHp)?.owner ?? "" : ""}/${githubHp ? githubRepoFromHomepage(githubHp)?.repo ?? "" : ""}`}
+                    ? (ui.locale === "ru" ? "Войдите в GitHub, чтобы сообщить о проблеме" : "Sign in to GitHub to file an issue")
+                    : (ui.locale === "ru"
+                      ? `Сообщить о проблеме в ${githubHp ? githubRepoFromHomepage(githubHp)?.owner ?? "" : ""}/${githubHp ? githubRepoFromHomepage(githubHp)?.repo ?? "" : ""}`
+                      : `File an issue against ${githubHp ? githubRepoFromHomepage(githubHp)?.owner ?? "" : ""}/${githubHp ? githubRepoFromHomepage(githubHp)?.repo ?? "" : ""}`)}
                 >
                   <MessageSquarePlus size={14} />
-                  <span>File issue</span>
+                  <span>{t("File issue", ui.locale)}</span>
                 </button>
               </div>
             {/if}
@@ -1640,38 +1733,38 @@
         {#if svc}
           <section class="service-card" class:pending={svcPending}>
             <div class="svc-head">
-              <h3>Service</h3>
+              <h3>{t("Service", ui.locale)}</h3>
               <Pill tone={svcStatus === "started" ? "success" : svcStatus === "error" ? "danger" : svcStatus === "scheduled" ? "warning" : "neutral"}>
-                {svcStatus === "started" ? "running" : svcStatus === "none" ? "not loaded" : svcStatus ?? "unknown"}
+                {serviceStatusLabel(svcStatus, ui.locale)}
               </Pill>
             </div>
             {#if svc.user}
-              <div class="svc-meta text-muted">user: {svc.user}</div>
+              <div class="svc-meta text-muted">{ui.locale === "ru" ? "пользователь" : "user"}: {svc.user}</div>
             {/if}
             <div class="svc-actions">
               <button
                 class="svc-btn"
                 onclick={() => svcAct("start")}
                 disabled={svcPending || svcStatus === "started"}
-                title={svcStatus === "started" ? "Already running" : "Start service"}
+                title={svcStatus === "started" ? t("Already running", ui.locale) : t("Start service", ui.locale)}
               >
-                <Play size={14} /> Start
+                <Play size={14} /> {t("Start", ui.locale)}
               </button>
               <button
                 class="svc-btn"
                 onclick={() => svcAct("stop")}
                 disabled={svcPending || svcStatus === "stopped" || svcStatus === "none"}
-                title={svcStatus === "started" ? "Stop service" : "Not running"}
+                title={svcStatus === "started" ? t("Stop service", ui.locale) : t("Not running", ui.locale)}
               >
-                <Square size={14} /> Stop
+                <Square size={14} /> {t("Stop", ui.locale)}
               </button>
               <button
                 class="svc-btn"
                 onclick={() => svcAct("restart")}
                 disabled={svcPending}
-                title="Restart service"
+                title={t("Restart service", ui.locale)}
               >
-                <RotateCcw size={14} /> Restart
+                <RotateCcw size={14} /> {t("Restart", ui.locale)}
               </button>
             </div>
           </section>
@@ -1679,7 +1772,7 @@
 
         {#if detail.caveats}
           <section class="caveats">
-            <h3>Caveats</h3>
+            <h3>{t("Caveats", ui.locale)}</h3>
             <pre>{detail.caveats}</pre>
           </section>
         {/if}
@@ -1688,7 +1781,7 @@
           <section class="collapse">
             <button class="collapse-head" aria-expanded={depsOpen} onclick={() => (depsOpen = !depsOpen)}>
               {#if depsOpen}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
-              <span>Dependencies ({detail.dependencies.length})</span>
+              <span>{t("Dependencies", ui.locale)} ({detail.dependencies.length})</span>
             </button>
             {#if depsOpen}
               <ul class="deps">
@@ -1714,11 +1807,11 @@
           <section class="collapse">
             <button class="collapse-head" aria-expanded={reqByOpen} onclick={() => (reqByOpen = !reqByOpen)}>
               {#if reqByOpen}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
-              <span>Required by ({visibleDependents.length})</span>
+              <span>{t("Required by", ui.locale)} ({visibleDependents.length})</span>
               <InfoButton
-                title="About reverse dependencies"
-                body="Packages in the bundled catalog that list this one as a dependency. Computed offline by inverting the catalog graph — no network or brew calls. Build-only and opt-in (recommended/optional) edges are labelled; everything else is a required runtime dependency."
-                label="About reverse dependencies"
+                title={t("About reverse dependencies", ui.locale)}
+                body={t("detail.aboutReverseDependencies.body", ui.locale)}
+                label={t("About reverse dependencies", ui.locale)}
               />
             </button>
             {#if reqByOpen}
@@ -1730,7 +1823,7 @@
                       type="button"
                       class="dependent-link"
                       onclick={() => openDependent(dep)}
-                      title={`Open ${dep.name}`}
+                      title={ui.locale === "ru" ? `Открыть ${dep.name}` : `Open ${dep.name}`}
                     >
                       {dep.name}
                     </button>
@@ -1746,7 +1839,7 @@
           <section class="collapse">
             <button class="collapse-head" aria-expanded={dependentsOpen} onclick={() => (dependentsOpen = !dependentsOpen)}>
               {#if dependentsOpen}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
-              <span>Conflicts with ({detail.conflictsWith.length})</span>
+              <span>{t("Conflicts with", ui.locale)} ({detail.conflictsWith.length})</span>
             </button>
             {#if dependentsOpen}
               <ul class="deps">
@@ -1777,27 +1870,27 @@
       {#if isInstalled && isOutdated}
         <Button variant="primary" onclick={doUpgrade}>
           {#snippet icon()}<ArrowUpCircle size={16} />{/snippet}
-          Upgrade
+          {t("Upgrade", ui.locale)}
         </Button>
         <Button variant="danger" onclick={() => (confirmUninstall = true)}>
           {#snippet icon()}<Trash2 size={16} />{/snippet}
-          Uninstall
+          {t("Uninstall", ui.locale)}
         </Button>
       {:else if isInstalled}
         <Button variant="secondary" onclick={() => doInstall(false)}>
           {#snippet icon()}<RefreshCcw size={16} />{/snippet}
-          Reinstall
+          {t("detail.action.reinstall", ui.locale)}
         </Button>
         <Button variant="danger" onclick={() => (confirmUninstall = true)}>
           {#snippet icon()}<Trash2 size={16} />{/snippet}
-          Uninstall
+          {t("Uninstall", ui.locale)}
         </Button>
       {:else if pkg && caskOnLinux}
-        <p class="cask-unavailable">Casks require macOS — this package can't be installed on Linux.</p>
+        <p class="cask-unavailable">{t("detail.caskUnavailableLinux", ui.locale)}</p>
       {:else if pkg}
         <Button variant="primary" onclick={handleInstallClick}>
           {#snippet icon()}<Download size={16} />{/snippet}
-          Install
+          {t("Install", ui.locale)}
         </Button>
       {/if}
     </footer>
@@ -1805,18 +1898,22 @@
 
   <DestructiveConfirm
     open={confirmUninstall}
-    title={`Uninstall ${ui.selectedPackage.name}?`}
-    confirmLabel="Uninstall"
+    title={ui.locale === "ru" ? `Удалить ${ui.selectedPackage.name}?` : `Uninstall ${ui.selectedPackage.name}?`}
+    confirmLabel={t("Uninstall", ui.locale)}
     onCancel={() => (confirmUninstall = false)}
     onConfirm={doUninstall}
   >
-    <p>This will remove <strong>{ui.selectedPackage.name}</strong> from your system.</p>
+    {#if ui.locale === "ru"}
+      <p>Пакет <strong>{ui.selectedPackage.name}</strong> будет удалён из системы.</p>
+    {:else}
+      <p>This will remove <strong>{ui.selectedPackage.name}</strong> from your system.</p>
+    {/if}
   </DestructiveConfirm>
 
   <DestructiveConfirm
     open={confirmExternalInstall}
-    title={detail?.isMas ? "App Store Version Detected" : "Overwrite manual installation?"}
-    confirmLabel={detail?.isMas ? "Installation Blocked" : "Install & Override"}
+    title={detail?.isMas ? t("App Store Version Detected", ui.locale) : t("Overwrite manual installation?", ui.locale)}
+    confirmLabel={detail?.isMas ? t("Installation Blocked", ui.locale) : t("Install & Override", ui.locale)}
     confirmVariant="danger"
     confirmDisabled={detail?.isMas}
     onCancel={() => (confirmExternalInstall = false)}
@@ -1827,14 +1924,17 @@
   >
     {#if detail?.isMas}
       <div class="mas-warning-box">
-        <p>An existing version of <strong>{ui.selectedPackage?.name}</strong> was found in your Applications folder, but it was installed via the <strong>Mac App Store</strong>.</p>
-        <p>App Store bundles are system-protected, owned by different system permissions, and locked by macOS security policies. Overwriting them directly via Homebrew (which runs as a standard user) will always fail with permission errors.</p>
+        <p>{t("An existing App Store version was found in your Applications folder.", ui.locale)} <strong>{ui.selectedPackage?.name}</strong></p>
+        <p>{t("App Store bundles are system-protected and cannot be overwritten by Homebrew.", ui.locale)}</p>
         <div class="mas-instruction">
-          <strong>Resolution:</strong> Please drag <strong>{ui.selectedPackage?.name}.app</strong> from your <code>/Applications</code> folder to the Trash (macOS will prompt for your administrator password). Once the App Store version is deleted, return here to install it cleanly via Homebrew!
+          <strong>{ui.locale === "ru" ? "Решение:" : "Resolution:"}</strong>
+          {ui.locale === "ru"
+            ? " удалите из /Applications версию, установленную через App Store, затем установите приложение через Homebrew."
+            : ` ${t("Resolution: delete the App Store version from /Applications, then install it again via Homebrew.", ui.locale).replace(/^Resolution: /u, "")}`}
         </div>
       </div>
     {:else}
-      <p>An existing version of <strong>{ui.selectedPackage?.name}</strong> was found in your Applications folder. If you proceed, Homebrew will force-install and overwrite the existing bundle.</p>
+      <p>{t("An existing version was found in your Applications folder. If you proceed, Homebrew will force-install and overwrite the existing bundle.", ui.locale)} <strong>{ui.selectedPackage?.name}</strong></p>
     {/if}
   </DestructiveConfirm>
 
@@ -2647,12 +2747,5 @@
     margin-top: var(--space-3);
     color: var(--color-text-primary);
     font-size: var(--text-body-sm);
-  }
-  .mas-instruction code {
-    font-family: var(--font-mono);
-    font-size: var(--text-mono);
-    background: var(--color-surface);
-    padding: 1px 4px;
-    border-radius: var(--radius-sm);
   }
 </style>

@@ -148,6 +148,36 @@ private struct BundleFile: Decodable {
     let bundles: [Throwable<BrewBundle>]
 }
 
+/// Locale overlay for user-facing bundle prose. Mirrors the Tauri
+/// `bundles.ru.json` shape and leaves recipe IDs, package tokens, commands, and
+/// URLs untouched.
+private struct BundleLocaleFile: Decodable {
+    let locale: String?
+    let bundles: [BundleLocalePatch]
+}
+
+private struct BundleLocalePatch: Decodable {
+    let id: String
+    let name: String?
+    let tagline: String?
+    let description: String?
+    let capabilityNotes: [String: String]?
+    let setup: [SetupStepLocalePatch]?
+    let caveats: String?
+    let links: [BundleLinkLocalePatch]?
+}
+
+private struct SetupStepLocalePatch: Decodable {
+    let index: Int
+    let label: String?
+    let text: String?
+}
+
+private struct BundleLinkLocalePatch: Decodable {
+    let url: String
+    let label: String?
+}
+
 // MARK: - Loader
 
 /// Parses the bundled `bundles.json` into `[Bundle]`, tolerantly. A Sendable
@@ -164,12 +194,12 @@ public struct BundleCatalog: Sendable {
     /// Decode the bundled catalog. Returns `[]` if the resource is missing or
     /// the top-level JSON is malformed; individual malformed recipes are simply
     /// dropped so the remaining valid bundles still load. Preserves file order.
-    public func load() -> [BrewBundle] {
+    public func load(locale: String? = nil) -> [BrewBundle] {
         guard let url = Bundle.module.url(forResource: "bundles", withExtension: "json"),
               let data = try? Data(contentsOf: url) else {
             return []
         }
-        return Self.parse(data)
+        return Self.localized(Self.parse(data), locale: locale)
     }
 
     /// Decode bundles from raw JSON bytes (the testable core of `load()`).
@@ -195,6 +225,108 @@ public struct BundleCatalog: Sendable {
             return nil
         }
         return file.bundles.compactMap { try? $0.result.get() }
+    }
+
+    static func localized(_ bundles: [BrewBundle], locale: String?) -> [BrewBundle] {
+        let normalized = normalizeLocale(locale)
+        guard normalized == "ru",
+              let url = Bundle.module.url(forResource: "bundles.ru", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let overlay = try? JSONDecoder().decode(BundleLocaleFile.self, from: data),
+              normalizeLocale(overlay.locale) == normalized
+        else {
+            return bundles
+        }
+        return localized(bundles, locale: normalized, overlayData: data)
+    }
+
+    static func localized(_ bundles: [BrewBundle], locale: String?, overlayData data: Data) -> [BrewBundle] {
+        let normalized = normalizeLocale(locale)
+        guard normalized == "ru",
+              let overlay = try? JSONDecoder().decode(BundleLocaleFile.self, from: data),
+              normalizeLocale(overlay.locale) == normalized
+        else {
+            return bundles
+        }
+        var patches: [String: BundleLocalePatch] = [:]
+        for patch in overlay.bundles where !patch.id.isEmpty {
+            patches[patch.id] = patch
+        }
+        return bundles.map { bundle in
+            guard let patch = patches[bundle.id] else { return bundle }
+            return localized(bundle, with: patch)
+        }
+    }
+
+    private static func localized(_ bundle: BrewBundle, with patch: BundleLocalePatch) -> BrewBundle {
+        var notes = bundle.capabilityNotes ?? [:]
+        for (key, value) in patch.capabilityNotes ?? [:] where !key.isEmpty && !value.isEmpty {
+            notes[key] = value
+        }
+        let localizedSetup = localizedSetup(bundle.setup, patches: patch.setup ?? [])
+        let localizedLinks = localizedLinks(bundle.links, patches: patch.links ?? [])
+        return BrewBundle(
+            id: bundle.id,
+            name: patch.name.nonEmpty ?? bundle.name,
+            tagline: patch.tagline.nonEmpty ?? bundle.tagline,
+            description: patch.description.nonEmpty ?? bundle.description,
+            category: bundle.category,
+            icon: bundle.icon,
+            packages: bundle.packages,
+            tap: bundle.tap,
+            requires: bundle.requires,
+            capabilityNotes: notes,
+            setup: localizedSetup,
+            caveats: patch.caveats.nonEmpty ?? bundle.caveats,
+            links: localizedLinks,
+            maintainer: bundle.maintainer,
+            addedIn: bundle.addedIn
+        )
+    }
+
+    private static func localizedSetup(_ setup: [SetupStep]?, patches: [SetupStepLocalePatch]) -> [SetupStep]? {
+        guard var setup else { return nil }
+        for patch in patches where setup.indices.contains(patch.index) {
+            let old = setup[patch.index]
+            setup[patch.index] = SetupStep(
+                kind: old.kind,
+                service: old.service,
+                label: patch.label.nonEmpty ?? old.label,
+                url: old.url,
+                path: old.path,
+                run: old.run,
+                external: old.external,
+                text: patch.text.nonEmpty ?? old.text
+            )
+        }
+        return setup
+    }
+
+    private static func localizedLinks(_ links: [BundleLink]?, patches: [BundleLinkLocalePatch]) -> [BundleLink]? {
+        guard var links else { return nil }
+        for patch in patches {
+            guard let label = patch.label.nonEmpty,
+                  let idx = links.firstIndex(where: { $0.url == patch.url })
+            else { continue }
+            let old = links[idx]
+            links[idx] = BundleLink(label: label, url: old.url)
+        }
+        return links
+    }
+
+    fileprivate static func normalizeLocale(_ locale: String?) -> String {
+        guard let locale else { return "en" }
+        let lc = locale.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return lc == "ru" || lc.hasPrefix("ru-") || lc.hasPrefix("ru_") ? "ru" : "en"
+    }
+}
+
+private extension Optional where Wrapped == String {
+    var nonEmpty: String? {
+        guard let value = self?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+            return nil
+        }
+        return value
     }
 }
 
@@ -229,10 +361,15 @@ public actor BundleLiveService {
     /// failure (offline, 404 — the endpoint may not exist yet, network error,
     /// malformed JSON, or a newer-than-supported schema) so the caller keeps the
     /// bundled copy.
-    func fetchBundles() async -> [BrewBundle]? {
+    func fetchBundles(locale: String? = nil) async -> [BrewBundle]? {
         let url = baseURL.appendingPathComponent("bundles.json", isDirectory: false)
         guard let data = await fetchData(url) else { return nil }
-        return BundleCatalog.parseLive(data)
+        guard let bundles = BundleCatalog.parseLive(data) else { return nil }
+        let normalized = BundleCatalog.normalizeLocale(locale)
+        guard normalized != "en" else { return bundles }
+        let overlayURL = baseURL.appendingPathComponent("bundles.\(normalized).json", isDirectory: false)
+        guard let overlayData = await fetchData(overlayURL) else { return bundles }
+        return BundleCatalog.localized(bundles, locale: normalized, overlayData: overlayData)
     }
 
     private func fetchData(_ url: URL) async -> Data? {

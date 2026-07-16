@@ -23,6 +23,36 @@ A **bundle** is a curated one-click stack (packages) with post-install guidance,
    This also regenerates `bundles.json`. **Commit `bundles.json` along with your recipe.**
 4. **Open a PR.** The `Validate Recipes` CI check runs the same validator and posts a pass/fail table. Green = mergeable.
 
+## Localizing bundle prose
+Keep `recipes/*.json` and generated `bundles.json` as the stable source contract. Do **not** translate package tokens, formula/cask kinds, brew commands, URLs, ids, route/storage keys, model/provider/product names, or CLI flags there.
+
+Locale-specific user-facing prose lives in overlay files keyed by stable recipe ids:
+
+- Tauri/Rust: `src-tauri/data/bundles.<locale>.json`
+- Native SwiftUI: `native/Sources/BrewBrowserKit/Resources/bundles.<locale>.json`
+
+The overlay shape is:
+
+```json
+{
+  "locale": "ru",
+  "bundles": [{
+    "id": "local-llm",
+    "name": "…",
+    "tagline": "…",
+    "description": "…",
+    "capabilityNotes": { "16": "…" },
+    "setup": [{ "index": 0, "label": "…", "text": "…" }],
+    "caveats": "…",
+    "links": [{ "url": "https://docs.ollama.com", "label": "…" }]
+  }]
+}
+```
+
+Overlay patches are deliberately narrow: recipe `id` selects the bundle, setup `index` selects a setup step, and link `url` selects a link label. Unknown or missing overlay fields fall back to the source `bundles.json`. Live bundle refresh applies a locale overlay only when the same live host serves `bundles.<locale>.json`; otherwise it keeps the live recipe prose untouched rather than mixing newer recipes with stale bundled translations.
+
+When adding a new UI language, add the app UI messages in both shells (`src/lib/i18n/*` and native `Localizable.*`), add the bundle overlay resource to both builds, include the native resource in `native/Package.swift`, and run the normal Tauri/Rust/native checks.
+
 ## The rules CI enforces
 - Schema-valid; `id` unique + kebab-case.
 - Every package resolves via `brew info` to its declared `kind`; third-party taps declared.

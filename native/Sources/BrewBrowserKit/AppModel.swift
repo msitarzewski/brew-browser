@@ -15,6 +15,19 @@ enum Section: String, CaseIterable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
+    var localizedTitle: String {
+        switch self {
+        case .dashboard: return L10n.string("nav.dashboard")
+        case .library:   return L10n.string("nav.library")
+        case .discover:  return L10n.string("nav.discover")
+        case .trending:  return L10n.string("nav.trending")
+        case .snapshots: return L10n.string("nav.snapshots")
+        case .services:  return L10n.string("nav.services")
+        case .activity:  return L10n.string("nav.activity")
+        case .bundles:   return L10n.string("nav.bundles")
+        }
+    }
+
     /// SF Symbol for the sidebar row — all system symbols, no custom assets.
     var symbol: String {
         switch self {
@@ -46,6 +59,19 @@ enum LibraryFilter: String, CaseIterable, Identifiable, Hashable {
     case vulnerable = "Vulnerable"
 
     var id: String { rawValue }
+
+    var localizedTitle: String {
+        switch self {
+        case .all:        return L10n.string("filter.all")
+        case .formulae:   return L10n.string("package.kind.formulae")
+        case .casks:      return L10n.string("package.kind.casks")
+        case .outdated:   return L10n.string("filter.outdated")
+        case .pinned:     return L10n.string("package.pinned")
+        case .manual:     return L10n.string("filter.manual")
+        case .dependency: return L10n.string("filter.dependency")
+        case .vulnerable: return L10n.string("filter.vulnerable")
+        }
+    }
 }
 
 /// A flattened Library table row. Built in `AppModel.libraryRows` so the
@@ -334,9 +360,7 @@ public final class AppModel {
     /// flash empty.
     var catalogDaysOldLabel: String {
         guard let s = catalogSummary else { return "—" }
-        if s.daysOld <= 0 { return "today" }
-        if s.daysOld == 1 { return "1 day old" }
-        return "\(s.daysOld) days old"
+        return L10n.catalogAge(days: s.daysOld)
     }
 
     /// Discover rows: catalog filtered by category + the shared search field,
@@ -362,9 +386,9 @@ public final class AppModel {
                                                     slug: cat, subgroupKey: subKey) ?? false) {
                 return nil
             }
+            let searchEntry = enrichmentEntry(for: pkg.token)
             if !q.isEmpty,
-               !pkg.token.localizedCaseInsensitiveContains(q),
-               !pkg.displayName.localizedCaseInsensitiveContains(q) {
+               !catalogPackageMatches(pkg, query: q, entry: searchEntry) {
                 return nil
             }
             let entry = showSummary ? enrichmentEntry(for: pkg.token) : nil
@@ -397,7 +421,7 @@ public final class AppModel {
         if bundledDataLoaded { return }
         bundledDataLoaded = true
         let (cat, enr, bnd) = await Task.detached(priority: .userInitiated) {
-            (CategoryCatalog.loadBundled(), EnrichmentCatalog.loadBundled(), BundleCatalog().load())
+            (CategoryCatalog.loadBundled(), EnrichmentCatalog.loadBundled(locale: L10n.activeLanguage), BundleCatalog().load(locale: L10n.activeLanguage))
         }.value
         categoryCatalog = cat
         enrichment = enr
@@ -422,7 +446,7 @@ public final class AppModel {
     /// `settings.liveBundlesAllowed` (opt-in + network).
     func refreshLiveBundles() async {
         guard settings.liveBundlesAllowed else { return }
-        if let live = await bundleLive.fetchBundles(), !live.isEmpty {
+        if let live = await bundleLive.fetchBundles(locale: L10n.activeLanguage), !live.isEmpty {
             bundles = live
         }
     }
@@ -463,7 +487,7 @@ public final class AppModel {
     func refreshCatalogFromBrewSh() async {
         guard !catalogRefreshing else { return }
         guard settings.networkAllowed("catalog_refresh") else {
-            catalogRefreshError = "Offline mode is on — catalog refresh is blocked. Disable it in Settings → Network."
+            catalogRefreshError = L10n.string("catalog.refresh.offlineBlocked")
             return
         }
         catalogRefreshing = true
@@ -813,9 +837,7 @@ public final class AppModel {
         return Array(
             catalog
                 .lazy
-                .filter {
-                    $0.token.lowercased().contains(q) || $0.displayName.lowercased().contains(q)
-                }
+                .filter { self.catalogPackageMatches($0, query: q, entry: self.enrichmentEntry(for: $0.token)) }
                 .filter { !installedNames.contains($0.token.lowercased()) }
                 .prefix(10)
         )
@@ -1253,7 +1275,7 @@ public final class AppModel {
     /// the Tauri `env.shortLabel` (`env.svelte.ts:37-42`).
     var brewShortLabel: String {
         switch brewHealth {
-        case .missing: return "brew not found"
+        case .missing: return L10n.string("brew.status.notFound")
         case .unknown: return "brew"
         default:       return brewVersion == "—" ? "brew" : "brew \(brewVersion)"
         }
@@ -1264,13 +1286,13 @@ public final class AppModel {
     var brewStatusTooltip: String {
         var base: String
         switch brewHealth {
-        case .unknown: base = "Checking Homebrew…"
-        case .missing: base = "Homebrew not found on PATH."
-        default:       base = "Homebrew \(brewVersion) · prefix \(brewPrefix)"
+        case .unknown: base = L10n.string("brew.status.checking")
+        case .missing: base = L10n.string("brew.status.notFoundOnPath")
+        default:       base = String(format: L10n.string("brew.status.ready.format"), brewVersion, brewPrefix)
         }
         let running = jobs.filter { $0.status == .running }.count
         if running > 0 {
-            base += "\n\(running) brew operation\(running == 1 ? "" : "s") running"
+            base += "\n\(L10n.brewOperationsRunning(running))"
         }
         return base
     }
@@ -1605,15 +1627,59 @@ public final class AppModel {
 
     // MARK: - Live enrichment overlay (opt-in)
 
-    /// Enrichment for a token, with the live overlay preferred over the bundled
-    /// catalog (mirrors the Tauri enrichment store's `lookup`).
+    /// Enrichment for a token. In English, live enrichment wins over bundled
+    /// data. In localized UI, localized bundled prose wins while live data can
+    /// still fill technical fallback fields (mirrors the Tauri store).
     func enrichmentEntry(for token: String) -> EnrichmentEntry? {
-        if let hit = liveEnrichment[token] ?? enrichment?.entry(for: token) { return hit }
+        if let hit = preferredEnrichment(
+            live: liveEnrichment[token],
+            bundled: enrichment?.entry(for: token)
+        ) { return hit }
         // Tap-qualified token (`user/tap/name`) → retry under the bare name the
         // enrichment is keyed by.
         let bare = Self.bareToken(token)
         guard bare != token else { return nil }
-        return liveEnrichment[bare] ?? enrichment?.entry(for: bare)
+        return preferredEnrichment(
+            live: liveEnrichment[bare],
+            bundled: enrichment?.entry(for: bare)
+        )
+    }
+
+    private func preferredEnrichment(
+        live: EnrichmentEntry?,
+        bundled: EnrichmentEntry?
+    ) -> EnrichmentEntry? {
+        guard L10n.isRussian, let bundled else { return live ?? bundled }
+        guard let live else { return bundled }
+        return bundled.localized(over: live)
+    }
+
+    private func catalogPackageMatches(
+        _ pkg: CatalogPackage,
+        query: String,
+        entry: EnrichmentEntry?
+    ) -> Bool {
+        let fields: [String?] = [
+            pkg.token,
+            pkg.displayName,
+            pkg.desc,
+            entry?.friendlyName,
+            entry?.summary,
+        ]
+        if fields.contains(where: { $0?.localizedCaseInsensitiveContains(query) == true }) {
+            return true
+        }
+        if entry?.searchTerms.contains(where: { $0.localizedCaseInsensitiveContains(query) }) == true {
+            return true
+        }
+        if entry?.tags.contains(where: { $0.localizedCaseInsensitiveContains(query) }) == true {
+            return true
+        }
+        let labels = categoryCatalog?.categoryLabels(for: pkg.token, kind: pkg.kind) ?? []
+        return labels.contains {
+            $0.localizedCaseInsensitiveContains(query)
+                || L10n.display($0).localizedCaseInsensitiveContains(query)
+        }
     }
 
     /// Fetch a token's live enrichment on demand and overlay it. Deduped +
@@ -1727,9 +1793,9 @@ public final class AppModel {
     /// the Tauri scope-required toast (`PackageDetail.svelte:528-540`).
     private func requireScope(_ scope: String, action: String) -> Bool {
         if githubStatus?.scopes.contains(scope) ?? false { return true }
-        pushToast(.error, "\(action) needs more access",
-                  "Needs the \"\(scope)\" GitHub permission. Click to grant it without signing out.",
-                  action: ToastAction(label: "Re-authorize") { [weak self] in
+        pushToast(.error, String(format: L10n.string("github.scopeRequired.title.format"), L10n.githubAction(action)),
+                  String(format: L10n.string("github.scopeRequired.body.format"), scope),
+                  action: ToastAction(label: L10n.string("Re-authorize")) { [weak self] in
                       Task { await self?.reauthorizeGitHub() }
                   })
         return false
@@ -1974,11 +2040,11 @@ public final class AppModel {
         guard let pkg = detailPackage else { return }
         do {
             try await brew.setPinned(pkg.name, kind: pkg.kind, pinned: pinned)
-            pushToast(.success, pinned ? "Pinned \(pkg.name)" : "Unpinned \(pkg.name)")
+            pushToast(.success, L10n.pinToast(pkg.name, pinned: pinned))
             await refresh()
             if let pkg = detailPackage { await loadDetail(pkg) }
         } catch {
-            pushToast(.error, pinned ? "Pin failed" : "Unpin failed", error.localizedDescription)
+            pushToast(.error, L10n.pinFailedTitle(pinned: pinned), error.localizedDescription)
         }
     }
 
@@ -2220,7 +2286,7 @@ public final class AppModel {
     private func recordFailedServiceJob(_ verb: ServiceVerb, name: String, error: Error) {
         let job = ActivityJob(
             id: UUID(),
-            label: "\(verb.verbLabel) \(name) failed",
+            label: "\(verb.verbLabel) \(name)",
             command: "brew services \(verb.rawValue) \(name)",
             startedAt: Date().timeIntervalSince1970,
             status: .failed,
@@ -2340,10 +2406,7 @@ public final class AppModel {
     }
 
     static func failureNoticeTitle(for label: String) -> String {
-        if label.hasPrefix("Upgrading ") { return "Upgrade failed" }
-        if label.hasPrefix("Installing ") { return "Install failed" }
-        if label.hasPrefix("Uninstalling ") { return "Uninstall failed" }
-        return "\(label) failed"
+        L10n.activityFailureTitle(for: label)
     }
 
     /// True when a failed job is a genuine brew-browser problem (worth a

@@ -1,10 +1,13 @@
 //! Bundled LLM-derived enrichment (Phase 13).
 //!
-//! The enrichment file is the offline output of `tools/enrich/enrich.py` —
-//! per-token friendly names, expanded summaries, use-case bullets,
-//! similar-package suggestions, and tech-stack tags. It ships embedded
-//! in the binary via `include_bytes!`; **there is no runtime LLM
-//! request**, and there is no on-disk user-data path for v1.
+//! The base enrichment file is the offline output of
+//! `tools/enrich/enrich.py` — per-token friendly names, expanded
+//! summaries, use-case bullets, similar-package suggestions, and
+//! tech-stack tags. Locale-specific overlays, when present, are small
+//! partial files keyed by the same Homebrew tokens; they replace only
+//! user-facing prose and add locale search terms. Everything ships
+//! embedded in the binary via `include_bytes!`; **there is no runtime
+//! LLM request**, and there is no on-disk user-data path for v1.
 //!
 //! ## Security caps (mirrors the Phase 12a catalog pattern)
 //!
@@ -69,12 +72,25 @@ pub const MAX_TAGS_COUNT: usize = 12;
 /// Per-tag cap. Tags are normalised to `[a-z0-9-]`; we cap length at 30.
 pub const MAX_TAG_LEN: usize = 30;
 
+/// Per localized search term cap. These are not displayed as tags; they
+/// exist only so locale-aware search can match natural-language queries
+/// without changing package IDs or upstream Homebrew descriptions.
+pub const MAX_SEARCH_TERM_LEN: usize = 60;
+
+/// Max localized search terms per package.
+pub const MAX_SEARCH_TERMS_COUNT: usize = 16;
+
 // ---------- Bundled artifact ----------
 
 /// Bundled gzipped enrichment payload (produced by `tools/enrich/enrich.py`).
 /// Ships as a placeholder (empty entries map) when enrichment hasn't been
 /// run yet — the bundle still works, the UI just renders no enriched data.
 const ENRICHMENT_JSON_GZ: &[u8] = include_bytes!("../../data/enrichment.json.gz");
+
+/// Partial Russian overlay. Future locales should follow the same
+/// `enrichment.<locale>.json.gz` schema and be routed through
+/// [`localized_overlay_bytes`].
+const ENRICHMENT_RU_JSON_GZ: &[u8] = include_bytes!("../../data/enrichment.ru.json.gz");
 
 // ---------- Types ----------
 
@@ -105,6 +121,12 @@ pub struct EnrichmentEntry {
 
     /// Tech-stack tags (3-8, capped at 12). Lowercase + hyphenated.
     pub tags: Vec<String>,
+
+    /// Locale-specific search terms. Not shown in the UI; used by
+    /// `local_search` so translated summaries and domain words can be
+    /// searched alongside stable package names and English fallbacks.
+    #[serde(alias = "search_terms", default, skip_serializing_if = "Vec::is_empty")]
+    pub search_terms: Vec<String>,
 }
 
 /// Full enrichment payload, parsed once from the bundled `.gz` and
@@ -119,6 +141,21 @@ pub struct EnrichmentData {
     pub model: String,
     /// Which tiers have been baked in. Possible values: `"A"`, `"B"`.
     pub tiers: Vec<String>,
+    pub entries: HashMap<String, EnrichmentEntry>,
+}
+
+/// Locale-specific partial overlay. This intentionally does not replace
+/// the base bundle: it is merged over the base for one locale, field by
+/// field, with English fallback preserved for missing translated fields.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct EnrichmentLocaleOverlay {
+    pub locale: String,
+    pub version: String,
+    #[serde(alias = "generated_at")]
+    pub generated_at: String,
+    #[serde(alias = "base_version", skip_serializing_if = "Option::is_none")]
+    pub base_version: Option<String>,
     pub entries: HashMap<String, EnrichmentEntry>,
 }
 
@@ -155,6 +192,25 @@ impl EnrichmentData {
         Ok(Arc::new(data))
     }
 
+    /// Return a localized copy of a parsed base bundle. Unknown locales
+    /// intentionally return the base data unchanged, which makes adding a
+    /// locale opt-in and keeps package identifiers/search fallbacks stable.
+    pub fn localized(
+        base: &EnrichmentData,
+        locale: Option<&str>,
+    ) -> Result<EnrichmentData, BrewError> {
+        let normalized = normalize_locale(locale);
+        if normalized == "en" {
+            return Ok(base.clone());
+        }
+
+        let Some(bytes) = localized_overlay_bytes(normalized) else {
+            return Ok(base.clone());
+        };
+        let overlay = load_locale_overlay(bytes, normalized)?;
+        Ok(apply_locale_overlay(base, &overlay))
+    }
+
     /// Construct an empty enrichment payload — used by callers that want
     /// to short-circuit when enrichment is disabled / unavailable. Same
     /// shape the placeholder bundle deserializes to.
@@ -172,6 +228,19 @@ impl EnrichmentData {
             tiers: Vec::new(),
             entries: HashMap::new(),
         }
+    }
+}
+
+/// Normalize a BCP-47-ish UI locale to the enrichment overlay bucket we
+/// support today. This keeps `ru`, `ru-RU`, and future regional Russian
+/// variants pointed at the same compact overlay.
+pub fn normalize_locale(locale: Option<&str>) -> &'static str {
+    let Some(locale) = locale else { return "en" };
+    let lc = locale.trim().to_ascii_lowercase();
+    if lc == "ru" || lc.starts_with("ru-") || lc.starts_with("ru_") {
+        "ru"
+    } else {
+        "en"
     }
 }
 
@@ -202,38 +271,130 @@ fn decompress_capped(bytes: &[u8], context: &str) -> Result<Vec<u8>, BrewError> 
 /// rest of the bundle.
 fn validate_and_truncate(data: &mut EnrichmentData) {
     for entry in data.entries.values_mut() {
-        if let Some(name) = entry.friendly_name.as_mut() {
-            truncate_utf8(name, MAX_FRIENDLY_NAME_LEN);
-        }
-        if let Some(sum) = entry.summary.as_mut() {
-            truncate_utf8(sum, MAX_SUMMARY_LEN);
-        }
-        // Truncate count first, then each entry's length.
-        entry.use_cases.truncate(MAX_USE_CASES_COUNT);
-        for uc in entry.use_cases.iter_mut() {
-            truncate_utf8(uc, MAX_USE_CASE_LEN);
-        }
-        // `similar` — drop any token that fails the package-name
-        // validator (defense against LLM hallucination + a future
-        // swapped bundle smuggling bogus tokens).
-        entry.similar.retain(|t| validate_package_name(t).is_ok());
-        entry.similar.truncate(MAX_SIMILAR_COUNT);
-
-        entry.tags.truncate(MAX_TAGS_COUNT);
-        for t in entry.tags.iter_mut() {
-            truncate_utf8(t, MAX_TAG_LEN);
-            // Defense-in-depth: tags must be `[a-z0-9-]`. Drop the
-            // entry if it isn't — empty result is fine, the field just
-            // disappears from the UI.
-            if !t
-                .bytes()
-                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
-            {
-                t.clear();
-            }
-        }
-        entry.tags.retain(|t| !t.is_empty());
+        validate_and_truncate_entry(entry);
     }
+}
+
+fn validate_and_truncate_entry(entry: &mut EnrichmentEntry) {
+    if let Some(name) = entry.friendly_name.as_mut() {
+        truncate_utf8(name, MAX_FRIENDLY_NAME_LEN);
+    }
+    if let Some(sum) = entry.summary.as_mut() {
+        truncate_utf8(sum, MAX_SUMMARY_LEN);
+    }
+    // Truncate count first, then each entry's length.
+    entry.use_cases.truncate(MAX_USE_CASES_COUNT);
+    for uc in entry.use_cases.iter_mut() {
+        truncate_utf8(uc, MAX_USE_CASE_LEN);
+    }
+    // `similar` — drop any token that fails the package-name validator
+    // (defense against LLM hallucination + a future swapped bundle
+    // smuggling bogus tokens).
+    entry.similar.retain(|t| validate_package_name(t).is_ok());
+    entry.similar.truncate(MAX_SIMILAR_COUNT);
+
+    entry.tags.truncate(MAX_TAGS_COUNT);
+    for t in entry.tags.iter_mut() {
+        truncate_utf8(t, MAX_TAG_LEN);
+        // Defense-in-depth: tags must be `[a-z0-9-]`. Drop the entry if
+        // it isn't — empty result is fine, the field just disappears
+        // from the UI.
+        if !t
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+        {
+            t.clear();
+        }
+    }
+    entry.tags.retain(|t| !t.is_empty());
+
+    entry.search_terms.truncate(MAX_SEARCH_TERMS_COUNT);
+    for term in entry.search_terms.iter_mut() {
+        truncate_utf8(term, MAX_SEARCH_TERM_LEN);
+    }
+    entry.search_terms.retain(|term| !term.trim().is_empty());
+}
+
+fn localized_overlay_bytes(locale: &str) -> Option<&'static [u8]> {
+    match locale {
+        "ru" => Some(ENRICHMENT_RU_JSON_GZ),
+        _ => None,
+    }
+}
+
+fn load_locale_overlay(bytes: &[u8], locale: &str) -> Result<EnrichmentLocaleOverlay, BrewError> {
+    if bytes.len() > MAX_RAW_BYTES {
+        return Err(BrewError::Io {
+            message: format!(
+                "bundled enrichment.{locale}.json.gz is {} bytes, exceeds {} byte cap",
+                bytes.len(),
+                MAX_RAW_BYTES
+            ),
+        });
+    }
+
+    let decoded = decompress_capped(bytes, &format!("bundled enrichment.{locale}.json.gz"))?;
+    let mut overlay: EnrichmentLocaleOverlay =
+        serde_json::from_slice(&decoded).map_err(|e| BrewError::Internal {
+            message: format!("enrichment.{locale}.json.gz parse failed: {e}"),
+        })?;
+    let declared = normalize_locale(Some(&overlay.locale));
+    if !overlay.locale.trim().is_empty() && declared != locale {
+        return Err(BrewError::Internal {
+            message: format!(
+                "enrichment.{locale}.json.gz declares locale {:?}, expected {locale}",
+                overlay.locale
+            ),
+        });
+    }
+
+    for entry in overlay.entries.values_mut() {
+        validate_and_truncate_entry(entry);
+    }
+    Ok(overlay)
+}
+
+fn apply_locale_overlay(
+    base: &EnrichmentData,
+    overlay: &EnrichmentLocaleOverlay,
+) -> EnrichmentData {
+    let mut localized = base.clone();
+    localized.version = if overlay.version.is_empty() {
+        base.version.clone()
+    } else {
+        format!("{}+{}", base.version, overlay.version)
+    };
+    localized.generated_at = if overlay.generated_at.is_empty() {
+        base.generated_at.clone()
+    } else {
+        overlay.generated_at.clone()
+    };
+
+    for (token, patch) in &overlay.entries {
+        let entry = localized.entries.entry(token.clone()).or_default();
+        if let Some(value) = patch
+            .friendly_name
+            .as_ref()
+            .filter(|v| !v.trim().is_empty())
+        {
+            entry.friendly_name = Some(value.clone());
+        }
+        if let Some(value) = patch.summary.as_ref().filter(|v| !v.trim().is_empty()) {
+            entry.summary = Some(value.clone());
+        }
+        if !patch.use_cases.is_empty() {
+            entry.use_cases = patch.use_cases.clone();
+        }
+        if !patch.search_terms.is_empty() {
+            entry.search_terms = patch.search_terms.clone();
+        }
+        // `similar` and `tags` are intentionally not localized here:
+        // `similar` carries stable Homebrew tokens and `tags` are compact
+        // technical labels. Locale search vocabulary belongs in
+        // `search_terms`.
+    }
+
+    localized
 }
 
 /// In-place UTF-8-safe truncate. Walks back to the previous char
@@ -393,6 +554,105 @@ mod tests {
     }
 
     #[test]
+    fn validate_caps_search_terms_but_keeps_unicode() {
+        let mut data = EnrichmentData::empty();
+        let too_many: Vec<String> = (0..30)
+            .map(|i| {
+                if i == 0 {
+                    "русский поисковый термин".to_string()
+                } else {
+                    "x".repeat(MAX_SEARCH_TERM_LEN + 20)
+                }
+            })
+            .collect();
+        data.entries.insert(
+            "localized".into(),
+            EnrichmentEntry {
+                search_terms: too_many,
+                ..Default::default()
+            },
+        );
+        validate_and_truncate(&mut data);
+        let terms = &data.entries["localized"].search_terms;
+        assert_eq!(terms.len(), MAX_SEARCH_TERMS_COUNT);
+        assert_eq!(terms[0], "русский поисковый термин");
+        for term in terms {
+            assert!(term.len() <= MAX_SEARCH_TERM_LEN);
+        }
+    }
+
+    #[test]
+    fn locale_overlay_replaces_prose_and_preserves_stable_fields() {
+        let mut base = EnrichmentData::empty();
+        base.version = "base".into();
+        base.generated_at = "2026-01-01T00:00:00Z".into();
+        base.entries.insert(
+            "wget".into(),
+            EnrichmentEntry {
+                friendly_name: Some("Wget".into()),
+                summary: Some("Download files from the web.".into()),
+                use_cases: vec!["Mirror a website".into()],
+                similar: vec!["curl".into()],
+                tags: vec!["network".into()],
+                search_terms: vec!["download".into()],
+            },
+        );
+        let mut overlay = EnrichmentLocaleOverlay {
+            locale: "ru".into(),
+            version: "ru-1".into(),
+            generated_at: "2026-01-02T00:00:00Z".into(),
+            ..Default::default()
+        };
+        overlay.entries.insert(
+            "wget".into(),
+            EnrichmentEntry {
+                summary: Some("Загружает файлы по HTTP, HTTPS и FTP.".into()),
+                use_cases: vec!["Скачать архив из скрипта".into()],
+                search_terms: vec!["скачать".into(), "загрузка".into()],
+                similar: vec!["not-localized".into()],
+                tags: vec!["не-тег".into()],
+                ..Default::default()
+            },
+        );
+
+        let localized = apply_locale_overlay(&base, &overlay);
+        let entry = &localized.entries["wget"];
+        assert_eq!(localized.version, "base+ru-1");
+        assert_eq!(localized.generated_at, "2026-01-02T00:00:00Z");
+        assert_eq!(entry.friendly_name.as_deref(), Some("Wget"));
+        assert_eq!(
+            entry.summary.as_deref(),
+            Some("Загружает файлы по HTTP, HTTPS и FTP.")
+        );
+        assert_eq!(entry.use_cases, vec!["Скачать архив из скрипта"]);
+        assert_eq!(entry.search_terms, vec!["скачать", "загрузка"]);
+        assert_eq!(entry.similar, vec!["curl"]);
+        assert_eq!(entry.tags, vec!["network"]);
+    }
+
+    #[test]
+    fn bundled_ru_overlay_applies_to_seed_entry() {
+        let base = EnrichmentData::load().expect("load base bundle");
+        let localized = EnrichmentData::localized(&base, Some("ru-RU")).expect("merge ru overlay");
+        let entry = localized
+            .entries
+            .get("wget")
+            .expect("ru seed should include wget");
+        assert!(
+            entry
+                .summary
+                .as_deref()
+                .unwrap_or_default()
+                .contains("загруз"),
+            "expected Russian wget summary"
+        );
+        assert!(
+            entry.search_terms.iter().any(|term| term == "скачать"),
+            "expected Russian search term"
+        );
+    }
+
+    #[test]
     fn decompress_capped_rejects_oversize() {
         // Synthesize a gzip stream that decompresses to ~ MAX_DECOMPRESSED_BYTES + 1.
         // Use Vec<u8> filled with zeros — compresses tiny but expands large.
@@ -435,6 +695,7 @@ mod tests {
             use_cases: vec!["Run a local db".into()],
             similar: vec!["mariadb".into()],
             tags: vec!["database".into(), "sql".into()],
+            search_terms: vec!["postgres".into()],
         };
         let json = serde_json::to_string(&e).expect("serialize");
         // Camel-case rename rules.
@@ -450,11 +711,13 @@ mod tests {
             "summary": "Database.",
             "use_cases": ["Run a local db"],
             "similar": ["mariadb"],
-            "tags": ["database", "sql"]
+            "tags": ["database", "sql"],
+            "search_terms": ["postgres"]
         }"#;
         let from_snake: EnrichmentEntry = serde_json::from_str(snake).expect("snake parse");
         assert_eq!(from_snake.friendly_name.as_deref(), Some("PostgreSQL 14"));
         assert_eq!(from_snake.use_cases, vec!["Run a local db".to_string()]);
+        assert_eq!(from_snake.search_terms, vec!["postgres".to_string()]);
 
         // Erase to remove a field and verify Option re-serialization
         // skips when None.

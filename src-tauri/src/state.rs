@@ -114,6 +114,11 @@ pub struct AppState {
     /// this is purely a decode+parse cache.
     pub enrichment_cache: Arc<Mutex<Option<Arc<EnrichmentData>>>>,
 
+    /// Locale-specific enrichment copies, memoised after merging a small
+    /// `enrichment.<locale>.json.gz` overlay over the base bundle. The
+    /// base cache above remains canonical and untouched.
+    pub enrichment_locale_cache: Arc<Mutex<HashMap<String, Arc<EnrichmentData>>>>,
+
     /// Disk-usage report cache. Filled by `disk_usage`, invalidated by
     /// `disk_usage_clear_cache`. TTL is checked inside the command itself
     /// (60 s) so concurrent callers don't double-spawn `du` on each other.
@@ -228,6 +233,7 @@ impl AppState {
             installed_cache: RwLock::new(None),
             categories_cache: Arc::new(Mutex::new(None)),
             enrichment_cache: Arc::new(Mutex::new(None)),
+            enrichment_locale_cache: Arc::new(Mutex::new(HashMap::new())),
             disk_usage_cache: Arc::new(Mutex::new(None)),
             services_cache: Arc::new(Mutex::new(None)),
             catalog: RwLock::new(Arc::new(bundled)),

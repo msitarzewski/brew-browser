@@ -33,9 +33,9 @@ enum AppTheme: String, CaseIterable, Sendable {
     /// Capitalized, human-readable label for menus / pickers.
     var label: String {
         switch self {
-        case .light: return "Light"
-        case .dark: return "Dark"
-        case .system: return "System"
+        case .light: return L10n.string("theme.light")
+        case .dark: return L10n.string("theme.dark")
+        case .system: return L10n.string("theme.system")
         }
     }
 }
@@ -53,7 +53,15 @@ enum LandingSection: String, CaseIterable, Sendable {
 
     /// Capitalized, human-readable label (e.g. "Dashboard").
     var label: String {
-        rawValue.capitalized
+        switch self {
+        case .dashboard: return L10n.string("nav.dashboard")
+        case .library: return L10n.string("nav.library")
+        case .discover: return L10n.string("nav.discover")
+        case .trending: return L10n.string("nav.trending")
+        case .snapshots: return L10n.string("nav.snapshots")
+        case .services: return L10n.string("nav.services")
+        case .activity: return L10n.string("nav.activity")
+        }
     }
 }
 

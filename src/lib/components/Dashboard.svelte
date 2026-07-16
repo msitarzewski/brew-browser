@@ -38,6 +38,7 @@
   import { reportableToastError } from "$lib/util/reportIssue";
   import { isLinux, isMac } from "$lib/util/platform";
   import { fmtBytes } from "$lib/util/format";
+  import { formatCatalogSource, formatPackageKind, t, ruPlural } from "$lib/i18n/messages";
 
   let disk = $state<DiskUsageReport | null>(null);
   let diskLoading = $state(false);
@@ -68,7 +69,7 @@
     try {
       disk = await diskUsage();
     } catch (e) {
-      diskError = `Disk probe failed: ${isBrewError(e) ? brewErrorMessage(e) : String(e)}`;
+      diskError = t("storage.diskProbeFailed", ui.locale, { error: isBrewError(e) ? brewErrorMessage(e, ui.locale) : String(e) });
     } finally {
       diskLoading = false;
     }
@@ -103,7 +104,7 @@
       // the advisory text is in the Activity log, which is the whole point.
       await streamJob("Running brew doctor", "brew doctor", brewDoctorStream);
     } catch (e) {
-      reportableToastError("brew doctor failed to run", e);
+      reportableToastError(t("dashboard.doctor.failedToRun", ui.locale), e);
     } finally {
       doctorRunning = false;
     }
@@ -190,7 +191,7 @@
         activity.handleEvent(evt);
       });
       if (!updateResult.success) {
-        toast.error("brew update finished with errors", "See the Activity drawer.");
+        toast.error(t("dashboard.refresh.brewUpdateFailed", ui.locale), t("activity.drawer.show", ui.locale));
         return;
       }
 
@@ -198,7 +199,7 @@
       const ok = await catalog.refresh();
       if (!ok) {
         if (catalog.refreshError) {
-          toast.error("Catalog refresh failed", catalog.refreshError);
+          toast.error(t("dashboard.refresh.catalogFailed", ui.locale), catalog.refreshError);
         }
         return;
       }
@@ -223,9 +224,9 @@
       void categories.refreshLiveIfNewer();
       enrichment.resetLive();
 
-      toast.success("Refreshed", "brew taps + catalog + installed list all current");
+      toast.success(t("dashboard.refresh.successTitle", ui.locale), t("dashboard.refresh.successBody", ui.locale));
     } catch (e) {
-      reportableToastError("Refresh failed", e);
+      reportableToastError(t("dashboard.refresh.failed", ui.locale), e);
     } finally {
       refreshing = false;
     }
@@ -335,7 +336,80 @@
   }
 
   function fmt(n: number): string {
-    return n.toLocaleString();
+    return n.toLocaleString(ui.locale === "ru" ? "ru-RU" : undefined);
+  }
+
+  function storageLabel(label: string): string {
+    switch (label) {
+      case "Formulae (Cellar)": return t("Formulae (Cellar)", ui.locale);
+      case "Casks (Caskroom)": return t("Casks (Caskroom)", ui.locale);
+      case "Logs (var/log)": return t("Logs (var/log)", ui.locale);
+      case "Download cache": return t("Download cache", ui.locale);
+      default:
+        return label;
+    }
+  }
+
+  function formulaeLabel(count: number): string {
+    return ui.locale === "ru"
+      ? ruPlural(count, "формула", "формулы", "формул")
+      : "formulae";
+  }
+
+  function casksLabel(count: number): string {
+    return ui.locale === "ru"
+      ? ruPlural(count, "cask-пакет", "cask-пакета", "cask-пакетов")
+      : "casks";
+  }
+
+  function compositionAria(): string {
+    return ui.locale === "ru"
+      ? `${fmt(counts.formulae)} ${formulaeLabel(counts.formulae)} и ${fmt(counts.casks)} ${casksLabel(counts.casks)}`
+      : `${counts.formulae} formulae and ${counts.casks} casks`;
+  }
+
+  function onRequestLabel(count: number): string {
+    return ui.locale === "ru"
+      ? `${fmt(count)} ${ruPlural(count, "вручную", "вручную", "вручную")}`
+      : `${fmt(count)} on request`;
+  }
+
+  function dependencyLabel(count: number): string {
+    return ui.locale === "ru"
+      ? `${fmt(count)} ${ruPlural(count, "как зависимость", "как зависимости", "как зависимостей")}`
+      : `${fmt(count)} as dependency`;
+  }
+
+  function pinnedLabel(count: number): string {
+    return ui.locale === "ru"
+      ? `${fmt(count)} ${ruPlural(count, "закреплённый", "закреплённых", "закреплённых")}`
+      : `${fmt(count)} pinned`;
+  }
+
+  function discoverCategoryTitle(label: string, isOther: boolean): string {
+    if (ui.locale === "ru") return isOther ? "Открыть всё в Каталоге" : `Открыть «${label}» в Каталоге`;
+    return isOther ? "Browse all in Discover" : `Browse ${label} in Discover`;
+  }
+
+  function severityLabel(count: number, severity: "critical" | "high" | "medium" | "low" | "unknown"): string {
+    if (ui.locale !== "ru") return severity;
+    switch (severity) {
+      case "critical": return ruPlural(count, "критическая", "критические", "критических");
+      case "high": return ruPlural(count, "высокая", "высокие", "высоких");
+      case "medium": return ruPlural(count, "средняя", "средние", "средних");
+      case "low": return ruPlural(count, "низкая", "низкие", "низких");
+      case "unknown": return ruPlural(count, "неизвестная", "неизвестные", "неизвестных");
+    }
+  }
+
+  function exposureSummaryText(): string {
+    const source = exposureSource ? (ui.locale === "ru" ? ` · источник: ${exposureSource}` : ` · source: ${exposureSource}`) : "";
+    if (ui.locale === "ru") {
+      const finding = ruPlural(exposureCounts.total, "находка", "находки", "находок");
+      const pkg = ruPlural(counts.total, "установленного пакета", "установленных пакетов", "установленных пакетов");
+      return `${fmt(exposureCounts.total)} ${finding} в ${fmt(exposureCounts.vulnerablePackages)} из ${fmt(counts.total)} ${pkg}${source}`;
+    }
+    return `${fmt(exposureCounts.total)} ${exposureCounts.total === 1 ? "finding" : "findings"} across ${fmt(exposureCounts.vulnerablePackages)} of ${fmt(counts.total)} installed packages${source}`;
   }
 
   function openPackage(name: string, kind: "formula" | "cask") {
@@ -446,7 +520,7 @@
     const arr = Object.entries(counts)
       .map(([slug, count]) => ({
         slug,
-        label: categories.labelOf(slug),
+        label: categories.labelOf(slug, ui.locale),
         icon: categories.data?.categories[slug]?.icon ?? "HelpCircle",
         count,
       }))
@@ -509,7 +583,7 @@
 
     const base = top.map(([slug, count], idx) => ({
       slug,
-      label: categories.labelOf(slug),
+      label: categories.labelOf(slug, ui.locale),
       icon: categories.data?.categories[slug]?.icon ?? "HelpCircle",
       count,
       color: DONUT_PALETTE[idx % DONUT_PALETTE.length],
@@ -517,7 +591,7 @@
     if (otherCount > 0) {
       base.push({
         slug: "__other__",
-        label: "Other",
+        label: ui.locale === "ru" ? "Другое" : "Other",
         icon: "HelpCircle",
         count: otherCount,
         color: DONUT_PALETTE[8],
@@ -584,7 +658,7 @@
         activity.handleEvent(evt);
       }, ui.greedyUpgrade);
       if (result.success) {
-        toast.success(`Upgraded ${counts.outdated} packages`);
+        toast.success(t("dashboard.upgradeAll.success", ui.locale, { count: counts.outdated }));
         packages.load(true);
         // v0.5.0 — every upgraded package gets a new version, invalidating
         // its old vuln record. Easiest path: re-scan the whole set. The
@@ -617,7 +691,7 @@
       <div class="error-card">
         <AlertCircle size={20} />
         <div>
-          <strong>Couldn't load packages.</strong>
+          <strong>{t("Couldn't load packages.", ui.locale)}</strong>
           <p class="text-muted">{packages.error}</p>
         </div>
         <Button variant="secondary" size="sm" onclick={() => packages.load(true)}>Retry</Button>
@@ -668,7 +742,7 @@
         <span class="catalog-text">
           Catalog: <strong>{catalog.daysOldLabel}</strong>
           {#if catalog.summary}
-            <span class="text-muted catalog-source">({catalog.summary.source})</span>
+            <span class="text-muted catalog-source">({formatCatalogSource(catalog.summary.source, ui.locale)})</span>
           {/if}
         </span>
         <button
@@ -731,7 +805,7 @@
                   onclick={() => openPackage(p.name, p.kind)}
                 >
                   <span class="o-name truncate">{p.name}</span>
-                  <span class="o-kind"><Pill tone={p.kind === "formula" ? "formula" : "cask"}>{p.kind}</Pill></span>
+                  <span class="o-kind"><Pill tone={p.kind === "formula" ? "formula" : "cask"}>{formatPackageKind(p.kind, ui.locale)}</Pill></span>
                   <span class="o-version mono text-muted">
                     {p.installedVersion ?? "?"} → {p.stableVersion ?? "?"}
                   </span>
@@ -759,25 +833,25 @@
         {#if !isLinux}
         <section class="card comp-card">
           <div class="card-head">
-            <h2>Composition</h2>
+	            <h2>{t("Composition", ui.locale)}</h2>
             <!-- on-request / as-dependency / pinned chips live in the header
                  upper-right (matches native's CompositionCard title row). -->
             <div class="comp-chips">
               {#if counts.onRequest > 0}
-                <span class="meta-pill">{fmt(counts.onRequest)} on request</span>
+	                <span class="meta-pill">{onRequestLabel(counts.onRequest)}</span>
               {/if}
               {#if counts.asDependency > 0}
-                <span class="meta-pill">{fmt(counts.asDependency)} as dependency</span>
+	                <span class="meta-pill">{dependencyLabel(counts.asDependency)}</span>
               {/if}
               {#if counts.pinned > 0}
-                <span class="meta-pill">{fmt(counts.pinned)} pinned</span>
+	                <span class="meta-pill">{pinnedLabel(counts.pinned)}</span>
               {/if}
             </div>
           </div>
           <div class="split">
             <!-- Wide + paired: pie + ranked legend (rhymes with the donut). -->
             <div class="comp-pie">
-              <svg viewBox="0 0 120 120" class="pie" role="img" aria-label={`${counts.formulae} formulae and ${counts.casks} casks`}>
+	              <svg viewBox="0 0 120 120" class="pie" role="img" aria-label={compositionAria()}>
                 {#each compositionSegments as s (s.label)}
                   <path d={piePath(s.startPct, s.pct)} fill={s.color} />
                 {/each}
@@ -795,18 +869,18 @@
             </div>
             <!-- Default (narrow / unpaired): stacked horizontal bar. -->
             <div class="comp-bar">
-              <div class="split-bar" role="img" aria-label={`${counts.formulae} formulae and ${counts.casks} casks`}>
+	              <div class="split-bar" role="img" aria-label={compositionAria()}>
                 <span class="seg seg--formula" style="width: {split.formulaPct}%"></span>
                 <span class="seg seg--cask" style="width: {split.caskPct}%"></span>
               </div>
               <div class="split-legend">
                 <span class="legend">
                   <span class="swatch swatch--formula"></span>
-                  <strong>{fmt(counts.formulae)}</strong> formulae
+	                  <strong>{fmt(counts.formulae)}</strong> {formulaeLabel(counts.formulae)}
                 </span>
                 <span class="legend">
                   <span class="swatch swatch--cask"></span>
-                  <strong>{fmt(counts.casks)}</strong> casks
+	                  <strong>{fmt(counts.casks)}</strong> {casksLabel(counts.casks)}
                 </span>
               </div>
             </div>
@@ -819,10 +893,10 @@
         {#if categories.visible && categorySegments.length > 0}
         <section class="card">
           <div class="card-head">
-            <h2>Top categories in your library</h2>
+	            <h2>{t("Top categories in your library", ui.locale)}</h2>
           </div>
           <div class="donut-wrap">
-            <svg viewBox="0 0 120 120" class="donut" role="img" aria-label="Category breakdown">
+	            <svg viewBox="0 0 120 120" class="donut" role="img" aria-label={ui.locale === "ru" ? "Разбивка по категориям" : "Category breakdown"}>
               <circle cx="60" cy="60" r={DONUT_RADIUS} class="donut-track" />
               {#each categorySegments as s (s.slug)}
                 {@const isHovered = hoveredCategory === s.slug}
@@ -867,7 +941,7 @@
                     onmouseleave={() => (hoveredCategory = null)}
                     onfocus={() => (hoveredCategory = s.slug)}
                     onblur={() => (hoveredCategory = null)}
-                    title={s.slug === "__other__" ? "Browse all in Discover" : `Browse ${s.label} in Discover`}
+	                    title={discoverCategoryTitle(s.label, s.slug === "__other__")}
                   >
                     <span class="legend-dot" style="background: {s.color}"></span>
                     <span class="legend-icon"><Icon size={12} /></span>
@@ -897,28 +971,36 @@
           <div class="gh-card-body">
             {#if personalGithubTotal === 0}
               <p class="text-muted">
-                None of your installed packages have a GitHub homepage.
+	                {ui.locale === "ru" ? "У установленных пакетов нет домашней страницы GitHub." : "None of your installed packages have a GitHub homepage."}
               </p>
             {:else if personalStatsLoading && personalStarredCount === 0}
               <div class="gh-loading">
                 <Loader size={14} class="spin-slow" />
-                <span>Checking which of your {personalGithubTotal} packages you've starred…</span>
+	                <span>{ui.locale === "ru" ? `Проверяем, для скольких из ${fmt(personalGithubTotal)} пакетов вы поставили звезду…` : `Checking which of your ${personalGithubTotal} packages you've starred…`}</span>
               </div>
             {:else}
               <p class="gh-line">
                 <Star size={14} class="gh-line-icon" fill="currentColor" />
                 <span>
-                  You've starred
-                  <strong>{personalStarredCount}</strong>
-                  of
-                  <strong>{personalGithubTotal}</strong>
-                  installed packages with GitHub homepages.
+	                  {#if ui.locale === "ru"}
+	                    Вы поставили звезду для
+	                    <strong>{fmt(personalStarredCount)}</strong>
+	                    из
+	                    <strong>{fmt(personalGithubTotal)}</strong>
+	                    установленных пакетов с домашней страницей GitHub.
+	                  {:else}
+	                    You've starred
+	                    <strong>{personalStarredCount}</strong>
+	                    of
+	                    <strong>{personalGithubTotal}</strong>
+	                    installed packages with GitHub homepages.
+	                  {/if}
                 </span>
               </p>
               {#if personalStatsLoading}
                 <p class="gh-line-sub">
                   <Loader size={12} class="spin-slow" />
-                  <span>Refreshing…</span>
+	                  <span>{t("Refreshing…", ui.locale)}</span>
                 </p>
               {/if}
             {/if}
@@ -938,17 +1020,17 @@
               size="sm"
               variant="ghost"
               onclick={() => loadDisk(true)}
-              ariaLabel="Refresh disk usage"
-              title="Refresh"
+              ariaLabel={t("storage.refreshDiskUsage", ui.locale)}
+              title={t("Refresh", ui.locale)}
               disabled={diskLoading}
             >
               {#snippet icon()}<RefreshCw size={14} />{/snippet}
-              Refresh
+              {t("Refresh", ui.locale)}
             </Button>
           </div>
         </div>
         {#if diskLoading && !disk}
-          <LoadingState rows={4} label={`Measuring disk usage… (du -sk on ${env.report?.prefix ?? "Homebrew"})`} />
+          <LoadingState rows={4} label={t("storage.measuringDiskUsage", ui.locale, { prefix: env.report?.prefix ?? "Homebrew" })} />
         {:else if diskError && !disk}
           <div class="storage-error">
             <AlertCircle size={16} />
@@ -961,13 +1043,13 @@
             {#each disk.entries.filter((e) => !isLinux || e.label !== "Casks (Caskroom)") as e (e.path)}
               <li>
                 <div class="storage-row">
-                  <span class="s-label">{e.label}</span>
+                  <span class="s-label">{storageLabel(e.label)}</span>
                   <span class="s-path text-muted truncate" title={e.path}>{e.path}</span>
                   <span class="s-bytes mono">
                     {#if e.error}
                       <span class="s-bytes-err" title={e.error}>—</span>
                     {:else if !e.exists}
-                      <span class="text-muted">not present</span>
+                      <span class="text-muted">{t("storage.notPresent", ui.locale)}</span>
                     {:else}
                       {fmtBytes(e.bytes)}
                     {/if}
@@ -976,8 +1058,8 @@
                     class="s-open"
                     onclick={() => reveal(e.path)}
                     disabled={!e.exists}
-                    title={e.exists ? (isMac ? `Reveal ${e.path} in Finder` : `Show ${e.path} in file manager`) : "Path doesn't exist"}
-                    aria-label={isMac ? `Reveal ${e.label} in Finder` : `Show ${e.label} in file manager`}
+                    title={e.exists ? (isMac ? t("storage.revealInFinder", ui.locale, { path: e.path }) : t("storage.showInFileManager", ui.locale, { path: e.path })) : t("storage.pathMissing", ui.locale)}
+                    aria-label={isMac ? t("storage.revealLabelInFinder", ui.locale, { label: storageLabel(e.label) }) : t("storage.showLabelInFileManager", ui.locale, { label: storageLabel(e.label) })}
                   >
                     <FolderOpen size={14} />
                   </button>
@@ -1008,10 +1090,10 @@
               variant="ghost"
               onclick={() => (cleanupConfirmOpen = !cleanupConfirmOpen)}
               disabled={maintBusy}
-              title="Reclaim cached downloads (brew cleanup --prune=all)"
+              title={ui.locale === "ru" ? "Освободить место в кэше загрузок (brew cleanup --prune=all)" : "Reclaim cached downloads (brew cleanup --prune=all)"}
             >
               {#snippet icon()}<Trash2 size={14} />{/snippet}
-              {cleanupRunning ? "Cleaning…" : "Clean up cache…"}
+              {cleanupRunning ? t("Cleaning…", ui.locale) : t("Clean up cache…", ui.locale)}
             </Button>
             {#if cleanupPreview?.reclaimableBytes}
               <span class="maint-hint text-muted">frees ~{fmtBytes(cleanupPreview.reclaimableBytes)}</span>
@@ -1019,26 +1101,33 @@
           </div>
 
           {#if cleanupConfirmOpen}
-            <div class="maint-confirm" role="group" aria-label="Confirm cache cleanup">
-              <p>
-                Removes outdated cached downloads{#if cleanupPreview?.reclaimableBytes}, freeing about
-                <strong>{fmtBytes(cleanupPreview.reclaimableBytes)}</strong>{/if}.{#if cleanupScrub}
-                Also clears the <strong>current</strong> versions' downloads (<code>--scrub</code>).{/if}
-                Your installed packages are not affected.
+              <div class="maint-confirm" role="group" aria-label={ui.locale === "ru" ? "Подтверждение очистки кэша" : "Confirm cache cleanup"}>
+                <p>
+                {#if ui.locale === "ru"}
+                  Удалит устаревшие загрузки из кэша{#if cleanupPreview?.reclaimableBytes}, освободив около
+                  <strong>{fmtBytes(cleanupPreview.reclaimableBytes)}</strong>{/if}.{#if cleanupScrub}
+                  Также удалит загрузки <strong>текущих</strong> версий (<code>--scrub</code>).{/if}
+                  Установленные пакеты не будут затронуты.
+                {:else}
+                  Removes outdated cached downloads{#if cleanupPreview?.reclaimableBytes}, freeing about
+                  <strong>{fmtBytes(cleanupPreview.reclaimableBytes)}</strong>{/if}.{#if cleanupScrub}
+                  Also clears the <strong>current</strong> versions' downloads (<code>--scrub</code>).{/if}
+                  Your installed packages are not affected.
+                {/if}
               </p>
               <label class="maint-verbose">
                 <input type="checkbox" bind:checked={cleanupScrub} />
-                Scrub — also remove the latest versions' cached downloads (more aggressive)
+                {t("Scrub — also remove the latest versions' cached downloads (more aggressive)", ui.locale)}
               </label>
               <label class="maint-verbose">
                 <input type="checkbox" bind:checked={cleanupVerbose} />
-                Verbose — list every file removed
+                {t("Verbose — list every file removed", ui.locale)}
               </label>
               <div class="maint-confirm-actions">
-                <Button size="sm" variant="ghost" onclick={() => (cleanupConfirmOpen = false)}>Cancel</Button>
+                <Button size="sm" variant="ghost" onclick={() => (cleanupConfirmOpen = false)}>{t("Cancel", ui.locale)}</Button>
                 <Button size="sm" variant="danger" onclick={runCleanup}>
                   {#snippet icon()}<Trash2 size={14} />{/snippet}
-                  Clean up
+                  {t("Clean up", ui.locale)}
                 </Button>
               </div>
             </div>
@@ -1060,22 +1149,22 @@
                   <ShieldAlert size={16} />
                 {/if}
               </span>
-              Exposure
+              {t("Exposure", ui.locale)}
             </h2>
             <div class="head-right">
               {#if exposureScannedAt}
-                <span class="text-muted total">Last scan: {exposureLastLabel}</span>
+	                <span class="text-muted total">{ui.locale === "ru" ? "Последняя проверка" : "Last scan"}: {exposureLastLabel}</span>
               {/if}
               <Button
                 size="sm"
                 variant="ghost"
                 onclick={scanExposureNow}
-                ariaLabel="Scan installed packages for vulnerabilities"
-                title="Re-run brew vulns against every installed formula"
+	                ariaLabel={t("Scan installed packages for known vulnerabilities", ui.locale)}
+	                title={t("settings.vulnerabilities.scanAllTitle", ui.locale)}
                 disabled={exposureLoading}
               >
                 {#snippet icon()}<RefreshCw size={14} />{/snippet}
-                {exposureLoading ? "Scanning…" : "Scan now"}
+	                {exposureLoading ? t("Scanning…", ui.locale) : t("Scan now", ui.locale)}
               </Button>
             </div>
           </div>
@@ -1086,12 +1175,12 @@
               <div class="exp-clean exp-warn">
                 <AlertCircle size={20} class="exp-warn-icon" />
                 <div>
-                  <strong>Not scanned yet.</strong>
-                  <p class="text-muted exp-sub">
-                    We haven't checked your installed packages for known
-                    vulnerabilities. Run a scan when you can. (Configured in
-                    Settings → Vulnerability Scanning.)
-                  </p>
+	                  <strong>{t("Not scanned yet.", ui.locale)}</strong>
+	                  <p class="text-muted exp-sub">
+	                    {ui.locale === "ru"
+	                      ? "Мы ещё не проверяли установленные пакеты на известные уязвимости. Запустите проверку, когда сможете. Настраивается в «Настройки → Проверка уязвимостей»."
+	                      : "We haven't checked your installed packages for known vulnerabilities. Run a scan when you can. (Configured in Settings → Vulnerability Scanning.)"}
+	                  </p>
                 </div>
               </div>
             {:else if exposureCounts.vulnerablePackages === 0 && !exposureFresh}
@@ -1100,10 +1189,10 @@
               <div class="exp-clean exp-warn">
                 <AlertCircle size={20} class="exp-warn-icon" />
                 <div>
-                  <strong>No advisories as of the last scan ({exposureLastLabel}).</strong>
-                  <p class="text-muted exp-sub">
-                    Packages may have changed since. Re-scan to confirm.
-                  </p>
+	                  <strong>{ui.locale === "ru" ? `На момент последней проверки (${exposureLastLabel}) известных уязвимостей нет.` : `No advisories as of the last scan (${exposureLastLabel}).`}</strong>
+	                  <p class="text-muted exp-sub">
+	                    {ui.locale === "ru" ? "С тех пор набор пакетов мог измениться. Проверьте ещё раз для подтверждения." : "Packages may have changed since. Re-scan to confirm."}
+	                  </p>
                 </div>
               </div>
             {:else if exposureCounts.vulnerablePackages === 0}
@@ -1111,33 +1200,34 @@
               <div class="exp-clean">
                 <CheckCircle2 size={20} />
                 <div>
-                  <strong>No known vulnerabilities.</strong>
-                  <p class="text-muted exp-sub">
-                    All installed packages are clean of advisories known to
-                    <code>brew vulns</code>{#if exposureSource} · source: {exposureSource}{/if}.
-                  </p>
+	                  <strong>{t("No known vulnerabilities.", ui.locale)}</strong>
+	                  <p class="text-muted exp-sub">
+	                    {ui.locale === "ru"
+	                      ? "Для установленных пакетов нет уязвимостей, известных brew vulns"
+	                      : "All installed packages are clean of advisories known to brew vulns"}{#if exposureSource} · {t("source", ui.locale)}: {exposureSource}{/if}.
+	                  </p>
                 </div>
               </div>
             {:else}
               <!-- Findings present. Show per-severity counts with tone
                    colors, plus the "X of N" summary line. -->
-              <div class="exp-sev-row" role="group" aria-label="Vulnerability counts by severity">
-                <span class="exp-sev exp-sev--danger">
-                  <strong>{fmt(exposureCounts.critical)}</strong> critical
-                </span>
-                <span class="exp-sev exp-sev--danger">
-                  <strong>{fmt(exposureCounts.high)}</strong> high
-                </span>
-                <span class="exp-sev exp-sev--warning">
-                  <strong>{fmt(exposureCounts.medium)}</strong> medium
-                </span>
-                <span class="exp-sev exp-sev--info">
-                  <strong>{fmt(exposureCounts.low)}</strong> low
-                </span>
-                {#if exposureCounts.unknown > 0}
-                  <span class="exp-sev exp-sev--neutral">
-                    <strong>{fmt(exposureCounts.unknown)}</strong> unknown
-                  </span>
+	              <div class="exp-sev-row" role="group" aria-label={ui.locale === "ru" ? "Количество уязвимостей по серьёзности" : "Vulnerability counts by severity"}>
+	                <span class="exp-sev exp-sev--danger">
+	                  <strong>{fmt(exposureCounts.critical)}</strong> {severityLabel(exposureCounts.critical, "critical")}
+	                </span>
+	                <span class="exp-sev exp-sev--danger">
+	                  <strong>{fmt(exposureCounts.high)}</strong> {severityLabel(exposureCounts.high, "high")}
+	                </span>
+	                <span class="exp-sev exp-sev--warning">
+	                  <strong>{fmt(exposureCounts.medium)}</strong> {severityLabel(exposureCounts.medium, "medium")}
+	                </span>
+	                <span class="exp-sev exp-sev--info">
+	                  <strong>{fmt(exposureCounts.low)}</strong> {severityLabel(exposureCounts.low, "low")}
+	                </span>
+	                {#if exposureCounts.unknown > 0}
+	                  <span class="exp-sev exp-sev--neutral">
+	                    <strong>{fmt(exposureCounts.unknown)}</strong> {severityLabel(exposureCounts.unknown, "unknown")}
+	                  </span>
                 {/if}
               </div>
               <!-- Findings total + package count: the severity chips count
@@ -1145,14 +1235,7 @@
                    packages" rather than implying the chips sum to the package
                    count. Kept identical to the native Exposure card. -->
               <p class="exp-summary">
-                <strong>{fmt(exposureCounts.total)}</strong>
-                {exposureCounts.total === 1 ? "finding" : "findings"} across
-                <strong>{fmt(exposureCounts.vulnerablePackages)}</strong>
-                of <strong>{fmt(counts.total)}</strong>
-                installed packages
-                {#if exposureSource}
-                  · source: <span class="exp-source">{exposureSource}</span>
-                {/if}
+	                {exposureSummaryText()}
               </p>
               <div class="exp-actions">
                 <button
@@ -1160,7 +1243,7 @@
                   class="link exp-link"
                   onclick={viewVulnerablePackages}
                 >
-                  View vulnerable packages →
+	                  {t("security.viewVulnerablePackages", ui.locale)}
                 </button>
               </div>
             {/if}
@@ -1714,10 +1797,6 @@
     font-size: var(--text-body-sm);
     line-height: var(--lh-snug);
   }
-  .exp-sub code {
-    font-family: var(--font-mono);
-    font-size: var(--text-mono);
-  }
   .exp-sev-row {
     display: flex;
     flex-wrap: wrap;
@@ -1746,16 +1825,6 @@
     color: var(--color-text-secondary);
     line-height: var(--lh-normal);
     margin: 0;
-  }
-  .exp-summary strong {
-    color: var(--color-text-primary);
-    font-weight: var(--fw-semibold);
-    font-variant-numeric: tabular-nums;
-  }
-  .exp-source {
-    font-family: var(--font-mono);
-    font-size: var(--text-mono);
-    color: var(--color-text-muted);
   }
   .exp-actions {
     display: inline-flex;

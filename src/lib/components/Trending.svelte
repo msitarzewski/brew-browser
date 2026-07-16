@@ -19,6 +19,7 @@
   import { packages } from "$lib/stores/packages.svelte";
   import { enrichment } from "$lib/stores/enrichment.svelte";
   import { catalog } from "$lib/stores/catalog.svelte";
+  import { t, ruPlural, type MessageKey } from "$lib/i18n/messages";
   import { isLinux } from "$lib/util/platform";
   import type { PackageKind, TrendingEntry, TrendingWindow } from "$lib/types";
 
@@ -65,6 +66,10 @@
   }
 
   const windows: TrendingWindow[] = ["30d", "90d", "365d"];
+
+  function windowLabel(window: TrendingWindow): string {
+    return t(`trending.window.${window}` as MessageKey, ui.locale);
+  }
 
   type SortKey = "rank" | "name" | "kind" | "installs" | "velocity";
   // v0.4.0 — default sort changes from rank to velocity desc. The
@@ -116,6 +121,13 @@
   let agoLabel = $derived.by(() => {
     if (!trending.report) return "";
     const secs = trending.report.cacheAgeSeconds;
+    if (ui.locale === "ru") {
+      if (secs < 60) return `Обновлено ${secs} ${ruPlural(secs, "секунду", "секунды", "секунд")} назад`;
+      const mins = Math.floor(secs / 60);
+      if (mins < 60) return `Обновлено ${mins} ${ruPlural(mins, "минуту", "минуты", "минут")} назад`;
+      const hrs = Math.floor(mins / 60);
+      return `Обновлено ${hrs} ${ruPlural(hrs, "час", "часа", "часов")} назад`;
+    }
     if (secs < 60) return `Updated ${secs}s ago`;
     const mins = Math.floor(secs / 60);
     if (mins < 60) return `Updated ${mins} min ago`;
@@ -133,16 +145,16 @@
        the time-window pills, last-updated label, and Refresh. -->
   <header class="panel-head" data-tauri-drag-region>
     <div class="head-right" data-tauri-drag-region="false">
-      <div class="pillgroup" role="tablist" aria-label="Time window">
+      <div class="pillgroup" role="tablist" aria-label={ui.locale === "ru" ? "Период" : "Time window"}>
         {#each windows as w (w)}
-          <button class:on={trending.window === w} onclick={() => trending.setWindow(w)} role="tab" aria-selected={trending.window === w}>{w}</button>
+          <button class:on={trending.window === w} onclick={() => trending.setWindow(w)} role="tab" aria-selected={trending.window === w}>{windowLabel(w)}</button>
         {/each}
       </div>
       <span class="ago text-muted">{agoLabel}</span>
       <span class="refresh-wrap">
-        <Button size="sm" variant="ghost" loading={trending.loading} onclick={() => trending.load(true)} title="Refresh (⌘R)" ariaLabel="Refresh trending">
+        <Button size="sm" variant="ghost" loading={trending.loading} onclick={() => trending.load(true)} title={ui.locale === "ru" ? "Обновить (⌘R)" : "Refresh (⌘R)"} ariaLabel={ui.locale === "ru" ? "Обновить тренды" : "Refresh trending"}>
           {#snippet icon()}<RefreshCw size={14} />{/snippet}
-          Refresh
+          {t("Refresh", ui.locale)}
         </Button>
       </span>
     </div>
@@ -150,14 +162,14 @@
 
   <div class="list-wrap">
     {#if trending.loading && !trending.report}
-      <LoadingState rows={10} label="Fetching install counts from formulae.brew.sh…" />
+      <LoadingState rows={10} label={t("Fetching install counts from formulae.brew.sh…", ui.locale)} />
     {:else if trending.error}
-      <EmptyState title="Couldn't reach formulae.brew.sh" body={trending.error}>
+      <EmptyState title={ui.locale === "ru" ? "Не удалось подключиться к formulae.brew.sh" : "Couldn't reach formulae.brew.sh"} body={trending.error}>
         {#snippet icon()}<TrendingUp size={48} />{/snippet}
-        {#snippet cta()}<Button variant="secondary" onclick={() => trending.load(true)}>Retry</Button>{/snippet}
+        {#snippet cta()}<Button variant="secondary" onclick={() => trending.load(true)}>{t("Retry", ui.locale)}</Button>{/snippet}
       </EmptyState>
     {:else if trending.report && trending.report.entries.length === 0}
-      <EmptyState title="Quiet for now." body="formulae.brew.sh returned no entries for this window.">
+      <EmptyState title={ui.locale === "ru" ? "Пока тихо." : "Quiet for now."} body={t("formulae.brew.sh returned no entries.", ui.locale)}>
         {#snippet icon()}<TrendingUp size={48} />{/snippet}
       </EmptyState>
     {:else if trending.report}
@@ -166,17 +178,17 @@
            `no-kind` grid variant. macOS keeps the full 8-column layout. -->
       <div class="list-header" class:no-kind={isLinux} role="row">
         <SortableHeader label="#" sortKey="rank" active={sortKey === "rank"} dir={sortDir} onSort={changeSort} />
-        <SortableHeader label="Name" sortKey="name" active={sortKey === "name"} dir={sortDir} onSort={changeSort} />
-        <span class="header-desc">Description</span>
-        <span class="header-version">Version</span>
+        <SortableHeader label={t("Name", ui.locale)} sortKey="name" active={sortKey === "name"} dir={sortDir} onSort={changeSort} />
+        <span class="header-desc">{t("Description", ui.locale)}</span>
+        <span class="header-version">{t("Version", ui.locale)}</span>
         {#if !isLinux}
-          <SortableHeader label="Type" sortKey="kind" active={sortKey === "kind"} dir={sortDir} onSort={changeSort} />
+          <SortableHeader label={t("Type", ui.locale)} sortKey="kind" active={sortKey === "kind"} dir={sortDir} onSort={changeSort} />
         {/if}
-        <SortableHeader label="Velocity" sortKey="velocity" active={sortKey === "velocity"} dir={sortDir} onSort={changeSort} align="right" />
-        <SortableHeader label="Installs" sortKey="installs" active={sortKey === "installs"} dir={sortDir} onSort={changeSort} align="right" />
+        <SortableHeader label={t("Velocity", ui.locale)} sortKey="velocity" active={sortKey === "velocity"} dir={sortDir} onSort={changeSort} align="right" />
+        <SortableHeader label={t("Installs", ui.locale)} sortKey="installs" active={sortKey === "installs"} dir={sortDir} onSort={changeSort} align="right" />
         <span></span>
       </div>
-      <ul class="list" aria-label="Trending packages">
+      <ul class="list" aria-label={ui.locale === "ru" ? "Трендовые пакеты" : "Trending packages"}>
         {#each sortedEntries as e (e.name + e.kind)}
           {@const installed = e.installedLocally || packages.isInstalled(e.name, e.kind)}
           {@const isSelected = ui.selectedPackage?.name === e.name && ui.selectedPackage?.kind === e.kind}
@@ -204,7 +216,7 @@
               <span class="desc truncate text-muted">{enrichment.summaryOf(e.name) ?? catalog.descOf(e.name, e.kind) ?? ""}</span>
               <span class="version truncate text-muted">{catalog.versionOf(e.name, e.kind) ?? ""}</span>
               {#if !isLinux}
-                <span class="kind"><Pill tone={e.kind === "formula" ? "formula" : "cask"}>{e.kind}</Pill></span>
+                <span class="kind"><Pill tone={e.kind === "formula" ? "formula" : "cask"}>{e.kind === "formula" ? t("package.kind.formula", ui.locale) : t("package.kind.cask", ui.locale)}</Pill></span>
               {/if}
               <span class="velocity mono" class:surge={tier === "surge"} class:cool={tier === "cool"}>
                 {#if tier === "surge"}
@@ -221,11 +233,11 @@
               <span class="count-cell mono">
                 <span class="count-num">{e.installCountFormatted}</span>
                 {#if spark}
-                  <span class="count-spark"><TrendingSparkline data={spark} variant="inline" title={`${e.name} install trend`} /></span>
+                  <span class="count-spark"><TrendingSparkline data={spark} variant="inline" title={ui.locale === "ru" ? `Динамика установок ${e.name}` : `${e.name} install trend`} /></span>
                 {/if}
               </span>
               <span class="trail">
-                {#if installed}<Pill tone="success">installed</Pill>{/if}
+                {#if installed}<Pill tone="success">{t("package.installed", ui.locale)}</Pill>{/if}
               </span>
             </button>
           </li>

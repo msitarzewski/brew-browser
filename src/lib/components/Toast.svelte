@@ -5,37 +5,39 @@
   import XCircle from "@lucide/svelte/icons/x-circle";
   import X from "@lucide/svelte/icons/x";
 
+  import { t } from "$lib/i18n/messages";
+  import { ui } from "$lib/stores/ui.svelte";
   import { toast } from "$lib/stores/toast.svelte";
 </script>
 
 <div class="toast-stack" aria-live="polite" aria-relevant="additions">
-  {#each toast.items as t (t.id)}
-    <div class="toast tone-{t.kind}" role={t.kind === "error" || t.kind === "warning" ? "alert" : "status"}>
+  {#each toast.items as item (item.id)}
+    <div class="toast tone-{item.kind}" role={item.kind === "error" || item.kind === "warning" ? "alert" : "status"}>
       <span class="icon" aria-hidden="true">
-        {#if t.kind === "success"}
+        {#if item.kind === "success"}
           <CheckCircle2 size={16} />
-        {:else if t.kind === "info"}
+        {:else if item.kind === "info"}
           <Info size={16} />
-        {:else if t.kind === "warning"}
+        {:else if item.kind === "warning"}
           <AlertTriangle size={16} />
         {:else}
           <XCircle size={16} />
         {/if}
       </span>
       <div class="body">
-        <div class="title">{t.title}</div>
-        {#if t.body}<div class="sub">{t.body}</div>{/if}
-        {#if t.action}
+        <div class="title">{item.title}</div>
+        {#if item.body}<div class="sub">{item.body}</div>{/if}
+        {#if item.action}
           <button
             type="button"
             class="action"
-            onclick={() => toast.invokeAction(t.id)}
+            onclick={() => toast.invokeAction(item.id)}
           >
-            {t.action.label}
+            {item.action.label}
           </button>
         {/if}
       </div>
-      <button class="close" aria-label="Dismiss" onclick={() => toast.dismiss(t.id)}>
+      <button class="close" aria-label={t("Dismiss", ui.locale)} onclick={() => toast.dismiss(item.id)}>
         <X size={14} />
       </button>
     </div>

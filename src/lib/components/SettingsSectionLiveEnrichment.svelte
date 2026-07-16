@@ -18,6 +18,8 @@
   import Sparkles from "@lucide/svelte/icons/sparkles";
 
   import { settings } from "$lib/stores/settings.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { t } from "$lib/i18n/messages";
 
   let offline = $derived(settings.effective.paranoidMode);
   let on = $derived(settings.effective.liveEnrichmentEnabled);
@@ -31,11 +33,11 @@
 <div class="section">
   <h2>
     <Sparkles size={18} aria-hidden="true" />
-    Live category &amp; description updates
+    {t("settings.liveEnrichment.title", ui.locale)}
   </h2>
 
   <div class="field">
-    <label class="toggle" title={offline ? "Disabled by Offline Mode" : undefined}>
+    <label class="toggle" title={offline ? t("Disabled by Offline Mode", ui.locale) : undefined}>
       <input
         type="checkbox"
         checked={on}
@@ -44,24 +46,18 @@
         aria-describedby="live-enrichment-hint"
       />
       <span class="toggle-track" aria-hidden="true"></span>
-      <span class="toggle-label">Fetch latest categories &amp; descriptions</span>
+      <span class="toggle-label">{t("Fetch latest categories & descriptions", ui.locale)}</span>
     </label>
 
     <p class="hint" id="live-enrichment-hint">
-      brew-browser ships with a built-in set of AI categories and descriptions.
-      When on, it refreshes them from
-      <code>brew-browser.zerologic.com/enrichment/*</code>: a tiny version check
-      on refresh, the full category list when it's newer, and a per-package
-      description when you open that package's detail. Only the package name
-      you're viewing is sent (one HTTP GET); no IP is logged at the server, no
-      cookies. Same first-party host as Enhanced Trending — a distinct trust
-      boundary from the always-on Homebrew paths. Requires AI Features on.
+      {t("settings.liveEnrichment.hint.beforeHost", ui.locale)}
+      <code>brew-browser.zerologic.com/enrichment/*</code>
+      {t("settings.liveEnrichment.hint.afterHost", ui.locale)}
     </p>
 
     {#if offline}
       <p class="hint hint-warn">
-        Offline Mode is on — this toggle is locked off. Turn Offline Mode off
-        above to enable live updates.
+        {t("settings.liveEnrichment.offline", ui.locale)}
       </p>
     {/if}
   </div>

@@ -33,10 +33,10 @@ struct OnboardingView: View {
                 Image(systemName: "shippingbox")
                     .font(.system(size: 44))
                     .foregroundStyle(.secondary)
-                Text("Homebrew isn't installed")
+                Text(L10n.string("Homebrew isn't installed"))
                     .font(.title2)
                     .fontWeight(.semibold)
-                Text("brew-browser is a window onto Homebrew — install it and the app takes it from there.")
+                Text(L10n.string("brew-browser is a window onto Homebrew — install it and the app takes it from there."))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -45,13 +45,13 @@ struct OnboardingView: View {
                 // Step: Command Line Tools, only when the probe says missing —
                 // the Homebrew installer needs them, so they come first.
                 if !model.cltInstalled {
-                    step(number: 1, title: "Install the Xcode Command Line Tools",
-                         detail: "The Homebrew installer needs them. Run this in Terminal and follow the prompt:",
+                    step(number: 1, title: L10n.string("Install the Xcode Command Line Tools"),
+                         detail: L10n.string("The Homebrew installer needs them. Run this in Terminal and follow the prompt:"),
                          command: Self.cltCommand)
                 }
 
-                step(number: model.cltInstalled ? 1 : 2, title: "Install Homebrew",
-                     detail: "Paste the official install command (from brew.sh) into Terminal:",
+                step(number: model.cltInstalled ? 1 : 2, title: L10n.string("Install Homebrew"),
+                     detail: L10n.string("Paste the official install command (from brew.sh) into Terminal:"),
                      command: Self.installCommand)
 
                 HStack {
@@ -59,7 +59,7 @@ struct OnboardingView: View {
                     Button {
                         openTerminal()
                     } label: {
-                        Label("Open Terminal", systemImage: "terminal")
+                        Label(L10n.string("Open Terminal"), systemImage: "terminal")
                     }
                     Spacer()
                 }
@@ -71,7 +71,7 @@ struct OnboardingView: View {
             HStack(spacing: 8) {
                 ProgressView()
                     .controlSize(.small)
-                Text("Waiting for Homebrew… the app continues automatically once it's installed.")
+                Text(L10n.string("Waiting for Homebrew… the app continues automatically once it's installed."))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -105,9 +105,9 @@ struct OnboardingView: View {
                     Button {
                         copyToPasteboard(command)
                     } label: {
-                        Label("Copy", systemImage: "doc.on.doc")
+                        Label(L10n.string("Copy"), systemImage: "doc.on.doc")
                     }
-                    .help("Copy the command to the clipboard")
+                    .help(L10n.string("Copy the command to the clipboard"))
                 }
                 .padding(4)
             }
