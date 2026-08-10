@@ -14,6 +14,9 @@ struct DashboardView: View {
     /// True when the content pane is wide enough to pair cards two-across.
     @State private var wide = false
 
+    /// Issue #158 — session-only dismissal of the Rosetta 2 notice card.
+    @State private var rosettaDismissed = false
+
     var body: some View {
         ScrollView {
             if !model.dashboardLoaded {
@@ -21,6 +24,12 @@ struct DashboardView: View {
                     .frame(maxWidth: .infinity, minHeight: 300)
             } else {
                 VStack(alignment: .leading, spacing: 16) {
+                    // Issue #158 — Rosetta 2 notice, at the top of the stack when
+                    // the app is running under Rosetta 2 (Intel build on Apple
+                    // Silicon). Same card language as the other dashboard cards.
+                    if model.rosettaTranslated && !rosettaDismissed {
+                        RosettaCard { rosettaDismissed = true }
+                    }
                     HeroStrip(model: model)
                     CatalogFreshnessStrip(model: model)
                     if model.outdatedCount > 0 { UpdatesCard(model: model) }
@@ -805,6 +814,55 @@ struct GitHubCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 2)
+        }
+    }
+}
+
+/// Issue #158 — Rosetta 2 notice card. Shown at the top of the Dashboard when
+/// the app is running under Rosetta 2 (an Intel build on an Apple Silicon Mac).
+/// `BrewService.brewInvocation` routes `brew` through `arch -arm64` so it keeps
+/// working, but Apple is retiring Rosetta 2, so the durable fix is the native
+/// Apple Silicon build. Same `GroupBox` + warning-`Label` language as
+/// `ExposureCard`. Visibility + session dismissal are owned by `DashboardView`.
+struct RosettaCard: View {
+    /// Called when the user dismisses the notice for this session.
+    let onDismiss: () -> Void
+
+    private let releasesURL = URL(string: "https://github.com/msitarzewski/brew-browser/releases/latest")!
+
+    var body: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Image(systemName: "cpu").foregroundStyle(.orange)
+                    Text("Rosetta 2").font(.headline)
+                    Spacer()
+                    Link(destination: releasesURL) {
+                        Label("Apple Silicon Build", systemImage: "arrow.down.circle")
+                    }
+                    .controlSize(.small)
+                    Button {
+                        onDismiss()
+                    } label: {
+                        Image(systemName: "xmark").imageScale(.small)
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .help("Dismiss for this session")
+                    .accessibilityLabel("Dismiss Rosetta 2 notice")
+                }
+
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Running under Rosetta 2").fontWeight(.semibold)
+                        Text("You installed the Intel build on an Apple Silicon Mac. It keeps working — Homebrew runs through arch -arm64 — but Apple is retiring Rosetta 2. Switch to the Apple Silicon build for full, future-proof support.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 }

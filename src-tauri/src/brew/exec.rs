@@ -87,19 +87,55 @@ pub(crate) fn apply_brew_env(cmd: &mut Command) {
     cmd.env("PATH", new_path);
 }
 
+/// True when brew must be launched through `arch -arm64`: this process is
+/// running under Rosetta 2 (an Intel build on Apple Silicon) *and* the resolved
+/// `brew` lives in the arm-native prefix (`/opt/homebrew`). In that state a
+/// translated (x86_64) process spawning arm `brew` fails with
+/// "Cannot install under Rosetta 2 in ARM default prefix" (issue #158), so we
+/// re-exec it natively. An Intel Homebrew at `/usr/local` already matches the
+/// translated process, so we leave those untouched.
+fn needs_arm64_reexec(brew_path: &Path) -> bool {
+    should_reexec_arm64(crate::system::profile::is_translated(), brew_path)
+}
+
+/// Pure gating logic behind [`needs_arm64_reexec`], split out so the
+/// `translated` + arm-prefix combination is unit-testable without a real
+/// Rosetta process.
+fn should_reexec_arm64(translated: bool, brew_path: &Path) -> bool {
+    translated && brew_path.starts_with("/opt/homebrew")
+}
+
+/// Construct the `brew` command with the analytics-off env + Homebrew PATH
+/// prepend applied ([`apply_brew_env`]), transparently routing through
+/// `/usr/bin/arch -arm64` when [`needs_arm64_reexec`] is true. Every brew spawn
+/// site goes through this so the Rosetta 2 stopgap and the env policy stay in
+/// one place. Subsequent `.args(..)` on the returned command append the brew
+/// arguments as normal (after the `brew` path when re-execing via `arch`).
+pub(crate) fn brew_command(brew_path: &Path) -> Command {
+    if needs_arm64_reexec(brew_path) {
+        let mut cmd = Command::new("/usr/bin/arch");
+        cmd.arg("-arm64").arg(brew_path);
+        apply_brew_env(&mut cmd);
+        cmd
+    } else {
+        let mut cmd = Command::new(brew_path);
+        apply_brew_env(&mut cmd);
+        cmd
+    }
+}
+
 pub async fn run_brew_capture(
     brew_path: &Path,
     args: &[&str],
     display_command: &str,
 ) -> Result<String, BrewError> {
-    let mut cmd = Command::new(brew_path);
+    let mut cmd = brew_command(brew_path);
     cmd.args(args)
         .current_dir(BREW_SPAWN_CWD)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    apply_brew_env(&mut cmd);
 
     let output = cmd.output().await.map_err(|e| match e.kind() {
         std::io::ErrorKind::NotFound => BrewError::BrewNotFound,
@@ -151,14 +187,13 @@ pub async fn run_brew_streaming(
 
     let str_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
 
-    let mut cmd = Command::new(brew_path);
+    let mut cmd = brew_command(brew_path);
     cmd.args(&str_args)
         .current_dir(BREW_SPAWN_CWD)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    apply_brew_env(&mut cmd);
 
     let mut child = match cmd.spawn() {
         Ok(c) => c,
@@ -546,6 +581,32 @@ mod tests {
             BREW_ENV.contains(&("HOMEBREW_NO_ANALYTICS", "1")),
             "brew spawn env must disable Homebrew analytics"
         );
+    }
+
+    #[test]
+    fn arm64_reexec_only_for_translated_arm_prefix() {
+        use std::path::Path;
+        // Under Rosetta 2, an arm-native brew (/opt/homebrew) must be re-execed
+        // via `arch -arm64` (issue #158)...
+        assert!(should_reexec_arm64(
+            true,
+            Path::new("/opt/homebrew/bin/brew")
+        ));
+        // ...but an Intel brew (/usr/local) already matches the translated
+        // process — leave it alone.
+        assert!(!should_reexec_arm64(
+            true,
+            Path::new("/usr/local/bin/brew")
+        ));
+        // Native (non-translated) process: never re-exec, regardless of prefix.
+        assert!(!should_reexec_arm64(
+            false,
+            Path::new("/opt/homebrew/bin/brew")
+        ));
+        assert!(!should_reexec_arm64(
+            false,
+            Path::new("/usr/local/bin/brew")
+        ));
     }
 
     #[test]

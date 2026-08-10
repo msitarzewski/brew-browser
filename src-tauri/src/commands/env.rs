@@ -74,6 +74,11 @@ pub struct SystemStatus {
     pub brew_found: bool,
     pub brew_path: Option<String>,
     pub clt_found: bool,
+    /// True when the app itself is running under Rosetta 2 (an Intel build on
+    /// an Apple Silicon Mac). Drives the "install the Apple Silicon build"
+    /// banner — brew can't install into the arm `/opt/homebrew` prefix from a
+    /// translated process without the `arch -arm64` stopgap. See issue #158.
+    pub rosetta_translated: bool,
 }
 
 impl SystemStatus {
@@ -82,6 +87,7 @@ impl SystemStatus {
             brew_found: path.is_some(),
             brew_path: path.map(|p| p.to_string_lossy().into_owned()),
             clt_found,
+            rosetta_translated: crate::system::profile::is_translated(),
         }
     }
 }
@@ -183,12 +189,18 @@ mod tests {
             brew_found: true,
             brew_path: Some("/opt/homebrew/bin/brew".into()),
             clt_found: false,
+            rosetta_translated: true,
         };
         let v: Value = serde_json::to_value(&s).unwrap();
         // Critical: must be camelCase for the frontend's SystemStatus type.
         assert_eq!(v["brewFound"], true);
         assert_eq!(v["brewPath"], "/opt/homebrew/bin/brew");
         assert_eq!(v["cltFound"], false);
+        assert_eq!(v["rosettaTranslated"], true);
+        assert!(
+            v.get("rosetta_translated").is_none(),
+            "must not emit snake_case `rosetta_translated`"
+        );
         assert!(
             v.get("brew_found").is_none(),
             "must not emit snake_case `brew_found`"
@@ -209,6 +221,7 @@ mod tests {
             brew_found: false,
             brew_path: None,
             clt_found: true,
+            rosetta_translated: false,
         };
         let v: Value = serde_json::to_value(&s).unwrap();
         assert_eq!(v["brewFound"], false);

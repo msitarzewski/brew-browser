@@ -42,6 +42,13 @@ class EnvStore {
    */
   brewMissing = $derived(this.statusChecked && this.status?.brewFound === false);
 
+  /**
+   * True when the app itself is running under Rosetta 2 (an Intel build on
+   * Apple Silicon). Drives the RosettaBanner, which steers the user to the
+   * native Apple Silicon build. See issue #158.
+   */
+  rosettaTranslated = $derived(this.status?.rosettaTranslated === true);
+
   /** Human-readable summary for a tooltip. */
   summary = $derived.by(() => {
     if (this.loading && !this.report) return "Checking Homebrew…";

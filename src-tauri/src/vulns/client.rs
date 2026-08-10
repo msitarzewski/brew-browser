@@ -31,9 +31,8 @@ use std::path::Path;
 use std::process::Stdio;
 
 use serde::{Deserialize, Deserializer, Serialize};
-use tokio::process::Command;
 
-use crate::brew::exec::{apply_brew_env, run_brew_capture};
+use crate::brew::exec::{brew_command, run_brew_capture};
 use crate::error::{truncate_tail, BrewError};
 
 /// Tolerant subprocess wrapper for `brew vulns`. Differs from
@@ -51,13 +50,12 @@ async fn run_vulns_capture(
     args: &[&str],
     display_command: &str,
 ) -> Result<String, BrewError> {
-    let mut cmd = Command::new(brew);
+    let mut cmd = brew_command(brew);
     cmd.args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    apply_brew_env(&mut cmd);
 
     let output = cmd.output().await.map_err(|e| match e.kind() {
         std::io::ErrorKind::NotFound => BrewError::BrewNotFound,
@@ -272,13 +270,12 @@ pub async fn check_brew_vulns_installed(brew: &Path) -> Result<bool, BrewError> 
     // affordance regardless).
     //
     // First try the legacy check: `brew --prefix brew-vulns` (if installed via custom tap).
-    let mut cmd = Command::new(brew);
+    let mut cmd = brew_command(brew);
     cmd.args(["--prefix", "brew-vulns"])
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    apply_brew_env(&mut cmd);
 
     if let Ok(output) = cmd.output().await {
         if output.status.success() {
@@ -287,13 +284,12 @@ pub async fn check_brew_vulns_installed(brew: &Path) -> Result<bool, BrewError> 
     }
 
     // Fallback: check if `vulns` is a built-in subcommand in Homebrew 6.0+ via `brew help vulns`.
-    let mut cmd = Command::new(brew);
+    let mut cmd = brew_command(brew);
     cmd.args(["help", "vulns"])
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    apply_brew_env(&mut cmd);
 
     let output = cmd.output().await.map_err(|e| match e.kind() {
         std::io::ErrorKind::NotFound => BrewError::BrewNotFound,
@@ -500,13 +496,12 @@ pub fn looks_like_subcommand_missing(stderr_excerpt: &str) -> bool {
 /// diagnostics.
 #[allow(dead_code)]
 async fn brew_version(brew: &Path) -> Result<String, BrewError> {
-    let mut cmd = Command::new(brew);
+    let mut cmd = brew_command(brew);
     cmd.args(["--version"])
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    apply_brew_env(&mut cmd);
     let output = cmd.output().await.map_err(|e| match e.kind() {
         std::io::ErrorKind::NotFound => BrewError::BrewNotFound,
         _ => BrewError::Io {

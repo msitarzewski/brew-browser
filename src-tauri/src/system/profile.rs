@@ -10,6 +10,7 @@
 //! `AppState` cache — the readiness math that consumes it lives client-side.
 
 use std::process::Command;
+use std::sync::OnceLock;
 
 use serde::Serialize;
 
@@ -56,6 +57,39 @@ fn capture(cmd: &str, args: &[&str]) -> Option<String> {
 /// Bytes → GiB, rounded to the nearest whole GB.
 fn bytes_to_gb(bytes: u64) -> u64 {
     (bytes as f64 / GIB).round() as u64
+}
+
+/// Parse the `sysctl.proc_translated` value: `"1"` means this process is being
+/// translated by Rosetta 2, anything else (including a missing key on Macs
+/// without Rosetta, which reads back as `None`) means native. Split out from
+/// [`is_translated`] so the mapping is unit-testable without a real `sysctl`.
+fn translated_from_sysctl(value: Option<&str>) -> bool {
+    value == Some("1")
+}
+
+/// True when this process is an x86_64 binary translated by Rosetta 2 on an
+/// Apple Silicon Mac. Reads the per-process `sysctl.proc_translated` flag
+/// (`0` native, `1` translated; absent → native). Cached for the process
+/// lifetime — translation state is fixed at launch and never changes.
+/// macOS-only; always `false` elsewhere.
+///
+/// A translated (Intel) build spawning arm-native `brew` fails with
+/// "Cannot install under Rosetta 2 in ARM default prefix" (issue #158), so we
+/// detect this both to warn the user to install the Apple Silicon build and to
+/// route `brew` through `arch -arm64` as a stopgap. Apple retires Rosetta 2 in
+/// a future macOS release, so the native build is the durable fix.
+pub fn is_translated() -> bool {
+    static TRANSLATED: OnceLock<bool> = OnceLock::new();
+    *TRANSLATED.get_or_init(|| {
+        // Debug/QA override — mirrors `BREWBROWSER_FAKE_RAM_GB` in `detect()`.
+        // Lets the Rosetta banner + `arch -arm64` bridge be exercised on a
+        // native Apple Silicon Mac (where `proc_translated` is always 0). Safe:
+        // `arch -arm64` on an already-arm `brew` is a no-op wrapper.
+        if let Ok(v) = std::env::var("BREWBROWSER_FAKE_ROSETTA") {
+            return v == "1";
+        }
+        translated_from_sysctl(capture("sysctl", &["-n", "sysctl.proc_translated"]).as_deref())
+    })
 }
 
 /// Free bytes on `/` via `df -Pk /`. The POSIX (`-P`) format guarantees a
@@ -261,5 +295,17 @@ mod tests {
         assert_eq!(bytes_to_gb(128 * 1024 * 1024 * 1024), 128);
         assert_eq!(bytes_to_gb(8 * 1024 * 1024 * 1024), 8);
         assert_eq!(bytes_to_gb(0), 0);
+    }
+
+    #[test]
+    fn translated_only_when_sysctl_reads_one() {
+        // `sysctl.proc_translated`: 1 = Rosetta 2, 0 = native, absent = native.
+        assert!(translated_from_sysctl(Some("1")));
+        assert!(!translated_from_sysctl(Some("0")));
+        assert!(!translated_from_sysctl(None));
+        // Defensive: any unexpected payload is treated as native, never
+        // silently "translated".
+        assert!(!translated_from_sysctl(Some("")));
+        assert!(!translated_from_sysctl(Some("yes")));
     }
 }

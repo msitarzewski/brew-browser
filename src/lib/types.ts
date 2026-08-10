@@ -54,6 +54,13 @@ export interface SystemStatus {
   brewFound: boolean;
   brewPath: string | null;
   cltFound: boolean;
+  /**
+   * True when the app is running under Rosetta 2 (an Intel build on an Apple
+   * Silicon Mac). Drives the "install the Apple Silicon build" banner — a
+   * translated process can't install into the arm `/opt/homebrew` prefix
+   * without the `arch -arm64` stopgap. See issue #158.
+   */
+  rosettaTranslated: boolean;
 }
 
 // =========================================================
