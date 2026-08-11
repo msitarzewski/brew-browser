@@ -1,61 +1,22 @@
-# Linux build — the canonical recipe for producing brew-browser's
-# .deb / .rpm / .AppImage bundles.
-#
-# Tauri 2 builds all three Linux bundle targets natively via
-# `cargo tauri build` (driven here through `npm run tauri build`, which
-# also runs the SvelteKit frontend build first via beforeBuildCommand).
-#
-# Why this exists separately from the macOS flow:
-#   - macOS releases are built+signed+notarized locally on an Apple
-#     machine via tools/build/sign-and-notarize.sh (Developer ID +
-#     Apple notary — both macOS-only). That path is untouched.
-#   - Linux has no equivalent code-signing requirement for v0:
-#       * AppImage ships unsigned (the common convention).
-#       * .deb / .rpm GPG signing is a future optional step — NOT
-#         implemented here. When we add it, it slots in after the build
-#         step (sign the produced .deb/.rpm with a repo GPG key, then
-#         publish to an apt/yum repo). Left out deliberately for v0.
-#
-# What this produces: build artifacts (.deb, .rpm, .AppImage) uploaded
-# to the workflow run. Cutting an actual GitHub Release + the in-app
-# updater manifest (dist/updater.json via tools/release/publish-manifest.sh)
-# remain deliberate human steps for now.
-
 name: Linux Build
 
 on:
   push:
-    # feat/linux-support: prove the recipe works during development.
-    # Tags v*: every tagged release builds Linux artifacts too.
     branches:
       - feat/linux-support
     tags:
       - "v*"
-  # Manual trigger from the Actions tab.
   workflow_dispatch:
 
 jobs:
   build:
     name: Build Linux bundles (.deb / .rpm / .AppImage)
-    # Pin to ubuntu-22.04, NOT ubuntu-latest. 22.04 (Jammy) is the
-    # webkit2gtk-4.1 era and gives us the oldest glibc we commit to
-    # supporting — binaries built here run on 22.04+ and newer distros.
-    # ubuntu-latest drifts forward and would silently raise our glibc
-    # floor, breaking older targets.
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Standard Tauri 2 Linux build dependencies. Sourced from
-      # https://v2.tauri.app/start/prerequisites/ (the -dev packages are
-      # the build-time headers), plus:
-      #   - libgtk-3-dev:  GTK3 dev headers (Tauri's Linux webview shell)
-      #   - patchelf:      required by the AppImage bundler to rewrite
-      #                    rpaths in the packaged binary
-      #   - file, wget:    used by the AppImage tooling at bundle time
-      # libwebkit2gtk-4.1-dev is the 4.1 ABI Tauri 2 targets (22.04+).
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -70,18 +31,15 @@ jobs:
             file \
             wget
 
-      - name: Install Rust stable
+      - name: Set up Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      # Cache the cargo registry + the src-tauri/target dir keyed on the
-      # Linux target, so incremental CI runs skip recompiling unchanged
-      # crates. workspaces points at the crate root that holds Cargo.lock.
-      - name: Rust cache
+      - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
 
-      - name: Setup Node 22
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -90,35 +48,24 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      # Builds the frontend (beforeBuildCommand: npm run build), compiles
-      # the Rust binary, and bundles .deb / .rpm / .AppImage. bundle.targets
-      # is "all" in tauri.conf.json, which on Linux means these three.
-      #
-      # Override createUpdaterArtifacts=false here: tauri.conf.json sets it true
-      # (macOS needs the signed .app.tar.gz for the in-app updater), but on Linux
-      # it makes the build try to sign an updater .AppImage.tar.gz — which needs
-      # TAURI_SIGNING_PRIVATE_KEY, a secret CI doesn't hold, so the job failed
-      # AFTER building the installers. The Linux auto-updater is unwired anyway
-      # (users grab the .deb / .AppImage directly), so skipping the artifact is
-      # correct, not a regression.
       - name: Build Tauri app
         run: npm run tauri build -- --config '{"bundle":{"createUpdaterArtifacts":false}}'
 
-      - name: Upload .deb
+      - name: Upload .deb package
         uses: actions/upload-artifact@v4
         with:
           name: brew-browser-deb
           path: src-tauri/target/release/bundle/deb/*.deb
           if-no-files-found: error
 
-      - name: Upload .rpm
+      - name: Upload .rpm package
         uses: actions/upload-artifact@v4
         with:
           name: brew-browser-rpm
           path: src-tauri/target/release/bundle/rpm/*.rpm
           if-no-files-found: error
 
-      - name: Upload .AppImage
+      - name: Upload AppImage
         uses: actions/upload-artifact@v4
         with:
           name: brew-browser-appimage
