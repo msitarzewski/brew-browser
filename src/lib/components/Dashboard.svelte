@@ -18,6 +18,10 @@
   import Star from "@lucide/svelte/icons/star";
   import GitBranch from "@lucide/svelte/icons/git-branch";
   import Loader from "@lucide/svelte/icons/loader-2";
+  import Cpu from "@lucide/svelte/icons/cpu";
+  import Download from "@lucide/svelte/icons/download";
+  import X from "@lucide/svelte/icons/x";
+  import { safeOpenUrl } from "$lib/util/url";
   import { packages } from "$lib/stores/packages.svelte";
   import { env } from "$lib/stores/env.svelte";
   import { categories } from "$lib/stores/categories.svelte";
@@ -42,6 +46,11 @@
   let disk = $state<DiskUsageReport | null>(null);
   let diskLoading = $state(false);
   let diskError = $state<string | null>(null);
+
+  // Issue #158 — Rosetta 2 notice card. Shown when the app runs under Rosetta 2
+  // (Intel build on Apple Silicon); dismissible for the session only.
+  const ROSETTA_RELEASES_URL = "https://github.com/msitarzewski/brew-browser/releases/latest";
+  let rosettaDismissed = $state(false);
 
   // Issue #80 — cache maintenance (brew doctor / cleanup), surfaced on the
   // Storage card since that's the disk surface and already shows the cache size.
@@ -611,6 +620,51 @@
        is dropped entirely. -->
 
   <div class="body">
+    <!-- Issue #158 — Rosetta 2 notice. Independent of package load state, so it
+         sits above the loading/error gate. Same card + warning-row language as
+         the Exposure card. -->
+    {#if env.rosettaTranslated && !rosettaDismissed}
+      <section class="card rosetta-card">
+        <div class="card-head">
+          <h2><span class="rosetta-card-icon"><Cpu size={16} /></span> Rosetta 2</h2>
+          <div class="head-right">
+            <Button
+              size="sm"
+              variant="secondary"
+              onclick={() => safeOpenUrl(ROSETTA_RELEASES_URL)}
+              title="Open the latest release to download the Apple Silicon build"
+            >
+              {#snippet icon()}<Download size={14} />{/snippet}
+              Apple Silicon build
+            </Button>
+            <button
+              type="button"
+              class="rosetta-dismiss"
+              onclick={() => (rosettaDismissed = true)}
+              aria-label="Dismiss Rosetta 2 notice"
+              title="Dismiss for this session"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+        <div class="rosetta-body">
+          <div class="rosetta-warn">
+            <AlertCircle size={20} class="rosetta-warn-icon" />
+            <div>
+              <strong>Running under Rosetta 2</strong>
+              <p class="text-muted rosetta-sub">
+                You installed the Intel build on an Apple&nbsp;Silicon Mac. It
+                keeps working — Homebrew runs through <code>arch -arm64</code> —
+                but Apple is retiring Rosetta&nbsp;2. Switch to the
+                Apple&nbsp;Silicon build for full, future-proof support.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    {/if}
+
     {#if packages.loading && !packages.list}
       <LoadingState rows={6} label="Loading your packages…" />
     {:else if packages.error}
@@ -1679,6 +1733,66 @@
     vertical-align: middle;
     margin-right: 4px;
     color: var(--color-text-secondary);
+  }
+
+  /* Issue #158 — Rosetta 2 notice card. Mirrors the Exposure card's
+     warning-row treatment (icon + bold title + muted description). */
+  .rosetta-card-icon {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    margin-right: 4px;
+    color: var(--color-warning-strong);
+  }
+  .rosetta-body {
+    padding: var(--space-4);
+  }
+  .rosetta-warn {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-3);
+    align-items: start;
+    padding: var(--space-3);
+    background: var(--color-warning-subtle);
+    border-radius: var(--radius-md);
+    color: var(--color-warning-on-subtle);
+  }
+  .rosetta-warn :global(.rosetta-warn-icon) {
+    color: var(--color-warning-on-subtle);
+  }
+  .rosetta-warn strong {
+    display: block;
+    font-size: var(--text-body);
+    font-weight: var(--fw-semibold);
+    color: var(--color-warning-on-subtle);
+  }
+  .rosetta-sub {
+    margin-top: 2px;
+    font-size: var(--text-body-sm);
+    line-height: var(--lh-snug);
+  }
+  .rosetta-sub code {
+    font-family: var(--font-mono);
+    font-size: var(--text-mono);
+  }
+  .rosetta-dismiss {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition:
+      background var(--motion-duration-fast) var(--motion-ease-out),
+      color var(--motion-duration-fast) var(--motion-ease-out);
+  }
+  .rosetta-dismiss:hover {
+    background: var(--color-surface-sunken);
+    color: var(--color-text-primary);
   }
   .exp-body {
     padding: var(--space-4);

@@ -1,5 +1,44 @@
 # Active Context
 
+> ## 🔧 IN FLIGHT 2026-08-10: `fix/rosetta2-arch-detection` (committed + pushed, PR pending)
+>
+> **Issue #158** — a user installed the **Intel (x64) dmg on Apple Silicon**, so
+> the app runs under Rosetta 2; every spawned `brew` (arm `/opt/homebrew`) fails
+> *"Cannot install under Rosetta 2 in ARM default prefix."* Terminal works
+> because that `brew` runs natively. Apple retires Rosetta 2 in a future macOS
+> release, so the native build is the durable fix.
+>
+> **Fix (both shells), committed `1d5e461`, pushed, all green (Rust 688 · native
+> 201 · svelte-check 0 · vitest 57):**
+>
+> - **Detect** via `sysctl.proc_translated` — a *runtime* check (the compile-time
+>   `#if arch(arm64)` / `cfg!(target_arch)` can't see translation). Cached; a
+>   pure helper is unit-tested. `SystemProfile.is_translated()` (Rust) /
+>   `SystemProfile.isTranslated()` (Swift). A `BREWBROWSER_FAKE_ROSETTA=1`
+>   override (mirrors `BREWBROWSER_FAKE_RAM_GB`) exercises the path on native-arm.
+> - **Bridge**: every brew spawn routes through `arch -arm64 <brew>` when
+>   translated **and** the prefix is `/opt/homebrew` (Intel brew at `/usr/local`
+>   is left alone), so operations keep working. One helper per shell —
+>   `exec.rs brew_command()` / `BrewService.brewInvocation()` — which also closed
+>   a gap where `brew bundle check` skipped the analytics-off env.
+> - **Notice**: a Dashboard **card** (NOT a top-of-window banner), same
+>   `.card`/`GroupBox` + warning-row language as the Exposure card, steering to
+>   the Apple Silicon build. `RosettaCard` in `DashboardView.swift`; a `.card` in
+>   `Dashboard.svelte`. `SystemStatus.rosettaTranslated` carries the flag to the
+>   Tauri frontend at startup.
+>
+> **Lesson (SwiftUI window sizing):** the first attempt was a top banner wrapping
+> `NavigationSplitView` in a `VStack`; that broke free window resizing under the
+> scene's `.windowResizability(.contentMinSize)`. The true culprit was
+> `.fixedSize(vertical: true)` on the banner text — it locked the window's
+> minimum height — compounded by a corrupted frame persisted under the
+> `NSWindow Frame SwiftUI.WindowGroup<…>` defaults key. Resolved by moving to a
+> Dashboard card (window chrome untouched). Full record to land in a task doc.
+>
+> **Next:** open PR (closes #158) → cut release **Tauri 0.7.3 / native 0.3.3** →
+> reply on #158 → issue-triage sweep (brew-not-app class + #128/#139/#159/#160,
+> label #161 `enhancement`).
+
 > ## 🔧 IN FLIGHT 2026-06-10/11: `feat/intel-builds-and-onboarding` (committed + pushed, PR pending)
 >
 > Triggered by post-release "corrupt download" reports → root cause was Intel

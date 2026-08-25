@@ -95,7 +95,9 @@ pub async fn brewfile_check(
     let display = format!("brew bundle check --file={} --verbose", target_str);
     // `brew bundle check` exits non-zero when packages are missing —
     // we want to read the output even then, so capture via plain output.
-    let mut cmd = tokio::process::Command::new(&path);
+    // `brew_command` applies the analytics-off env + PATH prepend and routes
+    // through `arch -arm64` under Rosetta 2 (issue #158).
+    let mut cmd = crate::brew::exec::brew_command(&path);
     cmd.args([
         "bundle",
         "check",

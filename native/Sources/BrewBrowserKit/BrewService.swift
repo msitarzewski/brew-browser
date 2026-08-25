@@ -223,12 +223,29 @@ struct BrewService: Sendable {
         return env
     }
 
+    /// Build the (executable, arguments) pair for a `brew` spawn, routing
+    /// through `/usr/bin/arch -arm64` when this process runs under Rosetta 2
+    /// against an arm-native Homebrew (`/opt/homebrew`). Without this, a
+    /// translated (x86_64) process spawning arm `brew` fails with "Cannot
+    /// install under Rosetta 2 in ARM default prefix" (issue #158). An Intel
+    /// brew at `/usr/local` already matches the translated process, so it's
+    /// left alone. Every brew spawn site goes through this.
+    static func brewInvocation(brew: String, args: [String])
+        -> (executable: URL, arguments: [String])
+    {
+        if SystemProfile.isTranslated() && brew.hasPrefix("/opt/homebrew") {
+            return (URL(fileURLWithPath: "/usr/bin/arch"), ["-arm64", brew] + args)
+        }
+        return (URL(fileURLWithPath: brew), args)
+    }
+
     private func runCapture(_ args: [String]) async throws -> String {
         guard let brew = Self.resolveBrewPath() else { throw BrewError.brewNotFound }
 
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: brew)
-        process.arguments = args
+        let invocation = Self.brewInvocation(brew: brew, args: args)
+        process.executableURL = invocation.executable
+        process.arguments = invocation.arguments
         process.currentDirectoryURL = URL(fileURLWithPath: "/")
         process.environment = Self.brewEnvironment()
 
@@ -314,8 +331,9 @@ struct BrewService: Sendable {
                 return
             }
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: brew)
-            process.arguments = args
+            let invocation = Self.brewInvocation(brew: brew, args: args)
+            process.executableURL = invocation.executable
+            process.arguments = invocation.arguments
             process.currentDirectoryURL = URL(fileURLWithPath: "/")
             // No TTY/stdin: a sudo/interactive prompt gets EOF → brew errors out
             // visibly instead of blocking on a read that never returns.

@@ -844,6 +844,14 @@ public final class AppModel {
     /// can force Marginal/Blocked states on a high-RAM dev Mac.
     var systemProfile = SystemProfile.detect()
 
+    /// True when the app itself is running under Rosetta 2 — an Intel build on
+    /// an Apple Silicon Mac. Drives `RosettaBanner`, which steers the user to
+    /// the native Apple Silicon build (brew can't install into the arm
+    /// `/opt/homebrew` prefix from a translated process without the
+    /// `arch -arm64` stopgap). Read once at construction — translation state is
+    /// fixed for the process lifetime. See issue #158.
+    let rosettaTranslated = SystemProfile.isTranslated()
+
     /// Capability verdict for a bundle on this host (M3). Pure — just routes the
     /// bundle's `requires`/`capabilityNotes` and the cached profile through the
     /// M1 readiness function.

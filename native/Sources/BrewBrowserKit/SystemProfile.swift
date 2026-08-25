@@ -69,6 +69,39 @@ public struct SystemProfile: Sendable, Codable, Equatable {
     }
 }
 
+// MARK: - Rosetta 2 detection (issue #158)
+
+extension SystemProfile {
+    /// True when this process is running under Rosetta 2 — an x86_64 build
+    /// translated on Apple Silicon. A translated process shelling out to
+    /// arm-native `brew` (`/opt/homebrew`) fails with "Cannot install under
+    /// Rosetta 2 in ARM default prefix", so we detect this both to warn the
+    /// user (install the Apple Silicon build) and to re-exec `brew` through
+    /// `arch -arm64`. Reads the per-process `sysctl.proc_translated` flag:
+    /// `1` translated, `0`/absent (Macs without Rosetta) native.
+    ///
+    /// Note: this is a *runtime* check — the compile-time `#if arch(arm64)`
+    /// in `detect()` can't see translation, since an x86_64 build reports
+    /// itself as Intel even on Apple Silicon hardware.
+    public static func isTranslated() -> Bool {
+        // Debug/QA override — mirrors `BREWBROWSER_FAKE_RAM_GB` in `detect()`.
+        // Lets the Rosetta banner + `arch -arm64` bridge be exercised on a
+        // native Apple Silicon Mac (where `proc_translated` is always 0). Safe:
+        // `arch -arm64` on an already-arm `brew` is a no-op wrapper.
+        if let fake = ProcessInfo.processInfo.environment["BREWBROWSER_FAKE_ROSETTA"] {
+            return fake == "1"
+        }
+        return translatedFromSysctl(sysctlInt("sysctl.proc_translated"))
+    }
+}
+
+/// Pure mapping behind `isTranslated()`, split out so the flag semantics are
+/// unit-testable without a real Rosetta process. `1` → translated; `0`, `nil`
+/// (key absent), and anything else → native.
+func translatedFromSysctl(_ value: Int?) -> Bool {
+    value == 1
+}
+
 // MARK: - sysctl helpers
 
 /// Read a string-valued `sysctl` (e.g. `machdep.cpu.brand_string`).
