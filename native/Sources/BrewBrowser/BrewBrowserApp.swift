@@ -25,7 +25,16 @@ struct BrewBrowserApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(model: model, updater: updater)
+                // Wire the shared model into the AppDelegate so incoming
+                // `brewbrowser://` deep links route into THIS window (via
+                // `application(_:open:)`) instead of SwiftUI's `.onOpenURL`
+                // spawning a second window.
+                .onAppear { appDelegate.setModel(model) }
         }
+        // Don't let the WindowGroup open a new window for external events
+        // (`brewbrowser://` URL opens). An empty match set keeps the initial
+        // window the only one; the AppDelegate routes the URL into it.
+        .handlesExternalEvents(matching: [])
         .windowStyle(.automatic)
         // Native macOS toolbar style — the unified title bar that hosts the
         // Liquid Glass toolbar buttons.
@@ -138,7 +147,39 @@ enum AboutInfo {
 
 
 /// Promotes a bare/unbundled launch (Xcode ⌘R) to a normal foreground app.
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// The scene's shared model, handed over by the `WindowGroup` on appear so
+    /// deep links can drive the existing window. Weak — the `@State` in the App
+    /// owns it for the process lifetime.
+    private weak var model: AppModel?
+    /// A deep link that arrived before the model was wired (cold launch via a
+    /// `brewbrowser://` URL); replayed the moment the model is set.
+    private var pendingURL: URL?
+
+    /// Called from the `WindowGroup`'s `.onAppear`. Adopts the model and flushes
+    /// any URL that landed during a cold launch.
+    func setModel(_ model: AppModel) {
+        self.model = model
+        if let url = pendingURL {
+            pendingURL = nil
+            model.handleDeepLink(url)
+        }
+    }
+
+    /// AppKit's URL-open entry point. Handling it here (rather than SwiftUI's
+    /// `.onOpenURL`) routes `brewbrowser://` links into the current window
+    /// instead of opening a new one. Before the model is wired (cold launch),
+    /// the URL is stashed and replayed in `setModel`.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let url = urls.first else { return }
+        if let model {
+            model.handleDeepLink(url)
+        } else {
+            pendingURL = url
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         if NSApp.activationPolicy() != .regular {
             NSApp.setActivationPolicy(.regular)

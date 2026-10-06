@@ -254,19 +254,40 @@ public struct ContentView: View {
                 // toolbar between our icons and the field).
                 .searchable(text: $model.globalQuery, placement: .toolbar, prompt: "Search packages")
                 .searchSuggestions {
-                    ForEach(model.suggestions) { pkg in
+                    // Top ranked catalog hits as a type-ahead — parity with the
+                    // Tauri sidebar search. Backed by the same local_search scan
+                    // Discover uses (`searchResults`), so it surfaces matches from
+                    // ANY section, not just installed packages. Selecting a hit
+                    // opens its detail; Enter routes to the full Discover results.
+                    ForEach(model.searchResults.prefix(8)) { row in
                         HStack(spacing: 8) {
-                            PackageIcon(model: model, token: pkg.name, kind: pkg.kind, size: 16)
-                            Text(pkg.name)
+                            PackageIcon(model: model, token: row.token, kind: row.kind,
+                                        homepage: row.homepage, size: 16)
+                            Text(row.token)
+                            if !row.friendlyName.isEmpty {
+                                Text(row.friendlyName).foregroundStyle(.secondary)
+                            }
                         }
-                        .searchCompletion(pkg.name)
+                        .searchCompletion(row.token)
                     }
                 }
+                // Keep the catalog search current from any section so the
+                // type-ahead works on the Dashboard too (debounced in the model).
+                .onChange(of: model.globalQuery) { _, _ in
+                    model.scheduleDiscoverSearch()
+                }
                 .onSubmit(of: .search) {
-                    if let match = model.installed.first(where: {
-                        $0.name.caseInsensitiveCompare(model.globalQuery) == .orderedSame
-                    }) ?? model.suggestions.first {
-                        model.openInLibrary(match)
+                    let q = model.globalQuery.trimmingCharacters(in: .whitespaces)
+                    // A completed suggestion sets the field to an exact token →
+                    // open that package. Otherwise route to the full Discover
+                    // results for the query (parity with the Tauri Enter action).
+                    if let exact = model.searchResults.first(where: {
+                        $0.token.caseInsensitiveCompare(q) == .orderedSame
+                    }) {
+                        model.openDetail(InstalledPackage(name: exact.token,
+                                                          version: exact.version, kind: exact.kind))
+                    } else if q.count >= LocalSearch.minQueryLength {
+                        model.selection = .discover
                     }
                 }
                 // Package detail — stock right-side inspector, on the detail column.

@@ -79,6 +79,11 @@ pub fn run() {
         // Offline Mode kills the path even though the plugin itself
         // would otherwise try the manifest endpoint.
         .plugin(tauri_plugin_updater::Builder::new().build())
+        // Deep links — register the `brewbrowser://` scheme so links like
+        // `brewbrowser://bundle/local-llm` open the app on the matching Bundle.
+        // The scheme is declared in `tauri.conf.json` (→ Info.plist on macOS,
+        // .desktop MimeType on Linux); the open-URL handler is wired in `setup`.
+        .plugin(tauri_plugin_deep_link::init())
         // Issue #17 — persist the window's size + position across launches.
         // The plugin restores saved geometry on launch and saves on a clean
         // exit. We ALSO save eagerly on every resize/move (see
@@ -103,6 +108,18 @@ pub fn run() {
     builder
         .setup(|app| {
             state::initialize(app)?;
+            // Deep links — the frontend handles incoming `brewbrowser://` URLs
+            // via the deep-link plugin's JS API (`onOpenUrl` + `getCurrent`),
+            // parsing `bundle/<id>` and navigating to Bundles. macOS delivers
+            // these natively via the registered scheme; on Linux we register the
+            // .desktop association at runtime so a launched instance receives the
+            // URL. (Linux "warm" routing to an already-open window needs the
+            // single-instance plugin — a follow-up.)
+            #[cfg(target_os = "linux")]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let _ = app.deep_link().register_all();
+            }
             // Phase 15 — spawn the auto-check scheduler. The task
             // sleeps for 24h between wakes, re-reads the live settings
             // on each cycle (so a user toggling auto-check off mid-run

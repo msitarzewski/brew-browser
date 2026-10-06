@@ -38,11 +38,15 @@ struct DiscoverView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
-        .task { await model.loadCatalog() }
+        .task {
+            await model.loadCatalog()
+            // Entering Discover with a query already typed should show results.
+            model.scheduleDiscoverSearch()
+        }
         .task { await model.loadCatalogSummary() }
-        // Record a committed search term for the recent-search chips. The
-        // toolbar `.searchable` lives on ContentView; we capture the term when
-        // the live query settles to a non-empty value while browsing Discover.
+        // Record a committed term for the recent-search chips. The ranked
+        // search itself is driven centrally from ContentView's `.searchable`
+        // (so it also works from other sections), debounced in the model.
         .onChange(of: model.globalQuery) { _, q in
             let trimmed = q.trimmingCharacters(in: .whitespaces)
             if trimmed.count >= 2 { model.recordDiscoverSearch(trimmed) }
@@ -110,7 +114,11 @@ struct DiscoverView: View {
     // chips above it; once a search or chip narrows the catalog, the list wins.
     @ViewBuilder
     private var content: some View {
-        if isIdle && model.settings.aiFeaturesVisible && !model.categoryTiles.isEmpty {
+        if model.isSearching {
+            // Ranked catalog search wins over category browsing (parity with the
+            // Tauri Discover + its `local_search`). Results are already bounded.
+            table(model.searchResults)
+        } else if isIdle && model.settings.aiFeaturesVisible && !model.categoryTiles.isEmpty {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if !prefs.recentSearches.isEmpty { recentSearchesRow }
@@ -122,7 +130,7 @@ struct DiscoverView: View {
         } else {
             VStack(spacing: 0) {
                 subgroupStrip
-                table
+                table(model.sortedDiscoverRows)
             }
         }
     }
@@ -242,10 +250,18 @@ struct DiscoverView: View {
         }
     }
 
+    /// Upper bound on rows handed to the SwiftUI `Table`. Discover filters the
+    /// full ~16k catalog locally, so a short query ("ae") can match thousands of
+    /// packages. Handing all of them to the `Table` pins the main thread in
+    /// Auto Layout for seconds — the app looks hung/crashed (#167). A few hundred
+    /// rows is plenty to scan; past that the user refines the query. This bounds
+    /// layout cost regardless of how broad the query is. (The Tauri shell avoids
+    /// this by rendering a bounded backend search rather than the whole catalog.)
+    private static let maxDiscoverRows = 300
+
     @ViewBuilder
-    private var table: some View {
-        let rows = model.sortedDiscoverRows
-        if rows.isEmpty {
+    private func table(_ all: [DiscoverRow]) -> some View {
+        if all.isEmpty {
             if model.catalog.isEmpty {
                 ContentUnavailableView("Catalog unavailable",
                                        systemImage: "exclamationmark.triangle",
@@ -258,13 +274,24 @@ struct DiscoverView: View {
                                        description: Text("Nothing in this category."))
             }
         } else {
-            // AI-gated Description column → two static column sets (a conditional
-            // TableColumn inside one builder destabilizes NSTableColumn and
-            // crashes on layout — same lesson as Library).
-            if model.settings.aiFeaturesVisible {
-                discoverTable(rows, showDescription: true)
-            } else {
-                discoverTable(rows, showDescription: false)
+            let rows = Array(all.prefix(Self.maxDiscoverRows))
+            VStack(spacing: 0) {
+                // AI-gated Description column → two static column sets (a conditional
+                // TableColumn inside one builder destabilizes NSTableColumn and
+                // crashes on layout — same lesson as Library).
+                if model.settings.aiFeaturesVisible {
+                    discoverTable(rows, showDescription: true)
+                } else {
+                    discoverTable(rows, showDescription: false)
+                }
+                if all.count > rows.count {
+                    Divider()
+                    Text("Showing the first \(rows.count) of \(all.count) matches — refine your search to narrow it down.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 6)
+                }
             }
         }
     }
@@ -297,7 +324,7 @@ struct DiscoverView: View {
         }
     }
 
-    // Icon + name cell. Icon resolves async into model.iconCache (Appcasks →
+    // Icon + name cell. Icon resolves async via the shared IconService (Appcasks →
     // Google favicon); formulae + unresolved casks show an SF Symbol.
     @ViewBuilder
     private func iconNameCell(_ row: DiscoverRow) -> some View {
@@ -330,8 +357,11 @@ struct DiscoverView: View {
     }
 
     private func openSelected() {
+        // The selected row lives in whichever source Discover is currently
+        // showing — the ranked search results or the category browse list.
+        let source = model.isSearching ? model.searchResults : model.sortedDiscoverRows
         guard let id = selectedID,
-              let row = model.sortedDiscoverRows.first(where: { $0.id == id }) else { return }
+              let row = source.first(where: { $0.id == id }) else { return }
         // Reuse the shared detail inspector — wrap the catalog row as a package.
         model.openDetail(InstalledPackage(name: row.token, version: row.version, kind: row.kind))
     }
@@ -350,11 +380,15 @@ struct PackageIcon: View {
     var homepage: String = ""
     var size: CGFloat = 20
 
+    /// The resolved icon, held locally so one row resolving never re-renders its
+    /// siblings. Loaded off the render pass in `.task`; the decode happens once
+    /// per token in the model's cache, never synchronously in `body` (#167).
+    @State private var image: NSImage?
+
     var body: some View {
         Group {
-            if kind == .cask, let url = model.iconCache[token],
-               let img = NSImage(contentsOf: url) {
-                Image(nsImage: img).resizable().interpolation(.high)
+            if kind == .cask, let image {
+                Image(nsImage: image).resizable().interpolation(.high)
             } else {
                 Image(systemName: kind == .cask ? "app.dashed" : "terminal")
                     .foregroundStyle(.secondary)
@@ -362,7 +396,7 @@ struct PackageIcon: View {
         }
         .frame(width: size, height: size)
         .task(id: token) {
-            await model.resolveIcon(token: token, kind: kind, homepage: homepage)
+            image = await model.iconImage(token: token, kind: kind, homepage: homepage)
         }
     }
 }

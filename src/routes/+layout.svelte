@@ -9,8 +9,22 @@
   import { settings } from "$lib/stores/settings.svelte";
   import { vulnerabilities } from "$lib/stores/vulnerabilities.svelte";
   import { github } from "$lib/stores/github.svelte";
+  import { bundles } from "$lib/stores/bundles.svelte";
+  import { parseDeepLink } from "$lib/util/deeplink";
 
   let { children } = $props();
+
+  // Route an incoming `brewbrowser://bundle/<id>` link to the Bundles section,
+  // opening that bundle's detail pane (navigate-only; the user still chooses to
+  // install). Loads the catalog first so `byId` can validate the id — an
+  // unknown id just lands on the Bundles list.
+  async function openFromDeepLink(raw: string) {
+    const target = parseDeepLink(raw);
+    if (!target) return;
+    ui.setSection("bundles");
+    await bundles.load();
+    if (bundles.byId(target.id)) ui.selectBundle(target.id);
+  }
 
   onMount(() => {
     ui.loadThemeFromStorage();
@@ -68,6 +82,24 @@
     void listen("menu:about", () => { ui.openAbout(); }).then((u) => { unlistenAbout = u; });
     void listen("menu:settings", () => { ui.openSettings(); }).then((u) => { unlistenSettings = u; });
 
+    // Deep links (`brewbrowser://bundle/<id>`). Desktop-only, so the plugin is
+    // imported dynamically — the web/test build never loads it. `getCurrent()`
+    // covers a cold start (app launched by the link); `onOpenUrl()` covers a
+    // link opened while the app is already running.
+    let unlistenDeepLink: UnlistenFn | undefined;
+    void (async () => {
+      try {
+        const { onOpenUrl, getCurrent } = await import("@tauri-apps/plugin-deep-link");
+        const launch = await getCurrent();
+        if (launch) for (const u of launch) void openFromDeepLink(u);
+        unlistenDeepLink = await onOpenUrl((urls) => {
+          for (const u of urls) void openFromDeepLink(u);
+        });
+      } catch {
+        /* plugin unavailable (web/test context) — no deep links */
+      }
+    })();
+
     const unwatch = watchSystemTheme(() => ui.theme);
     const stopProbe = startEnvProbe();
     // Missing-Homebrew onboarding gate: one system_status probe, then a
@@ -80,6 +112,7 @@
       stopOnboarding();
       unlistenAbout?.();
       unlistenSettings?.();
+      unlistenDeepLink?.();
     };
   });
 </script>
