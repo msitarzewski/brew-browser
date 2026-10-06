@@ -138,6 +138,20 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>SUPublicEDKey</key><string>OoRc2WZfiHX21nhhm/inmv5l282Ob97GBwx+fZoML/E=</string>
     <key>SUEnableAutomaticChecks</key><true/>
     <key>SUScheduledCheckInterval</key><integer>86400</integer>
+    <!-- Deep links — register the `brewbrowser://` scheme so links like
+         `brewbrowser://bundle/local-llm` launch/focus the app on that Bundle.
+         Handled by `.onOpenURL` in ContentView → AppModel.handleDeepLink. -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key><string>com.zerologic.brew-browser-native.deeplink</string>
+            <key>CFBundleTypeRole</key><string>Viewer</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>brewbrowser</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>
 PLIST

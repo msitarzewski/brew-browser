@@ -12,6 +12,7 @@
     "dialog:allow-open",
     "dialog:allow-save",
     "updater:default",
-    "window-state:default"
+    "window-state:default",
+    "deep-link:default"
   ]
 }

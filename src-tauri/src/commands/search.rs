@@ -405,18 +405,8 @@ pub async fn local_search(
     formula_hits.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.name.cmp(&b.1.name)));
     cask_hits.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.name.cmp(&b.1.name)));
 
-    // Apply combined cap, splitting fairly between formulae and casks
-    // when both have many hits. Simple split: take up to half from each.
-    // If one side is short, the other side fills the remainder.
-    let f_cap = LOCAL_SEARCH_TOP_N / 2;
-    let c_cap = LOCAL_SEARCH_TOP_N - f_cap;
-    let f_take = formula_hits.len().min(f_cap);
-    let c_take = cask_hits.len().min(c_cap);
-    let extra = (f_cap - f_take) + (c_cap - c_take);
-    // Spill any unused half capacity into the other side.
-    let f_final = f_take + extra.min(formula_hits.len().saturating_sub(f_take));
-    let c_final =
-        c_take + (LOCAL_SEARCH_TOP_N - f_final).min(cask_hits.len().saturating_sub(c_take));
+    // Apply combined cap, splitting fairly between formulae and casks.
+    let (f_final, c_final) = fair_split(formula_hits.len(), cask_hits.len(), LOCAL_SEARCH_TOP_N);
 
     let formulae: Vec<SearchHit> = formula_hits
         .into_iter()
@@ -435,6 +425,27 @@ pub async fn local_search(
         casks,
         generated_at: Utc::now().to_rfc3339(),
     })
+}
+
+/// Split a combined `top_n` result budget across the formula/cask hit counts:
+/// take up to half from each, then spill any unused capacity to the longer
+/// side. The returned counts always sum to at most `top_n`.
+///
+/// This replaces an earlier inline split whose spill term double-counted the
+/// already-taken side and could return up to ~1.5×`top_n`. Mirrors the native
+/// `LocalSearch.fairSplit` so both shells bound results identically.
+fn fair_split(formula_len: usize, cask_len: usize, top_n: usize) -> (usize, usize) {
+    let f_cap = top_n / 2;
+    let c_cap = top_n - f_cap;
+    let mut f_final = formula_len.min(f_cap);
+    let mut c_final = cask_len.min(c_cap);
+    let remaining = top_n - f_final - c_final;
+    if remaining > 0 {
+        let f_spill = remaining.min(formula_len - f_final);
+        f_final += f_spill;
+        c_final += (remaining - f_spill).min(cask_len - c_final);
+    }
+    (f_final, c_final)
 }
 
 fn validate_search_query(q: &str) -> Result<(), BrewError> {
@@ -480,8 +491,31 @@ fn _force_link_validate_package_name() {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_brew_search_no_match, validate_search_query};
+    use super::{fair_split, is_brew_search_no_match, validate_search_query};
     use crate::error::BrewError;
+
+    // ---------- fair_split ----------
+
+    #[test]
+    fn fair_split_bounds_total_to_top_n_with_spill() {
+        // Both sides huge → an even half-and-half split, total == top_n.
+        assert_eq!(fair_split(3000, 3000, 200), (100, 100));
+        // Few formulae → the unused formula half spills to casks; total == top_n.
+        assert_eq!(fair_split(10, 300, 200), (10, 190));
+        // Symmetric: few casks → spill to formulae.
+        assert_eq!(fair_split(300, 10, 200), (190, 10));
+        // Both sides under their half → everything returned, no spill needed.
+        assert_eq!(fair_split(3, 2, 200), (3, 2));
+    }
+
+    #[test]
+    fn fair_split_never_exceeds_top_n() {
+        for (f, c) in [(0, 0), (1, 10_000), (10_000, 1), (10_000, 10_000), (99, 101)] {
+            let (ff, cf) = fair_split(f, c, 200);
+            assert!(ff + cf <= 200, "f={f} c={c} -> {ff}+{cf} > 200");
+            assert!(ff <= f && cf <= c);
+        }
+    }
 
     // ---------- is_brew_search_no_match ----------
 

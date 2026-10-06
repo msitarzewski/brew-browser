@@ -344,8 +344,6 @@ public final class AppModel {
     /// reuses `globalQuery`, never adds its own field — see libraryRows.)
     var discoverRows: [DiscoverRow] {
         guard !catalog.isEmpty else { return [] }
-        let showSummary = settings.aiFeaturesVisible
-        let showVulns = settings.vulnerabilityScanningAllowed
         let q = globalQuery.trimmingCharacters(in: .whitespaces)
         let cat = discoverCategory
         // Drill into a co-occurrence sub-group only when one is active AND the
@@ -367,26 +365,110 @@ public final class AppModel {
                !pkg.displayName.localizedCaseInsensitiveContains(q) {
                 return nil
             }
-            let entry = showSummary ? enrichmentEntry(for: pkg.token) : nil
-            let friendly = entry?.friendlyName ?? ""
-            let vuln = showVulns ? vulnIndex[pkg.token] : nil
-            return DiscoverRow(
-                token: pkg.token,
-                name: pkg.displayName,
-                friendlyName: (friendly != pkg.token) ? friendly : "",
-                version: pkg.version,
-                kind: pkg.kind,
-                homepage: pkg.homepage,
-                summary: showSummary ? (entry?.summary ?? pkg.desc) : pkg.desc,
-                isInstalled: isPackageInstalled(token: pkg.token, kind: pkg.kind),
-                maxSeverity: (vuln?.total ?? 0) > 0 ? vuln?.maxSeverity : nil,
-                vulnCount: vuln?.total ?? 0,
-                deprecation: pkg.deprecation
-            )
+            return makeDiscoverRow(from: pkg)
         }
     }
 
     var sortedDiscoverRows: [DiscoverRow] { discoverRows.sorted(using: discoverSort) }
+
+    /// Build a Discover row from a catalog package, applying the AI (enrichment)
+    /// and vulnerability overlays per the current settings. Shared by the
+    /// category browse list (`discoverRows`) and the ranked search
+    /// (`searchResults`) so both render identically.
+    func makeDiscoverRow(from pkg: CatalogPackage) -> DiscoverRow {
+        let showSummary = settings.aiFeaturesVisible
+        let showVulns = settings.vulnerabilityScanningAllowed
+        let entry = showSummary ? enrichmentEntry(for: pkg.token) : nil
+        let friendly = entry?.friendlyName ?? ""
+        let vuln = showVulns ? vulnIndex[pkg.token] : nil
+        return DiscoverRow(
+            token: pkg.token,
+            name: pkg.displayName,
+            friendlyName: (friendly != pkg.token) ? friendly : "",
+            version: pkg.version,
+            kind: pkg.kind,
+            homepage: pkg.homepage,
+            summary: showSummary ? (entry?.summary ?? pkg.desc) : pkg.desc,
+            isInstalled: isPackageInstalled(token: pkg.token, kind: pkg.kind),
+            maxSeverity: (vuln?.total ?? 0) > 0 ? vuln?.maxSeverity : nil,
+            vulnCount: vuln?.total ?? 0,
+            deprecation: pkg.deprecation
+        )
+    }
+
+    // MARK: - Discover search (native port of Tauri `local_search`)
+
+    /// Ranked catalog search results, shown by Discover when a query of
+    /// `LocalSearch.minQueryLength`+ chars is active. Replaces the old naive
+    /// substring filter so both shells rank identically (field-weighted union
+    /// scan), and is bounded to `LocalSearch.topN` so a broad query can't flood
+    /// the SwiftUI `Table` and pin the main thread (#167).
+    var searchResults: [DiscoverRow] = []
+
+    /// True when a query of `minQueryLength`+ chars is active — Discover then
+    /// shows `searchResults` instead of the category browse ("search wins",
+    /// matching the Tauri Discover).
+    var isSearching: Bool {
+        globalQuery.trimmingCharacters(in: .whitespaces).count >= LocalSearch.minQueryLength
+    }
+
+    @ObservationIgnored private var searchDebounce: Task<Void, Never>?
+
+    /// Debounced search trigger — call when the query changes while Discover is
+    /// visible. Runs the ranked scan 300 ms after the last keystroke so typing
+    /// stays smooth and the ~16k-package scan runs at most once per pause.
+    func scheduleDiscoverSearch() {
+        searchDebounce?.cancel()
+        let q = globalQuery.trimmingCharacters(in: .whitespaces)
+        guard q.count >= LocalSearch.minQueryLength else {
+            searchResults = []
+            return
+        }
+        searchDebounce = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            self?.computeDiscoverSearch(q)
+        }
+    }
+
+    /// Run the ranked local search over the loaded catalog + enrichment +
+    /// categories and publish the capped, fairly-split results. Mirrors the Rust
+    /// `local_search` scoring + ordering + cap exactly. MainActor: the scan is
+    /// O(catalog) substring work, run debounced (not per keystroke).
+    private func computeDiscoverSearch(_ query: String) {
+        let terms = LocalSearch.terms(from: query)
+        guard !terms.isEmpty, !catalog.isEmpty else { searchResults = []; return }
+
+        var formulae: [(score: Int, pkg: CatalogPackage)] = []
+        var casks: [(score: Int, pkg: CatalogPackage)] = []
+        for pkg in catalog {
+            let entry = enrichmentEntry(for: pkg.token)
+            let labels = categoryCatalog?.categoryLabels(for: pkg.token, kind: pkg.kind) ?? []
+            guard let score = LocalSearch.score(
+                name: pkg.token,
+                desc: pkg.desc,
+                friendlyName: entry?.friendlyName,
+                summary: entry?.summary,
+                tags: entry?.tags ?? [],
+                labels: labels,
+                terms: terms
+            ) else { continue }
+            if pkg.kind == .cask {
+                casks.append((score, pkg))
+            } else {
+                formulae.append((score, pkg))
+            }
+        }
+        // Score desc, then token asc within ties (parity with Rust ordering).
+        let byRank: (
+            (score: Int, pkg: CatalogPackage), (score: Int, pkg: CatalogPackage)
+        ) -> Bool = { $0.score != $1.score ? $0.score > $1.score : $0.pkg.token < $1.pkg.token }
+        formulae.sort(by: byRank)
+        casks.sort(by: byRank)
+
+        let capped = LocalSearch.fairSplit(formulae: formulae, casks: casks)
+        searchResults = (capped.formulae + capped.casks).map { makeDiscoverRow(from: $0.pkg) }
+    }
 
     /// Load + decompress the bundled catalog on first Discover open.
     /// Parse the bundled categories.json + enrichment.json OFF the main thread,
@@ -647,33 +729,18 @@ public final class AppModel {
         return settings.caskIconMode != .off
     }
 
-    /// Resolve a row's icon into `iconCache` (async, fire-and-forget from the
-    /// view's `.task`). Casks only; formulae always render the SF Symbol.
-    func resolveIcon(token: String, kind: InstalledPackage.Kind, homepage: String) async {
-        guard kind == .cask, iconCache[token] == nil else { return }
-        if let url = await iconService.iconFileURL(token: token, homepage: homepage, enabled: caskIconsEnabled) {
-            iconCache[token] = url
-        }
-    }
-
-    /// Type-ahead suggestions for the toolbar search — top installed matches.
-    var suggestions: [InstalledPackage] {
-        let q = globalQuery.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return [] }
-        return Array(
-            installed
-                .filter { $0.name.localizedCaseInsensitiveContains(q) }
-                .prefix(8)
-        )
-    }
-
-    /// Commit a search selection: jump to Library, pre-filtered to that name
-    /// via the shared toolbar search field.
-    func openInLibrary(_ pkg: InstalledPackage) {
-        globalQuery = pkg.name
-        libraryFilter = .all
-        libraryCategory = nil
-        selection = .library
+    /// Resolve a cask's icon as a ready-to-draw image, decoding at most once per
+    /// token. Returns nil for formulae or when nothing resolves (the caller then
+    /// shows the SF Symbol). Called from a view's `.task`, never from `body`, and
+    /// backed by a non-observed cache — so broadening a Discover search can't
+    /// trigger a storm of synchronous PNG decodes on the main thread (#167).
+    func iconImage(token: String, kind: InstalledPackage.Kind, homepage: String) async -> NSImage? {
+        guard kind == .cask else { return nil }
+        if let cached = iconImageCache.object(forKey: token as NSString) { return cached }
+        guard let url = await iconService.iconFileURL(token: token, homepage: homepage, enabled: caskIconsEnabled),
+              let image = NSImage(contentsOf: url) else { return nil }
+        iconImageCache.setObject(image, forKey: token as NSString)
+        return image
     }
 
     /// Open the full Library (cleared filters). Used by the "installed" stat.
@@ -1073,9 +1140,11 @@ public final class AppModel {
     private var liveEnrichment: [String: EnrichmentEntry] = [:]
     private var liveEnrichmentAttempted: Set<String> = []
     private var liveCategoriesVersion: String = ""
-    /// token → resolved on-disk icon file (cached in-model so SwiftUI rows don't
-    /// re-fetch on every redraw). nil value = resolved-but-no-icon.
-    var iconCache: [String: URL] = [:]
+    /// Decoded cask icons, keyed by token. Deliberately an `NSCache` marked
+    /// `@ObservationIgnored`, not an `@Observable` dictionary: storing a resolved
+    /// image must NOT invalidate the SwiftUI rows that read it, or every visible
+    /// Discover row re-decodes its PNG whenever one sibling resolves (#167).
+    @ObservationIgnored private let iconImageCache = NSCache<NSString, NSImage>()
     let settings = AppSettings.shared
     private let vulns = VulnsService()
     private let trendingHistory = TrendingHistoryService()
@@ -1462,6 +1531,36 @@ public final class AppModel {
         detailPackage = nil
         detailSection = .bundles
         showDetail = true
+    }
+
+    /// Route an incoming `brewbrowser://bundle/<id>` deep link to the Bundles
+    /// section, opening that bundle's detail inspector (navigate-only — the user
+    /// still chooses to install). The bundled catalog is loaded first so the id
+    /// can be validated; an unknown id just lands on the Bundles list.
+    /// Unsupported URLs are ignored. Called from `ContentView`'s `.onOpenURL`.
+    public func handleDeepLink(_ url: URL) {
+        guard let id = Self.deepLinkBundleID(from: url) else { return }
+        selection = .bundles
+        Task {
+            await loadBundledData()
+            if let bundle = bundles.first(where: { $0.id == id }) {
+                openBundleDetail(bundle)
+            }
+        }
+    }
+
+    /// Parse a `brewbrowser://bundle/<id>` deep link to its bundle id, or nil
+    /// when the URL isn't a bundle link. Pure + `nonisolated` so it's unit-
+    /// testable without the model (mirrors the Rust/TS deep-link parsers).
+    /// Tolerates `brewbrowser://bundle/<id>` (host = "bundle") and
+    /// `brewbrowser:///bundle/<id>` (empty host, "bundle" as first segment).
+    nonisolated static func deepLinkBundleID(from url: URL) -> String? {
+        guard url.scheme == "brewbrowser" else { return nil }
+        var segments: [String] = []
+        if let host = url.host, !host.isEmpty { segments.append(host) }
+        segments.append(contentsOf: url.pathComponents.filter { $0 != "/" })
+        guard segments.first == "bundle", segments.count >= 2 else { return nil }
+        return segments[1]
     }
 
     func packageForDetail(_ pkg: InstalledPackage) -> InstalledPackage {

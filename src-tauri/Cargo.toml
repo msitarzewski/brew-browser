@@ -26,6 +26,7 @@ tauri-plugin-window-state = "2"
 # atomic .app bundle replacement). Plugin endpoint + minisign public
 # key are wired in `tauri.conf.json` and `src/lib.rs` respectively.
 tauri-plugin-updater = "2"
+tauri-plugin-deep-link = "2"
 # Phase 15 — needed for the `UpdaterBackend` trait abstraction so unit
 # tests can swap in a mock implementation without going through the
 # real plugin (which requires a live `App` + HTTP).

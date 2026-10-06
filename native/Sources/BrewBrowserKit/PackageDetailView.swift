@@ -922,11 +922,12 @@ private struct DetailIcon: View {
     let kind: InstalledPackage.Kind
     let homepage: String
 
+    @State private var image: NSImage?
+
     var body: some View {
         Group {
-            if kind == .cask, let url = model.iconCache[token],
-               let img = NSImage(contentsOf: url) {
-                Image(nsImage: img).resizable().interpolation(.high)
+            if kind == .cask, let image {
+                Image(nsImage: image).resizable().interpolation(.high)
                     .frame(width: 64, height: 64)
                     .clipShape(.rect(cornerRadius: 14))
             } else {
@@ -937,7 +938,7 @@ private struct DetailIcon: View {
             }
         }
         .task(id: token) {
-            await model.resolveIcon(token: token, kind: kind, homepage: homepage)
+            image = await model.iconImage(token: token, kind: kind, homepage: homepage)
         }
     }
 }
