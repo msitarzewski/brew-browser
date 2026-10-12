@@ -28,6 +28,7 @@
   } from "$lib/util/recovery";
   import { classifyPartialUpgrade } from "$lib/util/partialUpgrade";
   import { openTerminalUpgrade } from "$lib/api";
+  import { packages } from "$lib/stores/packages.svelte";
 
   type Props = {
     maxHeight: number;
@@ -81,9 +82,31 @@
   async function runUpgradeInTerminal(name: string) {
     try {
       await openTerminalUpgrade(name);
+      watchUpgrade(name);
     } catch (e) {
       toast.error(`Couldn't open Terminal for ${name}`, String(e));
     }
+  }
+
+  function stillOutdated(name: string): boolean {
+    return packages.outdated.some((p) => p.name === name || p.name.endsWith("/" + name));
+  }
+
+  // The Terminal upgrade runs detached — no completion callback — so poll the
+  // outdated set until the package drops out (the user finished), then stop.
+  // Bounded by a 3-minute timeout. Focus-refresh + the Re-check button also
+  // cover it. Each tick's `packages.load(true)` updates the whole UI live.
+  function watchUpgrade(name: string) {
+    const deadline = Date.now() + 180_000;
+    const id = setInterval(() => {
+      if (Date.now() > deadline) {
+        clearInterval(id);
+        return;
+      }
+      void packages.load(true).then(() => {
+        if (!stillOutdated(name)) clearInterval(id);
+      });
+    }, 8000);
   }
 
   // ─── Adaptive aria-live for high-volume install streams (security audit §N4).
@@ -447,6 +470,21 @@
                   {/each}
                 </ul>
               {/if}
+
+              <!-- Re-check: BB gets no callback when a Terminal upgrade finishes,
+                   so offer a one-click re-read (it also auto-refreshes on focus +
+                   while watching the handed-off package). Any brew failure, not
+                   our own spawn errors. -->
+              {#if activeJob.exitCode != null}
+                <button
+                  type="button"
+                  class="terminal-btn recheck-btn"
+                  onclick={() => { void packages.load(true); }}
+                  title="Re-read Homebrew after you've finished in Terminal"
+                >
+                  Re-check
+                </button>
+              {/if}
             {/if}
           </aside>
         {/if}
@@ -724,6 +762,7 @@
     transition: background-color var(--motion-duration-fast) var(--motion-ease-out);
   }
   .terminal-btn:hover { background: color-mix(in oklch, currentColor 12%, transparent); }
+  .recheck-btn { margin-top: var(--space-2); align-self: flex-start; }
   .terminal-btn:focus-visible {
     outline: 2px solid var(--color-focus, var(--color-brand, var(--color-accent)));
     outline-offset: 2px;

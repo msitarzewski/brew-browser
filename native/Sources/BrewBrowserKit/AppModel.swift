@@ -2490,6 +2490,56 @@ public final class AppModel {
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         proc.arguments = ["-e", script]
         try? proc.run()
+        // The Terminal command runs detached — we get no completion callback — so
+        // watch for the package to leave the outdated set and refresh when it does.
+        startUpgradeWatch(name)
+    }
+
+    // MARK: - Picking up a Terminal-side upgrade (no completion callback exists)
+
+    /// Re-read the brew state a Terminal-side upgrade changes: the outdated set
+    /// (Dashboard "updates", sidebar badge) and the installed Library. Shared by
+    /// the focus-refresh, the Re-check button, and the per-package watch.
+    func recheckBrewState() async {
+        await loadOutdated()
+        await loadLibrary()
+    }
+
+    @ObservationIgnored private var lastActiveRecheck = Date.distantPast
+
+    /// Debounced recheck when the app regains focus — picks up anything done to
+    /// brew in a terminal while BB was in the background (not just our hand-off).
+    /// Skips if we rechecked within the last 15s so rapid app-switching is cheap.
+    func recheckOnActivate() {
+        guard Date().timeIntervalSince(lastActiveRecheck) > 15 else { return }
+        lastActiveRecheck = Date()
+        Task { await recheckBrewState() }
+    }
+
+    @ObservationIgnored private var upgradeWatches: [String: Task<Void, Never>] = [:]
+
+    /// After handing a failed upgrade to Terminal, poll the outdated set until
+    /// the package drops out (the user finished the upgrade), then refresh the
+    /// Library — so BB updates itself without a manual refresh. Bounded by a
+    /// 3-minute timeout; a new watch for the same package supersedes the old one.
+    func startUpgradeWatch(_ name: String) {
+        let key = Self.bareToken(name)
+        upgradeWatches[key]?.cancel()
+        upgradeWatches[key] = Task { [weak self] in
+            let deadline = Date().addingTimeInterval(180)
+            while !Task.isCancelled && Date() < deadline {
+                try? await Task.sleep(for: .seconds(8))
+                guard let self, !Task.isCancelled else { return }
+                await self.loadOutdated()
+                let stillOutdated = self.outdated.contains { Self.bareToken($0.name) == key }
+                if !stillOutdated {
+                    await self.loadLibrary()
+                    self.lastActiveRecheck = Date()
+                    break
+                }
+            }
+            self?.upgradeWatches[key] = nil
+        }
     }
 
     private func focusFailedJobInDrawer(_ jobId: UUID) {

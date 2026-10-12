@@ -10,6 +10,7 @@
   import { vulnerabilities } from "$lib/stores/vulnerabilities.svelte";
   import { github } from "$lib/stores/github.svelte";
   import { bundles } from "$lib/stores/bundles.svelte";
+  import { packages } from "$lib/stores/packages.svelte";
   import { parseDeepLink } from "$lib/util/deeplink";
 
   let { children } = $props();
@@ -100,6 +101,20 @@
       }
     })();
 
+    // Pick up brew changes made in a terminal (e.g. a "Run in Terminal" upgrade)
+    // when the window regains focus. Debounced to 15 s so rapid app-switching is
+    // cheap; `packages.load(true)` refreshes the outdated set + installed list.
+    let lastPkgRecheck = 0;
+    const recheckPackagesOnFocus = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastPkgRecheck < 15_000) return;
+      lastPkgRecheck = now;
+      void packages.load(true).catch(() => {});
+    };
+    window.addEventListener("focus", recheckPackagesOnFocus);
+    document.addEventListener("visibilitychange", recheckPackagesOnFocus);
+
     const unwatch = watchSystemTheme(() => ui.theme);
     const stopProbe = startEnvProbe();
     // Missing-Homebrew onboarding gate: one system_status probe, then a
@@ -113,6 +128,8 @@
       unlistenAbout?.();
       unlistenSettings?.();
       unlistenDeepLink?.();
+      window.removeEventListener("focus", recheckPackagesOnFocus);
+      document.removeEventListener("visibilitychange", recheckPackagesOnFocus);
     };
   });
 </script>

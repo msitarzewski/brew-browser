@@ -258,6 +258,18 @@ struct ActivityDrawer: View {
                                 }
                                 .padding(.top, 2)
                             }
+
+                            // Re-check: BB gets no callback when a Terminal upgrade
+                            // finishes, so offer a one-click re-read (it also auto-
+                            // refreshes on focus + while watching the handed-off
+                            // package). Shown for any brew failure, not app errors.
+                            if !AppModel.isAppError(job) {
+                                Button("Re-check") { Task { await model.recheckBrewState() } }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                    .help("Re-read Homebrew after you've finished in Terminal")
+                                    .padding(.top, 2)
+                            }
                         }
                     }
                     Spacer(minLength: 0)

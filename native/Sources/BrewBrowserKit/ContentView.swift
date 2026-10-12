@@ -164,7 +164,12 @@ public struct ContentView: View {
             // again (e.g. after signing in via Settings) so the chip + dashboard
             // card light up without a manual refresh.
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { Task { await model.loadGithubStatus() } }
+                if phase == .active {
+                    Task { await model.loadGithubStatus() }
+                    // Pick up any brew change made in a terminal while BB was in
+                    // the background (e.g. a "Run in Terminal" upgrade). Debounced.
+                    model.recheckOnActivate()
+                }
             }
             // Wider sidebar so section labels + count badges never crowd, and
             // there's room for the toolbar's icon+text mode without overflow.
