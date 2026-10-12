@@ -2476,6 +2476,22 @@ public final class AppModel {
         (job.exitCode ?? 0) == 0
     }
 
+    /// Open Terminal.app running `brew upgrade <name>` for a single package —
+    /// the permissioned hand-off for a package that failed during a bulk upgrade
+    /// (e.g. a cask whose upgrade needs `sudo`, which can only prompt on a real
+    /// TTY). Validates the token first; a no-op on an unsafe one. The user runs
+    /// it themselves in Terminal, where sudo / Touch ID works.
+    func openTerminalUpgrade(_ name: String) {
+        guard PartialUpgrade.isSafeToken(name) else { return }
+        let brew = brewPrefix + "/bin/brew"
+        let script = PartialUpgrade.terminalRunScript(
+            PartialUpgrade.upgradeCommand(brew: brew, name: name))
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        proc.arguments = ["-e", script]
+        try? proc.run()
+    }
+
     private func focusFailedJobInDrawer(_ jobId: UUID) {
         activeJobId = jobId
         drawerOpen = true

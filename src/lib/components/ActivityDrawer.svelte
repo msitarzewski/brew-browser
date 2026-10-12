@@ -26,6 +26,8 @@
     type RecoveryOption,
     type RecoveryKind,
   } from "$lib/util/recovery";
+  import { classifyPartialUpgrade } from "$lib/util/partialUpgrade";
+  import { openTerminalUpgrade } from "$lib/api";
 
   type Props = {
     maxHeight: number;
@@ -65,6 +67,22 @@
       toast.error("Couldn't run that action", String(e));
     } finally {
       recoveryBusy = false;
+    }
+  }
+
+  // Partial-success upgrade: a bulk `brew upgrade` that upgraded most packages
+  // but exited non-zero on a few (e.g. a cask needing sudo). Report the real
+  // outcome and offer a per-package "Run in Terminal" hand-off, where sudo can
+  // prompt. Only shown when recovery didn't already claim the job.
+  let partialUpgrade = $derived(
+    activeJob && !recovery ? classifyPartialUpgrade(activeJob) : null,
+  );
+
+  async function runUpgradeInTerminal(name: string) {
+    try {
+      await openTerminalUpgrade(name);
+    } catch (e) {
+      toast.error(`Couldn't open Terminal for ${name}`, String(e));
     }
   }
 
@@ -373,6 +391,36 @@
             {:else if activeJob.friendlyMessage}
               <!-- A known brew failure with a curated friendly message. -->
               <p>{activeJob.friendlyMessage}</p>
+            {:else if partialUpgrade}
+              <!-- A bulk upgrade that mostly succeeded but exited non-zero on a
+                   few packages. Report the real outcome + a per-package Terminal
+                   hand-off (where sudo can prompt), not a blanket "Upgrade failed". -->
+              <p>
+                {#if partialUpgrade.upgraded > 0}
+                  Upgraded <strong>{partialUpgrade.upgraded}</strong>
+                  {partialUpgrade.upgraded === 1 ? "package" : "packages"} —
+                {/if}
+                {partialUpgrade.failures.length}
+                {partialUpgrade.failures.length === 1 ? "package" : "packages"}
+                couldn't upgrade automatically (often a cask that needs your
+                password, or whose app was moved). Finish each in Terminal, where
+                it can prompt you:
+              </p>
+              <ul class="partial-failures">
+                {#each partialUpgrade.failures as name (name)}
+                  <li>
+                    <code>{name}</code>
+                    <button
+                      type="button"
+                      class="terminal-btn"
+                      onclick={() => runUpgradeInTerminal(name)}
+                      title={`Open Terminal running: brew upgrade ${name}`}
+                    >
+                      Run in Terminal
+                    </button>
+                  </li>
+                {/each}
+              </ul>
             {:else if activeJob.exitCode != null}
               <!-- brew ran and exited non-zero: a Homebrew/formula problem, NOT a
                    brew-browser bug. Don't invite a report — point at Terminal so the
@@ -637,5 +685,43 @@
     margin-top: var(--space-1);
     font-size: var(--text-caption);
     color: var(--color-text-muted);
+  }
+
+  .partial-failures {
+    list-style: none;
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .partial-failures li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .partial-failures code {
+    font-size: var(--text-body-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .terminal-btn {
+    flex: none;
+    padding: 2px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text);
+    font-size: var(--text-body-sm);
+    font-weight: var(--fw-medium);
+    cursor: pointer;
+    transition: background-color var(--motion-duration-fast) var(--motion-ease-out);
+  }
+  .terminal-btn:hover { background: color-mix(in oklch, currentColor 12%, transparent); }
+  .terminal-btn:focus-visible {
+    outline: 2px solid var(--color-focus, var(--color-brand, var(--color-accent)));
+    outline-offset: 2px;
   }
 </style>

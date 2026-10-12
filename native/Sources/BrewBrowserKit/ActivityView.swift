@@ -211,6 +211,29 @@ struct ActivityDrawer: View {
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                             .fixedSize(horizontal: false, vertical: true)
+                    } else if let partial = PartialUpgrade.classify(job) {
+                        // A bulk upgrade that mostly succeeded but exited non-zero
+                        // on a few packages. Report the real outcome + a per-package
+                        // Terminal hand-off (where sudo can prompt), not a blanket
+                        // "Upgrade failed".
+                        Text(partial.upgraded > 0
+                            ? "Upgraded \(partial.upgraded) \(partial.upgraded == 1 ? "package" : "packages") — \(partial.failures.count) \(partial.failures.count == 1 ? "package" : "packages") couldn't upgrade automatically (often a cask that needs your password, or whose app was moved). Finish each in Terminal, where it can prompt you:"
+                            : "\(partial.failures.count) \(partial.failures.count == 1 ? "package" : "packages") couldn't upgrade automatically. Finish each in Terminal, where it can prompt you:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(partial.failures, id: \.self) { name in
+                                HStack(spacing: 8) {
+                                    Text(name).font(.caption.monospaced())
+                                    Button("Run in Terminal") { model.openTerminalUpgrade(name) }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+                                        .help("Open Terminal running: brew upgrade \(name)")
+                                }
+                            }
+                        }
+                        .padding(.top, 2)
                     } else if !AppModel.isAppError(job) {
                         // brew ran and exited non-zero: a Homebrew/formula problem,
                         // NOT a brew-browser bug. No report — point at Terminal.
