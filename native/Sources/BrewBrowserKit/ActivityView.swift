@@ -169,105 +169,122 @@ struct ActivityDrawer: View {
         .frame(maxHeight: fillsAvailableHeight ? .infinity : nil)
     }
 
-    @ViewBuilder
     private func failureNotice(_ job: ActivityJob) -> some View {
-        if job.status == .failed {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .font(.body)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(AppModel.failureNoticeTitle(for: job.label))
-                        .font(.callout.weight(.semibold))
-                    if let recovery = BrewRecovery.classify(job) {
-                        // A recoverable brew failure (#13/#102/#100): offer a
-                        // one-click retry with the right flag instead of Terminal.
-                        Text(recovery.reason)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        HStack(spacing: 8) {
-                            ForEach(recovery.choices) { spec in
-                                Button(spec.label) {
-                                    Task { await model.runRecovery(recovery, choice: spec.choice) }
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .tint(spec.isDanger ? .red : .accentColor)
-                                .help(spec.hint)
-                            }
-                        }
-                        .padding(.top, 2)
-                        if let hint = recovery.choices.first?.hint {
-                            Text(hint)
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
+        // Classify once. Recovery (install/uninstall) owns its own retry buttons;
+        // otherwise a failed `brew upgrade` with named per-package failures gets
+        // the additive "Run in Terminal" hand-off below the message.
+        let recovery = BrewRecovery.classify(job)
+        let partial = recovery == nil ? PartialUpgrade.classify(job) : nil
+        // A partial success ("Upgraded N …") is not a flat failure — soften the title.
+        let title = (partial?.upgraded ?? 0) > 0
+            ? "Upgrade incomplete"
+            : AppModel.failureNoticeTitle(for: job.label)
+
+        return Group {
+            if job.status == .failed {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.body)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title).font(.callout.weight(.semibold))
+                        if let recovery {
+                            // A recoverable brew failure (#13/#102/#100): offer a
+                            // one-click retry with the right flag instead of Terminal.
+                            Text(recovery.reason)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
-                        }
-                    } else if let friendly = job.friendlyFailureMessage {
-                        // Known brew failure with a curated friendly message.
-                        Text(friendly)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                    } else if let partial = PartialUpgrade.classify(job) {
-                        // A bulk upgrade that mostly succeeded but exited non-zero
-                        // on a few packages. Report the real outcome + a per-package
-                        // Terminal hand-off (where sudo can prompt), not a blanket
-                        // "Upgrade failed".
-                        Text(partial.upgraded > 0
-                            ? "Upgraded \(partial.upgraded) \(partial.upgraded == 1 ? "package" : "packages") — \(partial.failures.count) \(partial.failures.count == 1 ? "package" : "packages") couldn't upgrade automatically (often a cask that needs your password, or whose app was moved). Finish each in Terminal, where it can prompt you:"
-                            : "\(partial.failures.count) \(partial.failures.count == 1 ? "package" : "packages") couldn't upgrade automatically. Finish each in Terminal, where it can prompt you:")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(partial.failures, id: \.self) { name in
-                                HStack(spacing: 8) {
-                                    Text(name).font(.caption.monospaced())
-                                    Button("Run in Terminal") { model.openTerminalUpgrade(name) }
-                                        .buttonStyle(.bordered)
-                                        .controlSize(.small)
-                                        .help("Open Terminal running: brew upgrade \(name)")
+                            HStack(spacing: 8) {
+                                ForEach(recovery.choices) { spec in
+                                    Button(spec.label) {
+                                        Task { await model.runRecovery(recovery, choice: spec.choice) }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                    .tint(spec.isDanger ? .red : .accentColor)
+                                    .help(spec.hint)
                                 }
                             }
+                            .padding(.top, 2)
+                            if let hint = recovery.choices.first?.hint {
+                                Text(hint)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        } else {
+                            // Message: a curated friendly message wins; else the
+                            // partial-success summary; else the generic notice.
+                            if let friendly = job.friendlyFailureMessage {
+                                Text(friendly)
+                                    .font(.caption).foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            } else if let partial {
+                                Text(Self.partialSummary(partial))
+                                    .font(.caption).foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            } else if !AppModel.isAppError(job) {
+                                Text("This looks like a Homebrew error, not a brew-browser bug — the command ran but exited with status \(job.exitCode ?? 0). Try the same command in Terminal; if it fails there too, it's a Homebrew or formula issue to report upstream.")
+                                    .font(.caption).foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            } else {
+                                Text("brew-browser hit an unexpected error running this command.")
+                                    .font(.caption).foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Button("Report to brew-browser") {
+                                    ReportIssue.open(for: job, brewVersion: model.brewVersion)
+                                }
+                                .buttonStyle(.link).font(.caption)
+                            }
+
+                            // Additive per-package Terminal hand-off — shown whenever
+                            // the failed upgrade names packages, even alongside a
+                            // curated message (e.g. the sudo-cask case), so the user
+                            // gets a one-click prompt instead of typing the command.
+                            if let partial {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    ForEach(partial.failures, id: \.self) { name in
+                                        HStack(spacing: 8) {
+                                            Text(name).font(.caption.monospaced())
+                                            Button("Run in Terminal") { model.openTerminalUpgrade(name) }
+                                                .buttonStyle(.bordered)
+                                                .controlSize(.small)
+                                                .help("Open Terminal running: brew upgrade \(name)")
+                                        }
+                                    }
+                                }
+                                .padding(.top, 2)
+                            }
                         }
-                        .padding(.top, 2)
-                    } else if !AppModel.isAppError(job) {
-                        // brew ran and exited non-zero: a Homebrew/formula problem,
-                        // NOT a brew-browser bug. No report — point at Terminal.
-                        Text("This looks like a Homebrew error, not a brew-browser bug — the command ran but exited with status \(job.exitCode ?? 0). Try the same command in Terminal; if it fails there too, it's a Homebrew or formula issue to report upstream.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                    } else {
-                        // No brew exit code = the app couldn't run the command. Our bug.
-                        Text("brew-browser hit an unexpected error running this command.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Button("Report to brew-browser") {
-                            ReportIssue.open(for: job, brewVersion: model.brewVersion)
-                        }
-                        .buttonStyle(.link)
-                        .font(.caption)
                     }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .strokeBorder(.red.opacity(0.35), lineWidth: 1)
+                )
+                .padding(.top, 8)
+                .padding(.trailing, 12)
+                .padding(.leading, 8)
             }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(.red.opacity(0.35), lineWidth: 1)
-            )
-            .padding(.top, 8)
-            .padding(.trailing, 12)
-            .padding(.leading, 8)
         }
+    }
+
+    /// Body text for a partial-success upgrade (no curated friendly message).
+    static func partialSummary(_ p: PartialUpgrade.Result) -> String {
+        let n = p.failures.count
+        let pkgWord = n == 1 ? "package" : "packages"
+        if p.upgraded > 0 {
+            let upWord = p.upgraded == 1 ? "package" : "packages"
+            return "Upgraded \(p.upgraded) \(upWord) — \(n) \(pkgWord) couldn't upgrade automatically (often a cask that needs your password, or whose app was moved). Finish each in Terminal, where it can prompt you:"
+        }
+        return "\(n) \(pkgWord) couldn't upgrade automatically. Finish each in Terminal, where it can prompt you:"
     }
 
     private func console(_ job: ActivityJob) -> some View {

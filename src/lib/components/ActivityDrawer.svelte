@@ -368,7 +368,8 @@
           <aside class="failure-card" aria-label="Failure details">
             <div class="failure-card-head">
               <AlertTriangle size={16} />
-              <h3>{failureTitle(activeJob.label)}</h3>
+              <!-- A partial success ("Upgraded N …") isn't a flat failure — soften. -->
+              <h3>{partialUpgrade && partialUpgrade.upgraded > 0 ? "Upgrade incomplete" : failureTitle(activeJob.label)}</h3>
             </div>
             {#if recovery}
               <!-- A recoverable brew failure (#13/#102/#100): offer a one-click
@@ -388,61 +389,64 @@
                 {/each}
               </div>
               <p class="recovery-hint">{recovery.choices[0].hint}</p>
-            {:else if activeJob.friendlyMessage}
-              <!-- A known brew failure with a curated friendly message. -->
-              <p>{activeJob.friendlyMessage}</p>
-            {:else if partialUpgrade}
-              <!-- A bulk upgrade that mostly succeeded but exited non-zero on a
-                   few packages. Report the real outcome + a per-package Terminal
-                   hand-off (where sudo can prompt), not a blanket "Upgrade failed". -->
-              <p>
-                {#if partialUpgrade.upgraded > 0}
-                  Upgraded <strong>{partialUpgrade.upgraded}</strong>
-                  {partialUpgrade.upgraded === 1 ? "package" : "packages"} —
-                {/if}
-                {partialUpgrade.failures.length}
-                {partialUpgrade.failures.length === 1 ? "package" : "packages"}
-                couldn't upgrade automatically (often a cask that needs your
-                password, or whose app was moved). Finish each in Terminal, where
-                it can prompt you:
-              </p>
-              <ul class="partial-failures">
-                {#each partialUpgrade.failures as name (name)}
-                  <li>
-                    <code>{name}</code>
-                    <button
-                      type="button"
-                      class="terminal-btn"
-                      onclick={() => runUpgradeInTerminal(name)}
-                      title={`Open Terminal running: brew upgrade ${name}`}
-                    >
-                      Run in Terminal
-                    </button>
-                  </li>
-                {/each}
-              </ul>
-            {:else if activeJob.exitCode != null}
-              <!-- brew ran and exited non-zero: a Homebrew/formula problem, NOT a
-                   brew-browser bug. Don't invite a report — point at Terminal so the
-                   real (upstream) failure is taken to the right place. -->
-              <p>
-                This looks like a <strong>Homebrew</strong> error, not a brew-browser bug —
-                the command ran but exited with status {activeJob.exitCode}. Try the same
-                command in Terminal; if it fails there too, it's a Homebrew or formula issue
-                to report upstream.
-              </p>
             {:else}
-              <!-- No exit code = brew-browser couldn't run the command (IPC/spawn
-                   failure). That IS our bug, so this is the only case that offers a report. -->
-              <p>brew-browser hit an unexpected error running this command.</p>
-              <button
-                type="button"
-                class="report-btn"
-                onclick={() => { void openReportIssueFromJob(activeJob!, activeJob!.label); }}
-                title="Open a pre-filled GitHub issue against brew-browser with this output"
-              >
-                Report to brew-browser
-              </button>
+              <!-- Message: a curated friendly message wins; else the partial-success
+                   summary; else the generic Homebrew / app-error notice. -->
+              {#if activeJob.friendlyMessage}
+                <p>{activeJob.friendlyMessage}</p>
+              {:else if partialUpgrade}
+                <p>
+                  {#if partialUpgrade.upgraded > 0}
+                    Upgraded <strong>{partialUpgrade.upgraded}</strong>
+                    {partialUpgrade.upgraded === 1 ? "package" : "packages"} —
+                  {/if}
+                  {partialUpgrade.failures.length}
+                  {partialUpgrade.failures.length === 1 ? "package" : "packages"}
+                  couldn't upgrade automatically (often a cask that needs your
+                  password, or whose app was moved). Finish each in Terminal, where
+                  it can prompt you:
+                </p>
+              {:else if activeJob.exitCode != null}
+                <p>
+                  This looks like a <strong>Homebrew</strong> error, not a brew-browser bug —
+                  the command ran but exited with status {activeJob.exitCode}. Try the same
+                  command in Terminal; if it fails there too, it's a Homebrew or formula issue
+                  to report upstream.
+                </p>
+              {:else}
+                <!-- No exit code = brew-browser couldn't run the command (IPC/spawn
+                     failure). That IS our bug, so this is the only case that reports. -->
+                <p>brew-browser hit an unexpected error running this command.</p>
+                <button
+                  type="button"
+                  class="report-btn"
+                  onclick={() => { void openReportIssueFromJob(activeJob!, activeJob!.label); }}
+                  title="Open a pre-filled GitHub issue against brew-browser with this output"
+                >
+                  Report to brew-browser
+                </button>
+              {/if}
+
+              <!-- Additive per-package Terminal hand-off — shown whenever the failed
+                   upgrade names packages, even alongside a curated message (e.g. the
+                   sudo-cask case), so the user gets a one-click prompt. -->
+              {#if partialUpgrade}
+                <ul class="partial-failures">
+                  {#each partialUpgrade.failures as name (name)}
+                    <li>
+                      <code>{name}</code>
+                      <button
+                        type="button"
+                        class="terminal-btn"
+                        onclick={() => runUpgradeInTerminal(name)}
+                        title={`Open Terminal running: brew upgrade ${name}`}
+                      >
+                        Run in Terminal
+                      </button>
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
             {/if}
           </aside>
         {/if}
