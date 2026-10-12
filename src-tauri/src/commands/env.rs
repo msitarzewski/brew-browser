@@ -176,11 +176,115 @@ pub async fn open_terminal_install() -> Result<(), BrewError> {
     }
 }
 
+/// Accept only a brew package token for the Terminal hand-off: ASCII
+/// alphanumerics plus `@ . _ + -` and the tap separator `/`. No whitespace,
+/// quotes, or shell metacharacters can slip into the Terminal command, and a
+/// leading `-` (flag injection) or `..` (path traversal) is rejected. This is
+/// the whole trust boundary for `open_terminal_upgrade` — the token comes from
+/// brew's own error output, but we validate it here regardless.
+fn is_safe_upgrade_token(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 128
+        && !name.starts_with('-')
+        && !name.starts_with('/')
+        && !name.contains("..")
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '@' | '.' | '_' | '+' | '-' | '/'))
+}
+
+/// The `brew upgrade <name>` command string. The brew path is app-resolved and
+/// single-quoted defensively; `name` is pre-validated to a shell-safe token so
+/// it needs no quoting. Pure + testable.
+#[cfg(target_os = "macos")]
+fn upgrade_command(brew_path: &str, name: &str) -> String {
+    format!("'{}' upgrade {}", brew_path.replace('\'', "'\\''"), name)
+}
+
+/// AppleScript that opens Terminal.app and runs `command` in a fresh window.
+/// `command` is escaped for the AppleScript string literal (backslash then
+/// double-quote). Pure + testable.
+#[cfg(target_os = "macos")]
+fn terminal_run_script(command: &str) -> String {
+    let escaped = command.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("tell application \"Terminal\"\n\tactivate\n\tdo script \"{escaped}\"\nend tell")
+}
+
+/// Open Terminal.app running `brew upgrade <name>` for a single package — the
+/// permissioned hand-off for a package that failed during a bulk upgrade
+/// (e.g. a cask whose upgrade needs `sudo`, which can only prompt on a real
+/// TTY). The user runs it themselves in Terminal, where sudo/Touch ID works.
+#[tauri::command]
+pub async fn open_terminal_upgrade(
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<(), BrewError> {
+    if !is_safe_upgrade_token(&name) {
+        return Err(BrewError::InvalidArgument {
+            message: format!("unsafe package token: {name:?}"),
+        });
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let brew = state.require_brew_path().await?;
+        let script = terminal_run_script(&upgrade_command(&brew.to_string_lossy(), &name));
+        let status = tokio::process::Command::new("/usr/bin/osascript")
+            .arg("-e")
+            .arg(script)
+            .status()
+            .await
+            .map_err(|e| BrewError::Io {
+                message: format!("failed to spawn osascript: {e}"),
+            })?;
+        if !status.success() {
+            return Err(BrewError::Internal {
+                message: format!("osascript exited with {:?}", status.code()),
+            });
+        }
+        Ok(())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = &state;
+        Err(BrewError::Internal {
+            message: "open_terminal_upgrade is only available on macOS".into(),
+        })
+    }
+}
+
 // ---------- Tests ----------
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn upgrade_token_accepts_real_brew_tokens() {
+        for ok in ["miniconda", "qlmarkdown", "temurin@17", "node@24", "php@8.3", "user/tap/name", "a-b_c.d+e"] {
+            assert!(is_safe_upgrade_token(ok), "should accept {ok:?}");
+        }
+    }
+
+    #[test]
+    fn upgrade_token_rejects_injection() {
+        for bad in ["", "-rf", "/etc/passwd", "../x", "a b", "a;rm -rf /", "a\"b", "a'b", "a&&b", "a|b", "$(x)", "a`b`"] {
+            assert!(!is_safe_upgrade_token(bad), "should reject {bad:?}");
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn terminal_script_escapes_for_applescript() {
+        // A safe token never contains quotes/backslashes, but the escaper must
+        // still be correct for the quoted brew path.
+        let cmd = upgrade_command("/opt/homebrew/bin/brew", "miniconda");
+        assert_eq!(cmd, "'/opt/homebrew/bin/brew' upgrade miniconda");
+        let script = terminal_run_script(&cmd);
+        assert!(script.contains("do script \"'/opt/homebrew/bin/brew' upgrade miniconda\""));
+        assert!(script.starts_with("tell application \"Terminal\""));
+        // A path with a double-quote is escaped, not left to break the literal.
+        assert!(terminal_run_script("say \"hi\"").contains("\\\"hi\\\""));
+    }
     use serde_json::Value;
 
     #[test]

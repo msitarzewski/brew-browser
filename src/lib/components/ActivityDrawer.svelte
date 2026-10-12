@@ -26,6 +26,9 @@
     type RecoveryOption,
     type RecoveryKind,
   } from "$lib/util/recovery";
+  import { classifyPartialUpgrade } from "$lib/util/partialUpgrade";
+  import { openTerminalUpgrade } from "$lib/api";
+  import { packages } from "$lib/stores/packages.svelte";
 
   type Props = {
     maxHeight: number;
@@ -66,6 +69,44 @@
     } finally {
       recoveryBusy = false;
     }
+  }
+
+  // Partial-success upgrade: a bulk `brew upgrade` that upgraded most packages
+  // but exited non-zero on a few (e.g. a cask needing sudo). Report the real
+  // outcome and offer a per-package "Run in Terminal" hand-off, where sudo can
+  // prompt. Only shown when recovery didn't already claim the job.
+  let partialUpgrade = $derived(
+    activeJob && !recovery ? classifyPartialUpgrade(activeJob) : null,
+  );
+
+  async function runUpgradeInTerminal(name: string) {
+    try {
+      await openTerminalUpgrade(name);
+      watchUpgrade(name);
+    } catch (e) {
+      toast.error(`Couldn't open Terminal for ${name}`, String(e));
+    }
+  }
+
+  function stillOutdated(name: string): boolean {
+    return packages.outdated.some((p) => p.name === name || p.name.endsWith("/" + name));
+  }
+
+  // The Terminal upgrade runs detached — no completion callback — so poll the
+  // outdated set until the package drops out (the user finished), then stop.
+  // Bounded by a 3-minute timeout. Focus-refresh + the Re-check button also
+  // cover it. Each tick's `packages.load(true)` updates the whole UI live.
+  function watchUpgrade(name: string) {
+    const deadline = Date.now() + 180_000;
+    const id = setInterval(() => {
+      if (Date.now() > deadline) {
+        clearInterval(id);
+        return;
+      }
+      void packages.load(true).then(() => {
+        if (!stillOutdated(name)) clearInterval(id);
+      });
+    }, 8000);
   }
 
   // ─── Adaptive aria-live for high-volume install streams (security audit §N4).
@@ -350,7 +391,8 @@
           <aside class="failure-card" aria-label="Failure details">
             <div class="failure-card-head">
               <AlertTriangle size={16} />
-              <h3>{failureTitle(activeJob.label)}</h3>
+              <!-- A partial success ("Upgraded N …") isn't a flat failure — soften. -->
+              <h3>{partialUpgrade && partialUpgrade.upgraded > 0 ? "Upgrade incomplete" : failureTitle(activeJob.label)}</h3>
             </div>
             {#if recovery}
               <!-- A recoverable brew failure (#13/#102/#100): offer a one-click
@@ -370,31 +412,79 @@
                 {/each}
               </div>
               <p class="recovery-hint">{recovery.choices[0].hint}</p>
-            {:else if activeJob.friendlyMessage}
-              <!-- A known brew failure with a curated friendly message. -->
-              <p>{activeJob.friendlyMessage}</p>
-            {:else if activeJob.exitCode != null}
-              <!-- brew ran and exited non-zero: a Homebrew/formula problem, NOT a
-                   brew-browser bug. Don't invite a report — point at Terminal so the
-                   real (upstream) failure is taken to the right place. -->
-              <p>
-                This looks like a <strong>Homebrew</strong> error, not a brew-browser bug —
-                the command ran but exited with status {activeJob.exitCode}. Try the same
-                command in Terminal; if it fails there too, it's a Homebrew or formula issue
-                to report upstream.
-              </p>
             {:else}
-              <!-- No exit code = brew-browser couldn't run the command (IPC/spawn
-                   failure). That IS our bug, so this is the only case that offers a report. -->
-              <p>brew-browser hit an unexpected error running this command.</p>
-              <button
-                type="button"
-                class="report-btn"
-                onclick={() => { void openReportIssueFromJob(activeJob!, activeJob!.label); }}
-                title="Open a pre-filled GitHub issue against brew-browser with this output"
-              >
-                Report to brew-browser
-              </button>
+              <!-- Message: a curated friendly message wins; else the partial-success
+                   summary; else the generic Homebrew / app-error notice. -->
+              {#if activeJob.friendlyMessage}
+                <p>{activeJob.friendlyMessage}</p>
+              {:else if partialUpgrade}
+                <p>
+                  {#if partialUpgrade.upgraded > 0}
+                    Upgraded <strong>{partialUpgrade.upgraded}</strong>
+                    {partialUpgrade.upgraded === 1 ? "package" : "packages"} —
+                  {/if}
+                  {partialUpgrade.failures.length}
+                  {partialUpgrade.failures.length === 1 ? "package" : "packages"}
+                  couldn't upgrade automatically (often a cask that needs your
+                  password, or whose app was moved). Finish each in Terminal, where
+                  it can prompt you:
+                </p>
+              {:else if activeJob.exitCode != null}
+                <p>
+                  This looks like a <strong>Homebrew</strong> error, not a brew-browser bug —
+                  the command ran but exited with status {activeJob.exitCode}. Try the same
+                  command in Terminal; if it fails there too, it's a Homebrew or formula issue
+                  to report upstream.
+                </p>
+              {:else}
+                <!-- No exit code = brew-browser couldn't run the command (IPC/spawn
+                     failure). That IS our bug, so this is the only case that reports. -->
+                <p>brew-browser hit an unexpected error running this command.</p>
+                <button
+                  type="button"
+                  class="report-btn"
+                  onclick={() => { void openReportIssueFromJob(activeJob!, activeJob!.label); }}
+                  title="Open a pre-filled GitHub issue against brew-browser with this output"
+                >
+                  Report to brew-browser
+                </button>
+              {/if}
+
+              <!-- Additive per-package Terminal hand-off — shown whenever the failed
+                   upgrade names packages, even alongside a curated message (e.g. the
+                   sudo-cask case), so the user gets a one-click prompt. -->
+              {#if partialUpgrade}
+                <ul class="partial-failures">
+                  {#each partialUpgrade.failures as name (name)}
+                    <li>
+                      <code>{name}</code>
+                      <button
+                        type="button"
+                        class="terminal-btn"
+                        onclick={() => runUpgradeInTerminal(name)}
+                        title={`Open Terminal running: brew upgrade ${name}`}
+                      >
+                        Run in Terminal
+                      </button>
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+
+              <!-- Re-check: BB gets no callback when a Terminal upgrade finishes,
+                   so offer a one-click re-read (it also auto-refreshes on focus +
+                   while watching the handed-off package). Any brew failure, not
+                   our own spawn errors. -->
+              {#if activeJob.exitCode != null}
+                <button
+                  type="button"
+                  class="terminal-btn recheck-btn"
+                  onclick={() => { void packages.load(true); }}
+                  title="Re-read Homebrew after you've finished in Terminal"
+                >
+                  Re-check
+                </button>
+              {/if}
             {/if}
           </aside>
         {/if}
@@ -637,5 +727,44 @@
     margin-top: var(--space-1);
     font-size: var(--text-caption);
     color: var(--color-text-muted);
+  }
+
+  .partial-failures {
+    list-style: none;
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .partial-failures li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .partial-failures code {
+    font-size: var(--text-body-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .terminal-btn {
+    flex: none;
+    padding: 2px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text);
+    font-size: var(--text-body-sm);
+    font-weight: var(--fw-medium);
+    cursor: pointer;
+    transition: background-color var(--motion-duration-fast) var(--motion-ease-out);
+  }
+  .terminal-btn:hover { background: color-mix(in oklch, currentColor 12%, transparent); }
+  .recheck-btn { margin-top: var(--space-2); align-self: flex-start; }
+  .terminal-btn:focus-visible {
+    outline: 2px solid var(--color-focus, var(--color-brand, var(--color-accent)));
+    outline-offset: 2px;
   }
 </style>

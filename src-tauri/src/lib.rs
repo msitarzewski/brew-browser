@@ -186,6 +186,7 @@ pub fn run() {
             system_status,
             brew_redetect,
             open_terminal_install,
+            open_terminal_upgrade,
             brew_get_analytics,
             brew_set_analytics,
             brew_list,

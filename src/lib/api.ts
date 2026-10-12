@@ -99,6 +99,18 @@ export function openTerminalInstall(): Promise<void> {
 }
 
 /**
+ * Open Terminal.app running `brew upgrade <name>` for a single package — the
+ * permissioned hand-off for a package that failed during a bulk upgrade (e.g.
+ * a cask whose upgrade needs `sudo`, which can only prompt on a real TTY). The
+ * backend validates `name` to a shell-safe brew token before building the
+ * command. Throws a typed `BrewErrorPayload` on an unsafe token or osascript
+ * failure.
+ */
+export function openTerminalUpgrade(name: string): Promise<void> {
+  return invoke<void>("open_terminal_upgrade", { name });
+}
+
+/**
  * Read the installed package list (formulae + casks).
  *
  * Pass `force: true` to bypass the backend's `installed_cache` —
